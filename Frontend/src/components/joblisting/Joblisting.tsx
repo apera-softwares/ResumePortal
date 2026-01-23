@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 
 
 export default function Joblisting({ jData }: any) {
+   const API_URL = process.env.NEXT_PUBLIC_API_URL;
   const [searchitem, setSearchitem] = useState<string>('');
 
   const [filteredjobs, setFilterdJobs] = useState(jData);
@@ -16,7 +17,7 @@ useEffect(() => {
   const handleDelete=async(jobid :Number)=>{
     if (!confirm("Are you sure you want to delete this job?")) return;
       const token = localStorage.getItem("token");
-    const idUrl = `http://192.168.1.48:3003/jobs/${jobid}`;
+    const idUrl = `${API_URL}/jobs/${jobid}`;
       try{
         const res = await  fetch(idUrl , {
           method:"DELETE",

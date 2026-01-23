@@ -32,6 +32,7 @@ import {
   TableRow,
 } from "../ui/table";
 export default function UsersTable(callApi: any) {
+   const API_URL = process.env.NEXT_PUBLIC_API_URL;
   const [data, setData] = useState<User[]>([]);
   const { isOpen, openModal, closeModal } = useModal();
 
@@ -45,7 +46,7 @@ export default function UsersTable(callApi: any) {
 
   const fetchData = async () => {
     const token = localStorage.getItem("token")
-    const fetchUrl = "http://192.168.1.48:3003/users";
+    const fetchUrl = `${API_URL}/users`;
 
     try {
       const response = await fetch(fetchUrl, {

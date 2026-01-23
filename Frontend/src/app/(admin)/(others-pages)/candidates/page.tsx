@@ -18,6 +18,7 @@ interface Candidate {
 }
 
 export default function Candidates() {
+   const API_URL = process.env.NEXT_PUBLIC_API_URL;
   const role =localStorage.getItem("role")
   const [candidatesData, setCandidatesData] = useState<Candidate[]>([]);
 
@@ -30,7 +31,7 @@ export default function Candidates() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await fetch("http://192.168.1.48:3003/candidates", {
+        const res = await fetch(`${API_URL}/candidates`, {
           method: "GET",
           headers: { "Content-Type": "application/json" },
         });
@@ -38,8 +39,8 @@ export default function Candidates() {
           throw new Error("Something went wrong while fetching candidates");
         }
         const data = await res.json();
-        const candidatesArray = Array.isArray(data.data) ? data.data : data; // handles both cases
-setCandidatesData(candidatesArray || []);
+        const candidatesArray = Array.isArray(data.data) ? data.data : data; 
+        setCandidatesData(candidatesArray || []);
       } catch (error) {
         console.error("Error fetching candidates:", error);
       }
@@ -50,7 +51,7 @@ setCandidatesData(candidatesArray || []);
 
   const handleDelete =async(candidatesID : number)=>{
      if (!confirm("Are you sure you want to delete this job?")) return;
- const url =`http://192.168.1.48:3003/candidates/${candidatesID}`
+ const url =`${API_URL}/candidates/${candidatesID}`
   try{
        const res =await fetch(url , {
         method:"DELETE",
@@ -65,21 +66,21 @@ setCandidatesData(candidatesArray || []);
 
   return (
     <div className="min-h-[80vh] w-full">
-      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white  ">
+      <div className="overflow-hidden rounded-xl border min-h-[82vh] border-gray-200 bg-white  ">
         <div className="max-w-full overflow-x-auto">
-          <div className="min-w-[1102px]">
+          <div className="min-w-[1102px] ">
             <Table>
               {/* Header */}
-              <TableHeader className="border-b border-gray-200    ">
-                <TableRow className=" ">
-                  <TableCell isHeader>Candidate Name</TableCell>
-                  <TableCell isHeader>Email</TableCell>
-                  <TableCell isHeader>Mobile No</TableCell>
-                  <TableCell isHeader>Years of Experience</TableCell>
-                  <TableCell isHeader>Education</TableCell>
-                  <TableCell isHeader>Skills</TableCell>
-                  <TableCell isHeader>Resume</TableCell>
-                  {role =="CLIENT"? "" :(<TableCell isHeader>Delete</TableCell>)}
+              <TableHeader className="border-b  border-gray-200    ">
+                <TableRow className="h-12 font-medium">
+                  <TableCell isHeader className="font-medium">Candidate Name</TableCell>
+                  <TableCell isHeader className="font-medium">Email</TableCell>
+                  <TableCell isHeader className="font-medium">Mobile No</TableCell>
+                  <TableCell isHeader className="font-medium">Years of Experience</TableCell>
+                  <TableCell isHeader className="font-medium">Education</TableCell>
+                  <TableCell isHeader className="font-medium">Skills</TableCell>
+                  <TableCell isHeader className="font-medium">Resume</TableCell>
+                  {role =="CLIENT"? "" :(<TableCell isHeader className="font-medium">Delete</TableCell>)}
                 </TableRow>
               </TableHeader>
 

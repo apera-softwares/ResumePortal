@@ -12,6 +12,7 @@ import toast from "react-hot-toast";
 const notify = () => toast.success("Login Succesful.");
 const failed = () => toast.error("Login Failed.");
 
+  const API_URL = process.env.NEXT_PUBLIC_API_URL;
 export default function LogInForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [isChecked, setIsChecked] = useState(false);
@@ -66,7 +67,7 @@ export default function LogInForm() {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const loginUrl = "http://192.168.1.48:3003/users/login";
+    const loginUrl = `${API_URL}/users/login`;
 
     try {
       const response = await fetch(loginUrl, {

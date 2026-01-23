@@ -1,8 +1,8 @@
 export default function EditResume({ resume }: { resume: string }) {
-
+ const API_URL = process.env.NEXT_PUBLIC_API_URL;
   const handleView = () => {
 
-    window.open(`http://192.168.1.48:3003/uploads/${resume}`, "_blank");
+    window.open(`${API_URL}/uploads/${resume}`, "_blank");
   };
 
   return (
