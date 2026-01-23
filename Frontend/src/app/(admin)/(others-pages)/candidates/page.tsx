@@ -65,21 +65,21 @@ setCandidatesData(candidatesArray || []);
 
   return (
     <div className="min-h-[80vh] w-full">
-      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white  ">
+      <div className="overflow-hidden rounded-xl border min-h-[82vh] border-gray-200 bg-white  ">
         <div className="max-w-full overflow-x-auto">
-          <div className="min-w-[1102px]">
+          <div className="min-w-[1102px] ">
             <Table>
               {/* Header */}
-              <TableHeader className="border-b border-gray-200    ">
-                <TableRow className=" ">
-                  <TableCell isHeader>Candidate Name</TableCell>
-                  <TableCell isHeader>Email</TableCell>
-                  <TableCell isHeader>Mobile No</TableCell>
-                  <TableCell isHeader>Years of Experience</TableCell>
-                  <TableCell isHeader>Education</TableCell>
-                  <TableCell isHeader>Skills</TableCell>
-                  <TableCell isHeader>Resume</TableCell>
-                  {role =="CLIENT"? "" :(<TableCell isHeader>Delete</TableCell>)}
+              <TableHeader className="border-b  border-gray-200    ">
+                <TableRow className="h-12 font-medium">
+                  <TableCell isHeader className="font-medium">Candidate Name</TableCell>
+                  <TableCell isHeader className="font-medium">Email</TableCell>
+                  <TableCell isHeader className="font-medium">Mobile No</TableCell>
+                  <TableCell isHeader className="font-medium">Years of Experience</TableCell>
+                  <TableCell isHeader className="font-medium">Education</TableCell>
+                  <TableCell isHeader className="font-medium">Skills</TableCell>
+                  <TableCell isHeader className="font-medium">Resume</TableCell>
+                  {role =="CLIENT"? "" :(<TableCell isHeader className="font-medium">Delete</TableCell>)}
                 </TableRow>
               </TableHeader>
 

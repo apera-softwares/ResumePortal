@@ -1,8 +1,7 @@
+
 import { Outfit } from 'next/font/google';
 import './globals.css';
-import { Toaster } from 'react-hot-toast';
-import { SidebarProvider } from '@/context/SidebarContext';
-import { ThemeProvider } from '@/context/ThemeContext';
+import { Providers } from './providers';
 
 const outfit = Outfit({
   subsets: ["latin"],
@@ -14,12 +13,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={`${outfit.className}`}>
-        <ThemeProvider>
-          <SidebarProvider>{children}</SidebarProvider>
-                  <Toaster position="top-center" reverseOrder={false} />
-        </ThemeProvider>
+    <html lang="en" suppressHydrationWarning>
+      <body className={`${outfit.className}`} suppressHydrationWarning>
+          <Providers>{children}</Providers>
       </body>
     </html>
   );
