@@ -48,7 +48,8 @@ export default function ResumeUploadForm() {
     });
 
     try {
-      const response = await fetch("http://192.168.1.48:3003/candidates/create", {
+       const API_URL = process.env.NEXT_PUBLIC_API_URL;
+      const response = await fetch(`${API_URL}/candidates/create`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token || ""}`,

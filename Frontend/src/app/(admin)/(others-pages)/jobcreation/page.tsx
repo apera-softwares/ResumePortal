@@ -30,6 +30,7 @@
   }
 
   export default function jobscreation() {
+    const API_URL = process.env.NEXT_PUBLIC_API_URL;
     const { isOpen, openModal, closeModal } = useModal();
     const [jData, setJData] = useState<Job[]>([]);
     const [selectedOption, setSelectedOption] = useState(null);
@@ -62,7 +63,7 @@
       const token = localStorage.getItem("token");
 
       try {
-        const response = await fetch("http://192.168.1.48:3003/jobs/create", {
+        const response = await fetch(`${API_URL}/jobs/create`, {
           method: "POST",
           headers: {
             'Authorization': `Bearer ${token}`,

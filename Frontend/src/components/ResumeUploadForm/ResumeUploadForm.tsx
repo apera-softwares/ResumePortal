@@ -5,6 +5,7 @@ import Select from 'react-select';
 import { useEffect, useState } from "react";
 
 export default function ResumeUploadForm({closeModal} :any ) {
+   const API_URL = process.env.NEXT_PUBLIC_API_URL;
   const [candidData, setcanditData] = useState<any[]>([]);
      const [selectedOption, setSelectedOption] = useState<any[]>([]);
 
@@ -63,7 +64,7 @@ export default function ResumeUploadForm({closeModal} :any ) {
     
      console.log("bodyData",bodyData)
     try {
-      const response = await fetch("http://192.168.1.48:3003/candidates/uploadMedia", {
+      const response = await fetch(`${API_URL}/candidates/uploadMedia`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token || ""}`,
