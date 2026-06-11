@@ -8,6 +8,9 @@ import { NotFoundException } from '@nestjs/common';
 import * as fs from 'fs';
 import { PDFParse } from 'pdf-parse';
 import * as mammoth from 'mammoth';
+import { Document, Packer, Paragraph, TextRun } from 'docx';
+import * as libre from 'libreoffice-convert';
+import { promisify } from 'util';
 
 @Injectable()
 export class CandidateService {
@@ -126,5 +129,75 @@ export class CandidateService {
     return await this.prisma.candidate.delete({
       where: { id },
     });
+  }
+
+  private cleanContactDetails(text: string): string {
+    if (!text) return '';
+
+    // Regex for emails
+    const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+
+    // Regex for phone numbers (matches standard pattern with country code, area codes, spaces, dashes, parentheses)
+    const phoneRegex = /(\(?\+?\d{1,4}\)?[-.\s]*)?\(?\d{2,5}\)?[-.\s()]*\d{3,4}[-.\s()]*\d{2,4}/g;
+
+    let cleaned = text.replace(emailRegex, '');
+    cleaned = cleaned.replace(phoneRegex, '');
+
+    return cleaned;
+  }
+
+  async generateCleanedDoc(id: number): Promise<any> {
+    const candidate = await this.prisma.candidate.findUnique({
+      where: { id },
+    });
+
+    if (!candidate) {
+      throw new NotFoundException(`Candidate with ID ${id} not found`);
+    }
+
+    if (!candidate.resumeText) {
+      throw new NotFoundException(`Candidate with ID ${id} does not have any resume text to clean`);
+    }
+
+    const cleanedText = this.cleanContactDetails(candidate.resumeText);
+
+    // Generate docx
+    const doc = new Document({
+      sections: [
+        {
+          properties: {},
+          children: cleanedText.split('\n').map((line) => {
+            return new Paragraph({
+              children: [
+                new TextRun({
+                  text: line,
+                  size: 24, // 24 half-points = 12pt font size
+                }),
+              ],
+            });
+          }),
+        },
+      ],
+    });
+
+    const docxBuffer = await Packer.toBuffer(doc);
+
+    const fileName = `cleaned-resume-${id}-${Date.now()}.docx`;
+    const filePath = join(process.cwd(), 'uploads', fileName);
+
+    fs.writeFileSync(filePath, docxBuffer);
+
+    // Save the doc link/filename in DB
+    const updatedCandidate = await this.prisma.candidate.update({
+      where: { id },
+      data: {
+        cleanedResume: fileName,
+      },
+      include: {
+        skills: true,
+      },
+    });
+
+    return updatedCandidate;
   }
 }

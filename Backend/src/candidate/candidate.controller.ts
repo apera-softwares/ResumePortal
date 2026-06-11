@@ -61,4 +61,9 @@ export class CandidateController {
     return await this.candidateService.remove(id)
   }
 
+  // generate cleaned resume doc
+  @Post(":id/clean-resume")
+  async cleanResume(@Param("id", ParseIntPipe) id: number) {
+    return await this.candidateService.generateCleanedDoc(id);
+  }
 }
