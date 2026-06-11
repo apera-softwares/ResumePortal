@@ -32,6 +32,7 @@ export default function LogInForm() {
     setFormData({ ...formData, [name]: value });
   };
 
+  /*
   const validateFormData = () => {
     let isValidData = true;
     const tempErrors = { ...errors };
@@ -64,6 +65,7 @@ export default function LogInForm() {
     setErrors(tempErrors);
     return isValidData;
   }; 
+  */
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -90,6 +92,7 @@ export default function LogInForm() {
       localStorage.setItem("token", data.data.token);
       localStorage.setItem("role", data.data.role);
       localStorage.setItem("name", data.data.name);
+      localStorage.setItem("userId", String(data.data.id));
       router.push("/dashboard");
       return data;
     } catch (error) {

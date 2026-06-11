@@ -34,6 +34,7 @@ model Job {
   type           JobType
   createdById    Int
   createdBy      User      @relation(fields: [createdById], references: [id])
+  candidates     Candidate[]
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 }
@@ -76,6 +77,9 @@ model Candidate {
   resumeText         String?    // Extracted text from PDF/DOCX
   cleanedResume      String?    // File path for cleaned resume
   skills             Skill[]    @relation("CandidateSkills")
+  jobId              Int?
+  job                Job?       @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  status             String     @default("Applied")
   createdAt          DateTime   @default(now())
   updatedAt          DateTime   @updatedAt
 }

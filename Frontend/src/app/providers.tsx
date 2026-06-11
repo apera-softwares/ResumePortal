@@ -9,7 +9,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <ThemeProvider>
       <SidebarProvider>
         {children}
-        <Toaster position="top-center" />
+        <Toaster position="top-center" containerStyle={{ zIndex: 9999999 }} />
       </SidebarProvider>
     </ThemeProvider>
   );

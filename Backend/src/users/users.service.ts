@@ -93,6 +93,7 @@ export class UsersService {
         massage: 'User login success',
         statusCode: 200,
         data: {
+          id: getUserByEmail.id,
           token: jwtToken,
           name: getUserByEmail.name,
           email: getUserByEmail.email,

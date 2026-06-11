@@ -33,13 +33,13 @@ router.replace("/")
   return (
     <> 
    
-    <div className="min-h-screen border-2 xl:flex">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 border-0 xl:flex">
       {/* Sidebar and Backdrop */}
       <AppSidebar />
       <Backdrop />
       {/* Main Content Area */}
       <div
-        className={`flex-1 transition-all  duration-300 ease-in-out ${mainContentMargin}`}
+        className={`flex-1 min-h-screen bg-gray-50 dark:bg-gray-950 transition-all duration-300 ease-in-out ${mainContentMargin}`}
       >
         {/* Header */}
         <AppHeader />

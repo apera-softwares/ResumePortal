@@ -5,9 +5,11 @@
   import { useModal } from '@/hooks/useModal';
   import Select from 'react-select';
   import React, { useEffect, useState } from 'react';
+  import toast from 'react-hot-toast';
+  import { useTheme } from '@/context/ThemeContext';
 
   const clients = ["CloudSphere Technologies", "PixelCraft Studio", "PeopleFirst HR"];
-  const majorCities = ["MUMBAI", "DELHI", "BANGALORE", '  HYDERABAD',"CHENNAI", "PUNE",];
+  const majorCities = ["REMOTE", "MUMBAI", "DELHI", "BANGALORE", "HYDERABAD", "CHENNAI", "PUNE"];
   const jobTypes = ["FULL_TIME", "INTERN", "CONTRACT", "FREELANCING"]
   // const options = [
   //   { value: 'Js', label: 'Js' },
@@ -29,7 +31,60 @@
     type: string;
   }
 
-  export default function jobscreation() {
+  export default function JobsCreation() {
+    const { theme } = useTheme();
+    const isDark = theme === 'dark';
+    
+    const selectStyles = {
+      control: (base: any) => ({
+        ...base,
+        backgroundColor: isDark ? '#1f2937' : '#ffffff',
+        borderColor: isDark ? '#374151' : '#d1d5db',
+        color: isDark ? '#ffffff' : '#111827',
+        borderRadius: '0.5rem',
+        padding: '0.125rem',
+      }),
+      menu: (base: any) => ({
+        ...base,
+        backgroundColor: isDark ? '#1f2937' : '#ffffff',
+        borderColor: isDark ? '#374151' : '#d1d5db',
+      }),
+      option: (base: any, { isFocused, isSelected }: any) => ({
+        ...base,
+        backgroundColor: isSelected
+          ? '#2563eb'
+          : isFocused
+          ? (isDark ? '#374151' : '#f3f4f6')
+          : 'transparent',
+        color: isSelected ? '#ffffff' : (isDark ? '#e5e7eb' : '#111827'),
+        cursor: 'pointer',
+      }),
+      multiValue: (base: any) => ({
+        ...base,
+        backgroundColor: isDark ? '#374151' : '#e5e7eb',
+      }),
+      multiValueLabel: (base: any) => ({
+        ...base,
+        color: isDark ? '#ffffff' : '#111827',
+      }),
+      multiValueRemove: (base: any) => ({
+        ...base,
+        color: isDark ? '#9ca3af' : '#4b5563',
+        ':hover': {
+          backgroundColor: isDark ? '#4b5563' : '#d1d5db',
+          color: isDark ? '#ffffff' : '#111827',
+        },
+      }),
+      singleValue: (base: any) => ({
+        ...base,
+        color: isDark ? '#ffffff' : '#111827',
+      }),
+      input: (base: any) => ({
+        ...base,
+        color: isDark ? '#ffffff' : '#111827',
+      }),
+    };
+
     const API_URL = process.env.NEXT_PUBLIC_API_URL;
     const { isOpen, openModal, closeModal } = useModal();
     const [jData, setJData] = useState<Job[]>([]);
@@ -60,6 +115,10 @@
 
     const handlSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
       e.preventDefault();
+      if (!formData.skills || formData.skills.length === 0) {
+        toast.error("Please select at least one skill.");
+        return;
+      }
       const token = localStorage.getItem("token");
 
       try {
@@ -72,11 +131,19 @@
           body: JSON.stringify(formData)
         });
 
-        if (!response.ok) throw new Error("Something went wrong");
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(
+            Array.isArray(errorData.message)
+              ? errorData.message.join(", ")
+              : errorData.message || "Failed to create job"
+          );
+        }
 
         const CreateJobData = await response.json();
         // Add new job to the list immediately
         setJData((prev) => [...prev, CreateJobData.data]);
+        toast.success("Job created successfully!");
 
         // Reset form
         setFormData({
@@ -92,8 +159,9 @@
         setSelectedOption(null);
 
         closeModal();
-      } catch (error) {
+      } catch (error: any) {
         console.error("Error creating Job:", error);
+        toast.error(error.message || "Error creating Job");
       }
     };
     
@@ -101,7 +169,7 @@
       useEffect(()=>{
         const fetchSkills =async()=>{
           try{
-            const res=await fetch("http://192.168.1.48:3003/skills",{
+            const res=await fetch(`${API_URL}/skills`,{
                   method:"GET",
                   headers:{"Content-Type": "application/json"}
                 });
@@ -117,7 +185,7 @@
     useEffect(() => {
       const fetchJobs = async () => {
         try {
-          const res = await fetch("http://192.168.1.48:3003/jobs", {
+          const res = await fetch(`${API_URL}/jobs`, {
             method: "GET",
             headers: { "Content-Type": "application/json" },
           });
@@ -148,31 +216,31 @@
           </button>
 
           <Modal isOpen={isOpen} onClose={closeModal} className="max-w-[700px] m-4">
-            <div className="relative w-full flex max-w-[700px] rounded-3xl bg-white p-4 dark:bg-gray-900 lg:p-11">
-              <div className="max-w-2xl mx-auto bg-white h-[75vh] overflow-y-scroll shadow-md rounded-2xl p-6 mt-8">
-                <h2 className="text-2xl font-semibold mb-6 text-gray-800">Add Job Listing</h2>
+            <div className="relative w-full flex max-w-[700px] rounded-3xl bg-white dark:bg-gray-900 p-4 lg:p-11">
+              <div className="max-w-2xl w-full mx-auto bg-white dark:bg-gray-950 h-[75vh] overflow-y-scroll custom-scrollbar shadow-md rounded-2xl p-6 mt-8 border border-gray-100 dark:border-gray-800/80">
+                <h2 className="text-2xl font-semibold mb-6 text-gray-900 dark:text-white">Add Job Listing</h2>
                 <form onSubmit={handlSubmit} className="space-y-5">
                   {/* Title */}
                   <div>
-                    <label className="block mb-1 text-gray-700">Job Title</label>
+                    <label className="block mb-1 text-gray-700 dark:text-gray-300 font-medium">Job Title</label>
                     <input
                       type="text"
                       name="title"
                       onChange={handleChnage}
                       placeholder="Enter job title"
-                      className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-400"
+                      className="w-full border border-gray-300 dark:border-gray-700 rounded-lg p-2 focus:ring-2 focus:ring-blue-400 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                       required
                     />
                   </div>
 
                   {/* Description */}
                   <div>
-                    <label className="block mb-1 text-gray-700">Description</label>
+                    <label className="block mb-1 text-gray-700 dark:text-gray-300 font-medium">Description</label>
                     <textarea
                       name="description"
                       onChange={handleChnage}
                       placeholder="Enter job description"
-                      className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-400"
+                      className="w-full border border-gray-300 dark:border-gray-700 rounded-lg p-2 focus:ring-2 focus:ring-blue-400 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                       rows={4}
                       required
                     ></textarea>
@@ -180,14 +248,14 @@
 
                   {/* Client */}
                   <div>
-                    <label className="block mb-1 text-gray-700">Client</label>
+                    <label className="block mb-1 text-gray-700 dark:text-gray-300 font-medium">Client</label>
                     <select
                       name="client"
                       onChange={handleChnage}
-                      className="w-full border rounded-lg p-2"
+                      className="w-full border border-gray-300 dark:border-gray-700 rounded-lg p-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                       required
                     >
-                      <option value="">Select Client</option>
+                      <option value="" className="text-gray-500">Select Client</option>
                       {clients.map((client) => (
                         <option key={client} value={client}>{client}</option>
                       ))}
@@ -196,57 +264,53 @@
 
                   {/* Skills */}
                   <div>
-                    <label className="block mb-1 text-gray-700 font-medium">Skills</label>
+                    <label className="block mb-1 text-gray-700 dark:text-gray-300 font-medium">Skills</label>
                     <Select
-  name="skills"
-  defaultValue={selectedOption}
-  onChange={handleSkillsChange}
-  options={skills.map((skill: any) => ({
-    value: skill.name,
-    label: skill.name,
-  }))}
-  isMulti
-/>
-
-                    <p className="text-sm text-gray-500 mt-1">
-                 
-                    </p>
+                      name="skills"
+                      defaultValue={selectedOption}
+                      onChange={handleSkillsChange}
+                      options={skills.map((skill: any) => ({
+                        value: skill.name,
+                        label: skill.name,
+                      }))}
+                      isMulti
+                      styles={selectStyles}
+                    />
                   </div>
 
-        
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block mb-1 text-gray-700">Salary</label>
+                      <label className="block mb-1 text-gray-700 dark:text-gray-300 font-medium">Salary</label>
                       <input
                         type="number"
                         name="salary"
                         onChange={handleChnage}
                         placeholder="e.g. 80000"
-                        className="w-full border rounded-lg p-2"
+                        className="w-full border border-gray-300 dark:border-gray-700 rounded-lg p-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                       />
                     </div>
                     <div>
-                      <label className="block mb-1 text-gray-700">Internal Salary</label>
+                      <label className="block mb-1 text-gray-700 dark:text-gray-300 font-medium">Internal Salary</label>
                       <input
                         type="number"
                         name="internalSalary"
                         onChange={handleChnage}
                         placeholder="e.g. 100000"
-                        className="w-full border rounded-lg p-2"
+                        className="w-full border border-gray-300 dark:border-gray-700 rounded-lg p-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                       />
                     </div>
                   </div>
 
                   {/* Location */}
                   <div>
-                    <label className="block mb-1 text-gray-700">Location</label>
+                    <label className="block mb-1 text-gray-700 dark:text-gray-300 font-medium">Location</label>
                     <select
                       name="location"
                       onChange={handleChnage}
-                      className="w-full border rounded-lg p-2"
+                      className="w-full border border-gray-300 dark:border-gray-700 rounded-lg p-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                       required
                     >
-                      <option value="">Select Location</option>
+                      <option value="" className="text-gray-500">Select Location</option>
                       {majorCities.map((city) => (
                         <option key={city} value={city}>{city}</option>
                       ))}
@@ -255,17 +319,18 @@
 
                   {/* Job Type */}
                   <div>
-                <label className="block mb-1 text-gray-700">Job Type</label>
-  <Select
-    name="type"
-    onChange={(selected: any) =>
-      setFormData(prev => ({ ...prev, type: selected.value }))
-    }
-    options={jobTypes.map((type) => ({
-      value: type,
-      label: type,
-    }))}
-  />
+                    <label className="block mb-1 text-gray-700 dark:text-gray-300 font-medium">Job Type</label>
+                    <Select
+                      name="type"
+                      onChange={(selected: any) =>
+                        setFormData(prev => ({ ...prev, type: selected.value }))
+                      }
+                      options={jobTypes.map((type) => ({
+                        value: type,
+                        label: type,
+                      }))}
+                      styles={selectStyles}
+                    />
                   </div>
 
                   {/* Submit */}

@@ -14,51 +14,8 @@ import EditResume from "../UsersModels/resumeEditModel/EditResume";
 
 
 
-// // Define the table data using the interface
-// const users = [
-//   {
-//     id: 1,
-//     name: "Alice Johnson",
-//     email: "alice.johnson@example.com",
-//     password: "alice123",
-//     role: "admin",
-//   },
-//   {
-//     id: 2,
-//     name: "Brian Smith",
-//     email: "brian.smith@example.com",
-//     password: "brian456",
-//     role: "hr",
-//   },
-//   {
-//     id: 3,
-//     name: "Carla Williams",
-//     email: "carla.williams@example.com",
-//     password: "carla789",
-//     role: "client",
-//   },
-//   {
-//     id: 4,
-//     name: "David Brown",
-//     email: "david.brown@example.com",
-//     password: "david123",
-//     role: "admin",
-//   },
-//   {
-//     id: 5,
-//     name: "Ella Martinez",
-//     email: "ella.martinez@example.com",
-//     password: "ella456",
-//     role: "hr",
-//   },
-//   {
-//     id: 6,
-//     name: "Frank Thompson",
-//     email: "frank.thompson@example.com",
-//     password: "frank789",
-//     role: "client",
-//   },
-// ];
+// Define the table data using the interface
+const users: any[] = [];
 
 
 export default function CadidatesList() {
@@ -162,7 +119,7 @@ export default function CadidatesList() {
                     <button className="px-[1vw] py-[.8vh] rounded-2xl text-xs  bg-red-500 text-white">
                      Delete 
                     </button>
-                       <EditResume/>
+                        <EditResume resume="" />
                   </TableCell>
                 </TableRow>
               ))}

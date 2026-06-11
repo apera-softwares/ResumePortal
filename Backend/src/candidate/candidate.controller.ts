@@ -6,7 +6,8 @@ import {
   UploadedFile,
   Param,Put,
   ParseIntPipe,
-  Delete
+  Delete,
+  Query
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { CandidateService } from './candidate.service';
@@ -46,6 +47,21 @@ export class CandidateController {
   @Get()
   async getAll(){
     return await this.candidateService.findAll()
+  }
+
+  // get candidate applications by email
+  @Get('my-applications')
+  async getMyApplications(@Query('email') email: string) {
+    return await this.candidateService.findByEmail(email);
+  }
+
+  // update candidate status by id
+  @Put(':id/status')
+  async updateStatus(
+    @Param('id', ParseIntPipe) id: number,
+    @Body('status') status: string,
+  ) {
+    return await this.candidateService.updateStatus(id, status);
   }
 
   // get candidate by id

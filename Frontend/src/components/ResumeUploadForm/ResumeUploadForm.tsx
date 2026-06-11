@@ -3,8 +3,10 @@ import Input from "../form/input/InputField";
 import Label from "../form/Label";
 import Select from 'react-select';
 import { useEffect, useState } from "react";
+import toast from "react-hot-toast";
 
-export default function ResumeUploadForm({closeModal} :any ) {
+
+export default function ResumeUploadForm({closeModal, jobId, onApplySuccess} : {closeModal: () => void; jobId?: number | null; onApplySuccess?: (jobId: number) => void} ) {
    const API_URL = process.env.NEXT_PUBLIC_API_URL;
   const [candidData, setcanditData] = useState<any[]>([]);
      const [selectedOption, setSelectedOption] = useState<any[]>([]);
@@ -62,6 +64,9 @@ export default function ResumeUploadForm({closeModal} :any ) {
   }
 });
     
+    if (jobId) {
+      bodyData.append("jobId", String(jobId));
+    }
      console.log("bodyData",bodyData)
     try {
       const response = await fetch(`${API_URL}/candidates/uploadMedia`, {
@@ -91,11 +96,27 @@ export default function ResumeUploadForm({closeModal} :any ) {
         skills: "",
       });
 
-      alert("Resume uploaded successfully");
+      toast.success("Resume uploaded successfully!");
+      
+      // Save email and applied job ID to localStorage to track status and persist applied state
+      if (formData.email) {
+        localStorage.setItem("candidateEmail", formData.email);
+      }
+      if (jobId) {
+        const storedApplied = localStorage.getItem("appliedJobIds");
+        const appliedList = storedApplied ? JSON.parse(storedApplied) : [];
+        if (!appliedList.includes(jobId)) {
+          localStorage.setItem("appliedJobIds", JSON.stringify([...appliedList, jobId]));
+        }
+      }
+
+      if (jobId && onApplySuccess) {
+        onApplySuccess(jobId);
+      }
       closeModal()
     } catch (error) {
       console.error("Error uploading resume:", error);
-      // alert("Upload failed");
+      toast.error("Resume upload failed.");
     }
   };
 
@@ -103,7 +124,7 @@ export default function ResumeUploadForm({closeModal} :any ) {
         useEffect(()=>{
           const fetchSkills =async()=>{
             try{
-              const res=await fetch("http://192.168.1.48:3003/skills",{
+              const res=await fetch(`${API_URL}/skills`,{
                     method:"GET",
                     headers:{"Content-Type": "application/json"}
                   });
@@ -118,19 +139,18 @@ export default function ResumeUploadForm({closeModal} :any ) {
         },[])
 
   return (
-    <>
-      <div className="no-scrollbar relative w-full max-w-[700px] overflow-y-auto rounded-3xl bg-white p-4 dark:bg-gray-900">
-        <div className="px-2 pr-14">
-          <h4 className="mb-2 text-2xl font-semibold text-gray-800 dark:text-white/90">
-            Upload Resume
-          </h4>
-          <p className="mb-6 text-sm text-gray-500 dark:text-gray-400 lg:mb-7">
-            Fill in your details and upload your resume for review.
-          </p>
-        </div>
+    <div className="relative w-full p-2 sm:p-4">
+      <div className="px-2 pr-14">
+        <h4 className="mb-2 text-2xl font-bold text-gray-900 dark:text-white">
+          Upload Resume
+        </h4>
+        <p className="mb-6 text-sm text-gray-500 dark:text-gray-400 lg:mb-7">
+          Fill in your details and upload your resume for review.
+        </p>
+      </div>
 
-        <form className="flex flex-col justify-start" onSubmit={handlSubmit}>
-          <div className="custom-scrollbar h-[450px] overflow-y-auto px-2 pb-3">
+      <form className="flex flex-col justify-start" onSubmit={handlSubmit}>
+        <div className="custom-scrollbar max-h-[60vh] md:max-h-[70vh] overflow-y-auto px-2 pb-3">
             <div className="mt-7">
               <h5 className="mb-5 text-lg font-medium text-gray-800 dark:text-white/90 lg:mb-6">
                 Candidate Information
@@ -242,12 +262,14 @@ export default function ResumeUploadForm({closeModal} :any ) {
           </div>
 
           <div className="flex items-center gap-3 px-2 mt-6 lg:justify-end">
-            <Button size="sm" >
+            <button
+              type="submit"
+              className="px-6 py-2.5 text-sm font-semibold bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white rounded-xl shadow-md shadow-blue-500/10 hover:shadow-lg hover:shadow-blue-500/20 active:scale-[0.98] transition-all duration-200"
+            >
               Save & Upload
-            </Button>
+            </button>
           </div>
         </form>
-      </div>
-    </>
+    </div>
   );
 }

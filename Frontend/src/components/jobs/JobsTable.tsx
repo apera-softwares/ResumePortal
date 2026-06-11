@@ -2,6 +2,7 @@ import Button from "../ui/button/Button";
 import Input from "../form/input/InputField";
 import Label from "../form/Label";
 import { useState } from "react";
+import toast from "react-hot-toast";
 
 export default function ResumeUploadForm() {
   const [candidData, setcanditData] = useState<any[]>([]);
@@ -75,11 +76,10 @@ export default function ResumeUploadForm() {
         skills: "",
       });
 
-      alert("Resume uploaded successfully");
+      toast.success("Resume uploaded successfully!");
     } catch (error) {
       console.error("Error uploading resume:", error);
-      alert("Upload failed");
-    
+      toast.error("Upload failed");
     }
   };
 
