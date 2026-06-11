@@ -5,6 +5,9 @@ import { CandidateDto } from 'src/Validations/candidate/create-candidate.dto';
 import { join } from 'path';
 import { extname } from 'path';
 import { NotFoundException } from '@nestjs/common';
+import * as fs from 'fs';
+import { PDFParse } from 'pdf-parse';
+import * as mammoth from 'mammoth';
 
 @Injectable()
 export class CandidateService {
@@ -41,6 +44,26 @@ export class CandidateService {
       }
     }
 
+    // Extract text from resume file
+    let resumeText = '';
+    const filePath = join(process.cwd(), 'uploads', uniqueFileName);
+    try {
+      if (fs.existsSync(filePath)) {
+        const buffer = fs.readFileSync(filePath);
+        if (fileExtension === '.pdf') {
+          const parser = new PDFParse({ data: buffer });
+          const result = await parser.getText();
+          resumeText = result.text || '';
+          await parser.destroy();
+        } else if (fileExtension === '.docx') {
+          const result = await mammoth.extractRawText({ buffer });
+          resumeText = result.value || '';
+        }
+      }
+    } catch (error) {
+      console.error('Error extracting text from resume:', error);
+    }
+
     // Create a new candidate record in the database
     const createdCandidate = await this.prisma.candidate.create({
       data: {
@@ -52,6 +75,7 @@ export class CandidateService {
         education: candidateData.education,
         noticePeriod,
         resume: file.filename,
+        resumeText,
         skills: {
           connectOrCreate: skillsArray.map((name) => ({
             where: { name },
@@ -65,8 +89,6 @@ export class CandidateService {
     });
 
     console.log('Created Candidate: ', createdCandidate);
-
-    const filePath = join(process.cwd(), 'uploads', uniqueFileName);
 
     console.log('FilePath ', filePath);
 
