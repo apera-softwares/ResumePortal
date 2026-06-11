@@ -74,6 +74,7 @@ model Candidate {
   noticePeriod       Int
   resume             String     // File path for resume
   resumeText         String?    // Extracted text from PDF/DOCX
+  cleanedResume      String?    // File path for cleaned resume
   skills             Skill[]    @relation("CandidateSkills")
   createdAt          DateTime   @default(now())
   updatedAt          DateTime   @updatedAt
