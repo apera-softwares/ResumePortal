@@ -21,12 +21,26 @@ export default function Candidates() {
    const API_URL = process.env.NEXT_PUBLIC_API_URL;
   const role =localStorage.getItem("role")
   const [candidatesData, setCandidatesData] = useState<Candidate[]>([]);
+  const [filtercandidate,setFiltercandidates]=useState<Candidate[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
 
-   const [filtercandidate,setFiltercandidates]=useState(candidatesData)
- 
-     useEffect(()=>{
-      setFiltercandidates(candidatesData||[]);
-     },[candidatesData])
+  useEffect(() => {
+    if (!searchTerm.trim()) {
+      setFiltercandidates(candidatesData || []);
+      return;
+    }
+    const term = searchTerm.toLowerCase();
+    const filtered = candidatesData.filter((cand) => {
+      const nameMatch = `${cand.firstName} ${cand.lastName}`.toLowerCase().includes(term);
+      const emailMatch = cand.email.toLowerCase().includes(term);
+      const mobileMatch = cand.mobile?.toLowerCase().includes(term) || false;
+      const eduMatch = cand.education?.toLowerCase().includes(term) || false;
+      const skillsMatch = cand.skills?.some((s) => s.name.toLowerCase().includes(term)) || false;
+      const resumeTextMatch = (cand as any).resumeText?.toLowerCase().includes(term) || false;
+      return nameMatch || emailMatch || mobileMatch || eduMatch || skillsMatch || resumeTextMatch;
+    });
+    setFiltercandidates(filtered);
+  }, [searchTerm, candidatesData]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -65,7 +79,44 @@ export default function Candidates() {
   }
 
   return (
-    <div className="min-h-[80vh] w-full">
+    <div className="min-h-[80vh] w-full flex flex-col gap-4">
+      {/* Search Filter Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-5 bg-white border border-gray-200 rounded-xl">
+        <div>
+          <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
+            Candidates List
+          </h3>
+          <p className="text-xs text-gray-500">
+            Search candidates by name, email, education, tagged skills, or keywords in their resume.
+          </p>
+        </div>
+        <div className="relative w-full md:w-96">
+          <input
+            type="text"
+            placeholder="Search candidates..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 text-sm text-gray-800 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white dark:bg-gray-800 dark:border-gray-700 dark:text-white"
+          />
+          <span className="absolute left-3 top-2.5 text-gray-400">
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              />
+            </svg>
+          </span>
+        </div>
+      </div>
+
       <div className="overflow-hidden rounded-xl border min-h-[82vh] border-gray-200 bg-white  ">
         <div className="max-w-full overflow-x-auto">
           <div className="min-w-[1102px] ">
