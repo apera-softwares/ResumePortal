@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  resumebuilder-postgres:
+    image: postgres:18
+    container_name: resumebuilder-postgres
+    environment:
+      POSTGRES_USER: '${POSTGRES_USER}'
+      POSTGRES_PASSWORD: '${POSTGRES_PASSWORD}'
+      POSTGRES_DB: '${POSTGRES_DB}'
+    volumes:
+      - resumebuilder_pg_data:/var/lib/postgresql
+      - /etc/localtime:/etc/localtime:ro
+    networks:
+      - resumebuilder-network
+    restart: unless-stopped
+    ports:
+      - '5432:5432'
+
+volumes:
+  resumebuilder_pg_data:
+
+networks:
+  resumebuilder-network:
+    name: resumebuilder-network
+    attachable: true
+  shared-network:
+    name: shared-network
+    external: true
