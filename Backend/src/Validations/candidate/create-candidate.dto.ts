@@ -29,9 +29,9 @@ export class CandidateDto {
   @IsNotEmpty()
   noticePeriod: number;
 
-  // @IsArray()
   @IsOptional()
   skills: string | string[];
 
-
+  @IsOptional()
+  jobId?: string | number;
 }

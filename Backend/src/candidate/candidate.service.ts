@@ -85,9 +85,11 @@ export class CandidateService {
             create: { name },
           })),
         },
+        jobId: (candidateData as any).jobId ? Number((candidateData as any).jobId) : undefined,
       },
       include: {
         skills: true,
+        job: true,
       },
     });
 
@@ -100,19 +102,22 @@ export class CandidateService {
 
   // get all candidate
   async findAll() {
-    return await this.prisma.candidate.findMany({ include: { skills: true } });
+    return await this.prisma.candidate.findMany({
+      include: {
+        skills: true,
+        job: true,
+      },
+    });
   }
 
   // Get candidate by ID
   async findOne(id: number) {
-    const candidate = await this.prisma.candidate.findUnique({
-      where: { id },
-    });
-     console.log(candidate)
-     
     return await this.prisma.candidate.findUnique({
       where: { id },
-      include: { skills: true },
+      include: {
+        skills: true,
+        job: true,
+      },
     });
   }
 
@@ -199,5 +204,36 @@ export class CandidateService {
     });
 
     return updatedCandidate;
+  }
+
+  async findByEmail(email: string) {
+    if (!email) return [];
+    return await this.prisma.candidate.findMany({
+      where: { email },
+      include: {
+        skills: true,
+        job: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+  }
+
+  async updateStatus(id: number, status: string) {
+    const candidate = await this.prisma.candidate.findUnique({
+      where: { id },
+    });
+    if (!candidate) {
+      throw new NotFoundException(`Candidate with ID ${id} not found`);
+    }
+    return await this.prisma.candidate.update({
+      where: { id },
+      data: { status },
+      include: {
+        skills: true,
+        job: true,
+      },
+    });
   }
 }

@@ -1,8 +1,9 @@
 'use client';
 
-
-import { useEffect, useState } from "react";
-
+import { useEffect, useState, useCallback } from "react";
+import { useModal } from "../../hooks/useModal";
+import { Modal } from "../ui/modal";
+import ResumeUploadForm from "../ResumeUploadForm/ResumeUploadForm";
 
 interface joblist {
   id: number;
@@ -18,135 +19,493 @@ interface joblist {
 }
 
 
-// Define the job listings data
-
 
 export default function PublicJoblisting() {
   const [jobList, setJobList] = useState<joblist[]>([]);
-  const [appliedJobs, setAppliedJobs] = useState<number[]>([])
+  const [appliedJobs, setAppliedJobs] = useState<number[]>([]);
   const [searchitem, setSearchitem] = useState<string>('');
-  const [filteredjobs, setFilterdJobs] = useState<joblist[]>(jobList);
+  const [searchLocation, setSearchLocation] = useState<string>('');
+  const [searchType, setSearchType] = useState<string>('All');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [filteredjobs, setFilterdJobs] = useState<joblist[]>([]);
+  const { isOpen, openModal, closeModal } = useModal();
+  const [applyingJobId, setApplyingJobId] = useState<number | null>(null);
   const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
+  // Load applied jobs from localStorage on mount
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const storedApplied = localStorage.getItem("appliedJobIds");
+      if (storedApplied) {
+        try {
+          setAppliedJobs(JSON.parse(storedApplied));
+        } catch (e) {
+          console.error("Error parsing appliedJobIds", e);
+        }
+      }
+    }
+  }, []);
 
   useEffect(() => {
     const JobsData = async () => {
-      // console.log("API URL:", API_URL);
       try {
         const response = await fetch(`${API_URL}/jobs`, {
           method: "GET",
           headers: { "Content-Type": "application/json" }
         });
-        if (!response.ok) throw new Error("Somethig went wrong while fetch");
+        if (!response.ok) throw new Error("Something went wrong while fetch");
         const JobListData = await response.json();
-        setJobList(JobListData.data)
-        console.log(JobListData.data, " im job list ")
+        setJobList(JobListData.data);
       } catch (error) {
         console.error("Error fetching jobs:", error);
       }
-    }
-    JobsData()
-  }, [])
-  // 👇 Add this effect
+    };
+    JobsData();
+  }, [API_URL]);
+
   useEffect(() => {
     setFilterdJobs(jobList);
   }, [jobList]);
 
-  const handleSearch = () => {
-    if (searchitem?.trim() === "") {
-      setFilterdJobs(jobList)
-    }
-    else {
-      const result = jobList.filter((job) => (
-        job.title.toLowerCase().includes(searchitem.toLowerCase()) ||
-        job.client.includes(searchitem.toLowerCase()) ||
-        job.skills.some((skill) =>
-          skill.toLowerCase().includes(searchitem.toLowerCase())
-        )
-      ))
-      setFilterdJobs(result);
+  // Combined filtering logic
+  const handleSearch = useCallback(() => {
+    let result = jobList;
+
+    // Filter by Job Title / Client / Skills
+    if (searchitem?.trim() !== "") {
+      const query = searchitem.toLowerCase();
+      result = result.filter((job) =>
+        job.title.toLowerCase().includes(query) ||
+        job.client.toLowerCase().includes(query) ||
+        job.skills.some((skill) => skill.toLowerCase().includes(query))
+      );
     }
 
+    // Filter by Location
+    if (searchLocation?.trim() !== "") {
+      const locQuery = searchLocation.toLowerCase();
+      result = result.filter((job) =>
+        job.location.toLowerCase().includes(locQuery) ||
+        (job.cities && job.cities.some(city => city.toLowerCase().includes(locQuery)))
+      );
+    }
 
-  }
+    // Filter by Job Type
+    if (searchType !== "All") {
+      result = result.filter((job) =>
+        job.type.toLowerCase() === searchType.toLowerCase()
+      );
+    }
+
+    setFilterdJobs(result);
+  }, [jobList, searchitem, searchLocation, searchType]);
+
+  // Perform search automatically when searchType changes (dropdown/badges)
+  useEffect(() => {
+    handleSearch();
+  }, [searchType, jobList, handleSearch]);
+
   const handleApply = (id: number) => {
-    setAppliedJobs((prev) => prev.includes(id) ? prev.filter((jobsId) => jobsId !== id)
-      : [...prev, id])
+    setApplyingJobId(id);
+    openModal();
+  };
 
-  }
+  const handleApplySuccess = (jobId: number) => {
+    setAppliedJobs((prev) => [...prev, jobId]);
+  };
+
+  // Quick badge filter helper
+  const handleBadgeClick = (type: string) => {
+    setSearchType(type);
+  };
+
+  // Dynamic Avatar Background Color & Initials (Black, Grey, Blue palette)
+  const getAvatarStyle = (clientName: string) => {
+    const gradients = [
+      "from-blue-600 to-blue-700 text-white",
+      "from-gray-700 to-gray-800 text-white",
+      "from-slate-800 to-slate-950 text-white border border-gray-700/50",
+      "from-blue-500 to-indigo-600 text-white",
+      "from-zinc-700 to-zinc-900 text-white",
+      "from-blue-700 to-slate-900 text-white",
+    ];
+    let hash = 0;
+    const name = clientName || "Company";
+    for (let i = 0; i < name.length; i++) {
+      hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const gradient = gradients[Math.abs(hash) % gradients.length];
+    const initial = name.charAt(0).toUpperCase();
+    return { gradient, initial };
+  };
+
+  // List of unique locations & types for autofill dropdowns
+  const uniqueLocations = Array.from(new Set(jobList.map(j => j.location).filter(Boolean)));
+  const uniqueTypes = Array.from(new Set(jobList.map(j => j.type).filter(Boolean)));
 
   return (
-    <div className=" relative px-6 bg-gray-50 h-[100vh] overflow-y-hidden  mt-1px">
+    <div className="w-full bg-gray-50 dark:bg-gray-950 min-h-screen font-outfit transition-colors duration-300">
+      {/* Premium Hero Section with Ambient Lights */}
+      <section className="relative overflow-hidden bg-gradient-to-b from-blue-50/40 via-gray-50 to-gray-50 dark:from-gray-900/20 dark:via-gray-950/45 dark:to-gray-950 py-16 sm:py-24 border-b border-gray-100 dark:border-gray-900/60">
+        {/* Glow Effects */}
+        <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-blue-500/5 dark:bg-blue-500/5 rounded-full blur-[120px] pointer-events-none"></div>
+        <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-blue-600/5 dark:bg-blue-600/5 rounded-full blur-[120px] pointer-events-none"></div>
 
-      <div className="flex flex-col gap-4  mt-3 md:flex-row items-center  w-full sticky top-0  bg-gray-50   justify-between sm:pb-5 sm:pt-2  lg:px-8 lg:py-8 ">
-        <h1 className="  sm:text-xl lg:text-3xl font-bold  text-gray-800">Avalable  Jobs</h1>
-        <div className="searchbar h-[8vh] w-[80%] lg:w-[34vw] px-6 border  flex items-center justify-between rounded-4xl">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
+          <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight text-gray-900 dark:text-white mb-6">
+            Find Your Next <span className="bg-gradient-to-r from-blue-600 to-blue-500 bg-clip-text text-transparent">Dream Career</span>
+          </h1>
+          <p className="text-base sm:text-lg md:text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto mb-10 leading-relaxed">
+            Discover thousands of high-paying opportunities from leading companies. Refine by title, location, or type, and apply instantly.
+          </p>
 
-          <input onChange={(e) => setSearchitem(e.target.value)} value={searchitem} type="text" name="search" placeholder="search by job title" className="w-[80%] outline-none py-2" />
+          {/* Premium Multi-Field Search Console */}
+          <div className="max-w-4xl mx-auto bg-white dark:bg-gray-900 rounded-2xl md:rounded-full p-2.5 sm:p-3 shadow-xl border border-gray-100 dark:border-gray-800 flex flex-col md:flex-row items-stretch md:items-center gap-2 md:gap-0">
+            {/* Field 1: What (Job Title / Skill / Company) */}
+            <div className="flex-1 flex items-center gap-3 px-4 py-2 border-b md:border-b-0 md:border-r border-gray-100 dark:border-gray-800">
+              <svg className="w-5 h-5 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <input 
+                type="text" 
+                value={searchitem} 
+                onChange={(e) => setSearchitem(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                placeholder="Job title, keywords, or company" 
+                className="w-full bg-transparent text-sm text-gray-800 dark:text-gray-100 outline-none placeholder-gray-400"
+              />
+            </div>
 
-          <button onClick={handleSearch} className="w-[14vw] border py-2 rounded-4xl text-xs lg:text-sm bg-blue-600   hover:bg-blue-700 text-white font-regular "  > Search</button>
-        </div>
-      </div>
-
-      <div className="grid pb-10 overflow-y-scroll no-scrollbar  px-5 md:grid-cols-2 lg:grid-cols-3 gap-6 max-h-[calc(100vh-120px)]">
-        {filteredjobs.length > 0 ? (
-          filteredjobs.map((job) => (
-            <div
-              key={job.id}
-              className="bg-white shadow-lg  rounded-2xl p-5 hover:shadow-xl    transition duration-300"
-            >
-              {/* Title + Type */}
-              <div className="flex justify-between  items-center mb-2">
-                <h2 className="text-xl font-semibold text-gray-900">{job.title}</h2>
-                <span className="text-sm px-3 py-1 bg-blue-100 text-blue-700 rounded-full">
-                  {job.type}
-                </span>
-              </div>
-
-              {/* Company Name */}
-              <p className="text-sm text-gray-500 mb-3">{job.client}</p>
-
-              {/* Description */}
-              <p className="text-gray-600 text-sm mb-3">{job.description}</p>
-
-              {/* Skills */}
-              <div className="flex flex-wrap gap-2 mb-3">
-                {job.skills.map((skill, index) => (
-                  <span
-                    key={index}
-                    className="bg-gray-100 text-gray-800 text-xs font-medium px-2.5 py-1 rounded-full"
-                  >
-                    {skill}
-                  </span>
+            {/* Field 2: Where (Location) */}
+            <div className="flex-1 flex items-center gap-3 px-4 py-2 border-b md:border-b-0 md:border-r border-gray-100 dark:border-gray-800">
+              <svg className="w-5 h-5 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              <input 
+                type="text" 
+                value={searchLocation} 
+                onChange={(e) => setSearchLocation(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                placeholder="City, state, or remote" 
+                className="w-full bg-transparent text-sm text-gray-800 dark:text-gray-100 outline-none placeholder-gray-400"
+                list="locations-datalist"
+              />
+              <datalist id="locations-datalist">
+                {uniqueLocations.map((loc, idx) => (
+                  <option key={idx} value={loc} />
                 ))}
-              </div>
+              </datalist>
+            </div>
 
-              {/* Salary Info */}
-              <div className="text-sm mb-2">
-                <strong>Salary:</strong> {job.salary}
-              </div>
-              {job.internalSalary && (
-                <div className="text-sm text-gray-500">
-                  <strong>Internal Salary:</strong> {job.internalSalary}
-                </div>
-              )}
+            {/* Field 3: Job Type Dropdown */}
+            <div className="flex items-center gap-3 px-4 py-2 md:w-48">
+              <svg className="w-5 h-5 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+              <select 
+                value={searchType} 
+                onChange={(e) => setSearchType(e.target.value)}
+                className="w-full bg-transparent text-sm text-gray-800 dark:text-gray-100 outline-none cursor-pointer appearance-none pr-6 dark:bg-gray-900"
+              >
+                <option value="All" className="dark:bg-gray-900">All Job Types</option>
+                {uniqueTypes.map((type, idx) => (
+                  <option key={idx} value={type} className="dark:bg-gray-900">{type}</option>
+                ))}
+              </select>
+            </div>
 
-              {/* Location */}
-              <div className="mt-3 text-sm">
-                <strong>Location:</strong> {job.location}
-              </div>
+            {/* Submit Button */}
+            <button 
+              onClick={handleSearch} 
+              className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white rounded-xl md:rounded-full px-8 py-3.5 font-semibold text-sm transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 hover:scale-[1.01] active:scale-[0.99] shrink-0"
+            >
+              <span>Search</span>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+              </svg>
+            </button>
+          </div>
 
-              {/* Apply Button */}
-              <button onClick={() => handleApply(job.id)} className={`mt-4 w-full  ${appliedJobs.includes(job.id) ? 'bg-gray-400' : 'bg-blue-500'} text-white py-2 rounded-lg text-sm hover:bg-blue-700 transition`} >
-                {appliedJobs.includes(job.id) ? "Applied" : "Apply"}
+          {/* Quick Filter Badges */}
+          <div className="flex flex-wrap items-center justify-center gap-2.5 mt-8 text-sm">
+            <span className="text-gray-500 font-medium">Quick Filters:</span>
+            <button 
+              onClick={() => handleBadgeClick('All')}
+              className={`px-4 py-1.5 rounded-full border transition-all text-xs font-semibold ${searchType === 'All' ? 'bg-blue-600 border-blue-600 text-white shadow-sm' : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'}`}
+            >
+              All Jobs
+            </button>
+            {uniqueTypes.slice(0, 4).map((type, idx) => (
+              <button 
+                key={idx}
+                onClick={() => handleBadgeClick(type)}
+                className={`px-4 py-1.5 rounded-full border transition-all text-xs font-semibold ${searchType.toLowerCase() === type.toLowerCase() ? 'bg-blue-600 border-blue-600 text-white shadow-sm' : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'}`}
+              >
+                {type}
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Main Jobs Listing Section */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        {/* Results Bar / Layout Toggle */}
+        {/* Results Bar / Layout Toggle */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-gray-200 dark:border-gray-900 pb-6 mb-8 gap-4">
+          <div className="flex items-center gap-6">
+            <h2 className="pb-4 text-xl font-bold text-gray-900 dark:text-white">
+              Explore Positions
+            </h2>
+          </div>
+
+          {/* Grid vs List Toggles */}
+          <div className="flex items-center gap-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 p-1 rounded-xl shadow-sm">
+            <button 
+              onClick={() => setViewMode('grid')}
+              className={`p-2 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-gray-100 dark:bg-gray-800 text-blue-600 dark:text-blue-400' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'}`}
+              title="Grid View"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+              </svg>
+            </button>
+            <button 
+              onClick={() => setViewMode('list')}
+              className={`p-2 rounded-lg transition-all ${viewMode === 'list' ? 'bg-gray-100 dark:bg-gray-800 text-blue-600 dark:text-blue-400' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'}`}
+              title="List View"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        {/* Listings Display */}
+        {filteredjobs.length > 0 ? (
+            viewMode === 'grid' ? (
+              /* GRID VIEW */
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredjobs.map((job) => {
+                  const { gradient, initial } = getAvatarStyle(job.client);
+                  const isApplied = appliedJobs.includes(job.id);
+                  return (
+                    <div
+                      key={job.id}
+                      className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800/80 rounded-2xl p-6 shadow-sm hover:shadow-xl hover:-translate-y-1 dark:hover:border-blue-500/30 transition-all duration-300 flex flex-col justify-between group"
+                    >
+                      <div>
+                        {/* Top Row: Logo & Job Type */}
+                        <div className="flex justify-between items-start mb-4">
+                          <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center font-bold text-lg shadow-sm shrink-0`}>
+                            {initial}
+                          </div>
+                          <span className="text-xs font-semibold px-3 py-1 bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 rounded-full border border-blue-100 dark:border-blue-900/30">
+                            {job.type}
+                          </span>
+                        </div>
+
+                        {/* Title & Company */}
+                        <h3 className="text-lg font-bold text-gray-900 dark:text-white line-clamp-1 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                          {job.title}
+                        </h3>
+                        <p className="text-sm font-semibold text-gray-400 dark:text-gray-500 mt-1 mb-4">
+                          {job.client}
+                        </p>
+
+                        {/* Description */}
+                        <p className="text-gray-600 dark:text-gray-400 text-sm mb-5 line-clamp-3 leading-relaxed">
+                          {job.description}
+                        </p>
+
+                        {/* Metadata Labels */}
+                        <div className="space-y-2.5 mb-5">
+                          <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                            <svg className="w-4.5 h-4.5 text-gray-400 dark:text-gray-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                            <span className="line-clamp-1">{job.location}</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                            <svg className="w-4.5 h-4.5 text-gray-400 dark:text-gray-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span>{job.salary}</span>
+                          </div>
+                        </div>
+
+                        {/* Skills Tags */}
+                        {job.skills && job.skills.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 mb-6">
+                            {job.skills.map((skill, index) => (
+                              <span
+                                key={index}
+                                className="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-xs font-semibold px-2.5 py-1 rounded-md border border-gray-200/50 dark:border-gray-700/55"
+                              >
+                                {skill}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Apply Button */}
+                      <button
+                        onClick={() => handleApply(job.id)}
+                        className={`w-full py-2.5 sm:py-3 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all duration-200 ${
+                          isApplied
+                            ? "bg-gray-150 dark:bg-[#1a2333] text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-800 cursor-default"
+                            : "bg-blue-600 hover:bg-blue-700 text-white hover:scale-[1.01] active:scale-[0.99] shadow-sm hover:shadow"
+                        }`}
+                      >
+                        {isApplied ? (
+                          <>
+                            <svg className="w-4.5 h-4.5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                            </svg>
+                            <span>Applied</span>
+                          </>
+                        ) : (
+                          <span>Apply Now</span>
+                        )}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              /* LIST VIEW */
+              <div className="space-y-4">
+                {filteredjobs.map((job) => {
+                  const { gradient, initial } = getAvatarStyle(job.client);
+                  const isApplied = appliedJobs.includes(job.id);
+                  return (
+                    <div
+                      key={job.id}
+                      className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800/80 rounded-2xl p-5 shadow-sm hover:shadow-md hover:border-gray-200 dark:hover:border-blue-500/30 transition-all duration-200 flex flex-col md:flex-row md:items-center justify-between gap-5"
+                    >
+                      {/* Left Panel: Logo & Title/Details */}
+                      <div className="flex items-start gap-4">
+                        <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br ${gradient} flex items-center justify-center font-bold text-lg sm:text-xl shadow-sm shrink-0`}>
+                          {initial}
+                        </div>
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h3 className="text-base sm:text-lg font-bold text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+                              {job.title}
+                            </h3>
+                            <span className="text-[10px] font-bold px-2.5 py-0.5 bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 rounded-full border border-blue-100 dark:border-blue-900/30">
+                              {job.type}
+                            </span>
+                          </div>
+                          <p className="text-sm font-semibold text-gray-400 dark:text-gray-500 mt-0.5">
+                            {job.client}
+                          </p>
+                          
+                          {/* Meta Rows */}
+                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-3 text-xs text-gray-500 dark:text-gray-400">
+                            <div className="flex items-center gap-1.5">
+                              <svg className="w-4 h-4 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                              </svg>
+                              <span>{job.location}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <svg className="w-4 h-4 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              <span>{job.salary}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Middle Panel: Skills array */}
+                      {job.skills && job.skills.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 max-w-xs md:max-w-sm">
+                          {job.skills.map((skill, index) => (
+                            <span
+                              key={index}
+                              className="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-xs font-semibold px-2.5 py-1 rounded-md border border-gray-200/50 dark:border-gray-700/55"
+                            >
+                              {skill}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Right Panel: CTA Button */}
+                      <div className="w-full md:w-auto shrink-0">
+                        <button
+                          onClick={() => handleApply(job.id)}
+                          className={`w-full md:w-36 py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all duration-200 ${
+                            isApplied
+                              ? "bg-gray-150 dark:bg-[#1a2333] text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-800 cursor-default"
+                              : "bg-blue-600 hover:bg-blue-700 text-white hover:scale-[1.01] active:scale-[0.99] shadow-sm hover:shadow"
+                          }`}
+                        >
+                          {isApplied ? (
+                            <>
+                              <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                              </svg>
+                              <span>Applied</span>
+                            </>
+                          ) : (
+                            <span>Apply Now</span>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )
+          ) : (
+            /* NO RESULTS */
+            <div className="text-center py-20 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-3xl p-8 max-w-md mx-auto shadow-sm">
+              <div className="w-16 h-16 bg-blue-50 dark:bg-blue-900/20 rounded-full flex items-center justify-center text-blue-600 dark:text-blue-400 mx-auto mb-4">
+                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white">No jobs found</h3>
+              <p className="text-gray-500 dark:text-gray-400 text-sm mt-2">
+                We couldn&apos;t find any positions matching your filters. Try adjusting your search term, location, or reset job types.
+              </p>
+              <button 
+                onClick={() => {
+                  setSearchitem('');
+                  setSearchLocation('');
+                  setSearchType('All');
+                }}
+                className="mt-6 px-5 py-2.5 text-sm font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 hover:underline transition-all"
+              >
+                Clear all filters
               </button>
             </div>
-          ))
-        ) : (
-          <p className="text-gray-500 text-center">No jobs found</p>
-        )}
+          )
+        }
+      </section>
 
-      </div>
-
+      {/* Apply Job Modal */}
+      <Modal isOpen={isOpen} onClose={closeModal} className="max-w-[700px] m-4">
+        <div className="no-scrollbar relative w-full max-w-[700px] rounded-3xl bg-white p-6 dark:bg-gray-900 lg:p-8">
+          <div className="px-2 pr-14">
+            <h4 className="mb-2 text-2xl font-semibold text-gray-800 dark:text-white/90">
+              Apply for Job
+            </h4>
+            <p className="mb-6 text-sm text-gray-500 dark:text-gray-400 lg:mb-7">
+              Submit your resume and details to apply for this vacancy.
+            </p>
+          </div>
+          <ResumeUploadForm closeModal={closeModal} jobId={applyingJobId} onApplySuccess={handleApplySuccess} />
+        </div>
+      </Modal>
     </div>
   );
 }

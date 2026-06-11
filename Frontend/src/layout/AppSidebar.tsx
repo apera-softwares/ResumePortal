@@ -35,6 +35,7 @@ const AdminRoute: NavItem[] = [
   },
 ];
 
+/*
 const UserRoute: NavItem[] = [
 
     {
@@ -59,6 +60,7 @@ const HrRoute: NavItem[] = [
   },
 
 ];
+*/
 
 
 
@@ -82,13 +84,9 @@ setName(localStoragename || "")
 
   switch (role) {
     case "ADMIN":
-      routes = AdminRoute;
-      break;
     case "HR":
-      routes = HrRoute;
-      break;
     case "CLIENT":
-    routes = UserRoute;
+      routes = AdminRoute;
       break;
     default:
       routes = []; // or a default route

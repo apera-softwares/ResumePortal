@@ -41,7 +41,7 @@ export class UsersController {
 
   // get all data
   @UseGuards(AuthGuard)
-  @SetMetadata('roles', [Role.ADMIN])
+  @SetMetadata('roles', [Role.ADMIN, Role.HR, Role.CLIENT])
   @UseGuards(RoleGuard)
   @Get()
   async getAllUsers(
@@ -55,7 +55,7 @@ export class UsersController {
   // get data by id
 
   @UseGuards(AuthGuard)
-  @SetMetadata('roles', [Role.ADMIN])
+  @SetMetadata('roles', [Role.ADMIN, Role.HR, Role.CLIENT])
   @UseGuards(RoleGuard)
   @Get(':id')
   getById(@Param('id') id: string) {
@@ -63,7 +63,7 @@ export class UsersController {
   }
 
   @UseGuards(AuthGuard)
-  @SetMetadata('roles', [Role.ADMIN])
+  @SetMetadata('roles', [Role.ADMIN, Role.HR, Role.CLIENT])
   @UseGuards(RoleGuard)
   @Put(':id')
   updateUser(@Param('id') id: string, @Body() usersUpdateDto: UsersUpdateDto) {
@@ -71,7 +71,7 @@ export class UsersController {
   }
 
   @UseGuards(AuthGuard)
-  @SetMetadata('roles', [Role.ADMIN])
+  @SetMetadata('roles', [Role.ADMIN, Role.HR, Role.CLIENT])
   @UseGuards(RoleGuard)
   @Delete(':id')
   delete(@Param('id') id: string) {

@@ -14,7 +14,7 @@ interface ComponentCardProps {
   children: React.ReactNode;
   className?: string;
   desc?: string;
-  succes: () => void;
+  succes?: () => void;
 }
 
 const ComponentCard: React.FC<ComponentCardProps> = ({
@@ -24,6 +24,7 @@ const ComponentCard: React.FC<ComponentCardProps> = ({
   desc = "",
   succes,
 }) => {
+  const API_URL = process.env.NEXT_PUBLIC_API_URL;
   const { isOpen, openModal, closeModal } = useModal();
 
   const [formData, setFormData] = useState({
@@ -43,7 +44,7 @@ const ComponentCard: React.FC<ComponentCardProps> = ({
     e.preventDefault();
     console.log(formData)
     const token = localStorage.getItem("token")
-    const loginUrl = "http://192.168.1.48:3003/users/create";
+    const loginUrl = `${API_URL}/users/create`;
     try {
       const response = await fetch(loginUrl, {
         method: "POST",
@@ -61,7 +62,7 @@ const ComponentCard: React.FC<ComponentCardProps> = ({
       console.log(data, "user create")
       toast.success('user created.');
       closeModal();
-      succes()
+      succes?.()
     } catch (error) {
       console.error("Error creating user:", error);
     }

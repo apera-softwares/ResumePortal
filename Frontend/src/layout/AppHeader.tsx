@@ -2,6 +2,7 @@
 import { useSidebar } from "@/context/SidebarContext";
 import { useRouter } from "next/navigation";
 import React, { useState ,useEffect,useRef} from "react";
+import toast from "react-hot-toast";
 
 const AppHeader: React.FC = () => {
   const router =useRouter();
@@ -17,21 +18,46 @@ const AppHeader: React.FC = () => {
     }
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const toggleApplicationMenu = () => {
     setApplicationMenuOpen(!isApplicationMenuOpen);
   };
   const inputRef = useRef<HTMLInputElement>(null);
          
-const handleLogOut =()=>{
-  let confirmbtn = confirm("Are you sure you want to logout ?");
-    if(confirmbtn){
-        localStorage.removeItem('token');
-     localStorage.removeItem("email");
-     localStorage.removeItem("role");
-     localStorage.removeItem("name");
-        router.replace("/login");
-    }
-}
+const handleLogOut = () => {
+  toast((t) => (
+    <div className="flex flex-col gap-3 p-1">
+      <p className="text-sm font-medium text-gray-900">
+        Are you sure you want to log out?
+      </p>
+      <div className="flex justify-end gap-2">
+        <button
+          onClick={() => toast.dismiss(t.id)}
+          className="px-3 py-1 text-xs text-gray-500 hover:text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={() => {
+            toast.dismiss(t.id);
+            localStorage.removeItem('token');
+            localStorage.removeItem("email");
+            localStorage.removeItem("role");
+            localStorage.removeItem("name");
+            toast.success("Logout successful!");
+            router.replace("/login");
+          }}
+          className="px-3 py-1 text-xs text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors shadow-xs"
+        >
+          Logout
+        </button>
+      </div>
+    </div>
+  ), {
+    duration: 5000,
+    position: "top-center",
+  });
+};
    
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
