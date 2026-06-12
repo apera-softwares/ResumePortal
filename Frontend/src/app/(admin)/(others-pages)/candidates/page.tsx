@@ -15,6 +15,8 @@ interface Candidate {
   education?: string;
   noticePeriod: number;
   resume: string;
+  resumeText?: string;
+  cleanedResume?: string;
   skills: { name: string }[];
   job?: {
     id: number;
@@ -168,7 +170,7 @@ export default function Candidates() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800/80 rounded-3xl shadow-xs">
         <div>
           <h3 className="text-xl font-bold text-gray-900 dark:text-white">
-            Candidates Database
+            Candidate Database
           </h3>
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
             Search candidates by name, email, education, tagged skills, or keywords in their resume.
@@ -350,7 +352,21 @@ export default function Candidates() {
                         {/* Resume Edit */}
                         <TableCell className="px-6 py-4 text-center">
                           <div className="inline-flex justify-center">
-                            <EditResume resume={user.resume} />
+                            <EditResume
+                              candidate={user}
+                              onSave={(updatedCandidate) => {
+                                setCandidatesData((prev) =>
+                                  prev.map((c) =>
+                                    c.id === user.id ? { ...c, ...updatedCandidate } : c
+                                  )
+                                );
+                                setFiltercandidates((prev) =>
+                                  prev.map((c) =>
+                                    c.id === user.id ? { ...c, ...updatedCandidate } : c
+                                  )
+                                );
+                              }}
+                            />
                           </div>
                         </TableCell>
 

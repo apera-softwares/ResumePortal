@@ -3,6 +3,7 @@ import { useSidebar } from "@/context/SidebarContext";
 import { useRouter } from "next/navigation";
 import React, { useState ,useEffect,useRef} from "react";
 import toast from "react-hot-toast";
+import { ThemeToggleButton } from "@/components/common/ThemeToggleButton";
 
 const AppHeader: React.FC = () => {
   const router =useRouter();
@@ -125,7 +126,8 @@ const handleLogOut = () => {
           }  items-center justify-between w-full gap-4 px-5 py-4 lg:flex shadow-theme-md lg:justify-end lg:px-0 lg:shadow-none`}
          >
         
-            <div className=" flex ">
+            <div className="flex items-center gap-4">
+               <ThemeToggleButton />
                <button onClick={handleLogOut} className="px-6 backdrop-blur-2xl  bg-blue-600 text-white font-semibold py-2 rounded-xl border">Logout</button>
          </div>
         </div>
