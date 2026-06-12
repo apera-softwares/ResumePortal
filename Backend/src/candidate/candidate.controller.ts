@@ -82,4 +82,15 @@ export class CandidateController {
   async cleanResume(@Param("id", ParseIntPipe) id: number) {
     return await this.candidateService.generateCleanedDoc(id);
   }
+
+  // upload cleaned resume by id
+  @Post(':id/upload-cleaned')
+  @UseInterceptors(FileInterceptor('file', { storage }))
+  async uploadCleanedResume(
+    @Param('id', ParseIntPipe) id: number,
+    @UploadedFile() file: Express.Multer.File,
+    @Body('resumeText') resumeText?: string,
+  ) {
+    return await this.candidateService.uploadCleanedResume(id, file, resumeText);
+  }
 }

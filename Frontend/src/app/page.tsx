@@ -96,10 +96,6 @@ export default function GuestPage() {
               <span>Upload Resume</span>
             </button>
             
-            <Modal isOpen={isOpen} onClose={closeModal} className="max-w-[700px] m-4">
-              <ResumeUploadForm closeModal={closeModal} />
-            </Modal>
-            
             <button 
               onClick={handleLogin} 
               className="flex items-center gap-1.5 px-4 py-2 sm:px-5 sm:py-2.5 text-xs sm:text-sm font-semibold rounded-xl text-white bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-indigo-700 shadow-md shadow-blue-500/10 hover:shadow-lg hover:shadow-blue-500/20 transition-all duration-200 hover:scale-[1.01] active:scale-[0.99]"
@@ -123,6 +119,10 @@ export default function GuestPage() {
       <main className="flex-grow w-full">
         <PublicJoblisting />
       </main>
+
+      <Modal isOpen={isOpen} onClose={closeModal} className="max-w-[700px] m-4">
+        <ResumeUploadForm closeModal={closeModal} />
+      </Modal>
     </div>
   );
 }

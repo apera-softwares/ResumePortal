@@ -236,4 +236,58 @@ export class CandidateService {
       },
     });
   }
+
+  async uploadCleanedResume(id: number, file: Express.Multer.File, resumeText?: string): Promise<any> {
+    if (!file) {
+      throw new NotFoundException('No file uploaded');
+    }
+
+    const allowedExtensions = ['.pdf', '.doc', '.docx'];
+    const fileExtension = extname(file.originalname).toLowerCase();
+
+    if (!allowedExtensions.includes(fileExtension)) {
+      const tempPath = join(process.cwd(), 'uploads', file.filename);
+      if (fs.existsSync(tempPath)) {
+        fs.unlinkSync(tempPath);
+      }
+      throw new Error('Invalid file type. Only PDF and Word documents are allowed.');
+    }
+
+    const candidate = await this.prisma.candidate.findUnique({
+      where: { id },
+    });
+
+    if (!candidate) {
+      const tempPath = join(process.cwd(), 'uploads', file.filename);
+      if (fs.existsSync(tempPath)) {
+        fs.unlinkSync(tempPath);
+      }
+      throw new NotFoundException(`Candidate with ID ${id} not found`);
+    }
+
+    // Delete old cleaned resume file if it exists
+    if (candidate.cleanedResume) {
+      const oldFilePath = join(process.cwd(), 'uploads', candidate.cleanedResume);
+      try {
+        if (fs.existsSync(oldFilePath)) {
+          fs.unlinkSync(oldFilePath);
+        }
+      } catch (err) {
+        console.error(`Error deleting old cleaned resume file: ${candidate.cleanedResume}`, err);
+      }
+    }
+
+    // Update candidate record
+    return await this.prisma.candidate.update({
+      where: { id },
+      data: {
+        cleanedResume: file.filename,
+        resumeText: resumeText || undefined,
+      },
+      include: {
+        skills: true,
+        job: true,
+      },
+    });
+  }
 }
