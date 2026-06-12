@@ -174,6 +174,9 @@ export default function UsersTable({ callApi }: { callApi: boolean }) {
     if (r === 'HR') {
       return 'bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-900/30';
     }
+    if (r === 'CANDIDATE') {
+      return 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/30';
+    }
     return 'bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-900/30';
   };
 
@@ -292,6 +295,7 @@ export default function UsersTable({ callApi }: { callApi: boolean }) {
                 <option value="HR">HR</option>
                 <option value="CLIENT">Client</option>
                 <option value="ADMIN">Admin</option>
+                <option value="CANDIDATE">Candidate</option>
               </select>
             </div>
 

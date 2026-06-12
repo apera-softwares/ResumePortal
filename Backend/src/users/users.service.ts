@@ -48,7 +48,7 @@ export class UsersService {
           name: createDto.name,
           email: createDto.email,
           password: passwordHash,
-          role: createDto.role,
+          role: createDto.role || 'CANDIDATE',
         },
       });
       return {
