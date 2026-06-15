@@ -21,6 +21,66 @@ interface EditResumeProps {
   onSave?: (updatedCandidate: any) => void;
 }
 
+function convertPlainTextToHtml(text: string): string {
+  if (!text) return "";
+  const lines = text.split(/\r?\n/);
+  let html = "";
+  let inList = false;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+
+    if (!line) {
+      if (inList) {
+        html += "</ul>";
+        inList = false;
+      }
+      html += "<p><br></p>";
+      continue;
+    }
+
+    const isBullet = /^[•\-\*\▪]\s*/.test(line) || /^\d+\.\s+/.test(line);
+    const isHeader =
+      line.length < 50 &&
+      /^[A-Z\d\s\-\,\&\/\(\)]+$/.test(line) &&
+      !line.endsWith(".") &&
+      !line.includes("@") &&
+      !line.includes(":") &&
+      !/^[•\-\*\▪]/.test(line);
+
+    if (isHeader) {
+      if (inList) {
+        html += "</ul>";
+        inList = false;
+      }
+      html += `<h2><strong>${line}</strong></h2>`;
+    } else if (isBullet) {
+      if (!inList) {
+        html += "<ul>";
+        inList = true;
+      }
+      const cleanLine = line.replace(/^[•\-\*\▪\d+\.]\s*/, "");
+      html += `<li>${cleanLine}</li>`;
+    } else {
+      if (inList) {
+        html += "</ul>";
+        inList = false;
+      }
+      if (html === "" && line.length < 30) {
+        html += `<h1><strong>${line}</strong></h1>`;
+      } else {
+        html += `<p>${line}</p>`;
+      }
+    }
+  }
+
+  if (inList) {
+    html += "</ul>";
+  }
+
+  return html;
+}
+
 export default function EditResume({ candidate, onSave }: EditResumeProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -51,7 +111,13 @@ export default function EditResume({ candidate, onSave }: EditResumeProps) {
         });
 
         if (candidate.resumeText) {
-          quillRef.current.setText(candidate.resumeText);
+          const text = candidate.resumeText.trim();
+          if (text.startsWith("<") && (text.includes("</p>") || text.includes("</div>") || text.includes("</h2>") || text.includes("</ul>"))) {
+            quillRef.current.clipboard.dangerouslyPasteHTML(text);
+          } else {
+            const formatted = convertPlainTextToHtml(text);
+            quillRef.current.clipboard.dangerouslyPasteHTML(formatted);
+          }
         }
       };
 
@@ -122,8 +188,8 @@ export default function EditResume({ candidate, onSave }: EditResumeProps) {
       const formData = new FormData();
       const fileName = `${candidate.firstName}_${candidate.lastName}_cleaned.pdf`;
       formData.append("file", pdfBlob, fileName);
-      
-      const plainText = quillRef.current.getText();
+
+      const plainText = quillRef.current.root.innerHTML;
       formData.append("resumeText", plainText);
 
       // 3. Send upload request to backend
@@ -141,7 +207,7 @@ export default function EditResume({ candidate, onSave }: EditResumeProps) {
       }
 
       const updatedCandidate = await response.json();
-      
+
       // Update local state with the plain text too
       onSave?.({ ...updatedCandidate, resumeText: plainText });
 
@@ -175,7 +241,7 @@ export default function EditResume({ candidate, onSave }: EditResumeProps) {
                 Edit and format resume for {candidate.firstName} {candidate.lastName}
               </p>
             </div>
-            
+
             <div className="flex flex-wrap items-center gap-2 mr-8">
               <button
                 onClick={handleCopy}
@@ -213,54 +279,206 @@ export default function EditResume({ candidate, onSave }: EditResumeProps) {
 
           <div className="flex-grow rounded-2xl overflow-hidden text-gray-100">
             <style>{`
+              /* Default/Light Mode styles for Quill Editor */
               .ql-toolbar.ql-snow {
-                background-color: #1f2937 !important;
-                border-color: #374151 !important;
+                background-color: #f8fafc !important;
+                border-color: #e2e8f0 !important;
                 border-top-left-radius: 16px;
                 border-top-right-radius: 16px;
-              }
-              .ql-toolbar.ql-snow .ql-stroke {
-                stroke: #e5e7eb !important;
-              }
-              .ql-toolbar.ql-snow .ql-fill {
-                fill: #e5e7eb !important;
-              }
-              .ql-toolbar.ql-snow .ql-picker {
-                color: #e5e7eb !important;
-              }
-              .ql-toolbar.ql-snow .ql-picker-options {
-                background-color: #1f2937 !important;
-                border-color: #374151 !important;
-                color: #e5e7eb !important;
+                padding: 12px !important;
               }
               .ql-container.ql-snow {
-                border-color: #374151 !important;
+                background-color: #ffffff !important;
+                border-color: #e2e8f0 !important;
                 border-bottom-left-radius: 16px;
                 border-bottom-right-radius: 16px;
-                background-color: #111827 !important;
+                font-family: inherit !important;
               }
               .ql-editor {
-                color: #f9fafb !important;
-                font-size: 14px !important;
-                line-height: 1.7 !important;
+                color: #0f172a !important;
+                font-size: 15px !important;
+                line-height: 1.75 !important;
+                padding: 20px 24px !important;
               }
               .ql-editor.ql-blank::before {
-                color: #9ca3af !important;
+                color: #94a3b8 !important;
+                left: 24px !important;
               }
+              
+              /* Toolbar Button & Picker Styles - Light Mode */
+              .ql-snow.ql-toolbar button,
+              .ql-snow .ql-toolbar button {
+                border-radius: 6px;
+                transition: all 0.15s ease;
+                margin-right: 4px;
+              }
+              .ql-snow.ql-toolbar button:hover,
+              .ql-snow .ql-toolbar button:hover {
+                background-color: #f1f5f9 !important;
+              }
+              .ql-snow.ql-toolbar button.ql-active,
+              .ql-snow .ql-toolbar button.ql-active {
+                background-color: #eff6ff !important;
+              }
+              .ql-snow.ql-toolbar button.ql-active .ql-stroke,
+              .ql-snow .ql-toolbar button.ql-active .ql-stroke {
+                stroke: #2563eb !important;
+              }
+              .ql-snow.ql-toolbar button.ql-active .ql-fill,
+              .ql-snow .ql-toolbar button.ql-active .ql-fill {
+                fill: #2563eb !important;
+              }
+              .ql-snow.ql-toolbar button:hover .ql-stroke,
+              .ql-snow .ql-toolbar button:hover .ql-stroke {
+                stroke: #1e40af !important;
+              }
+              .ql-snow.ql-toolbar button:hover .ql-fill,
+              .ql-snow .ql-toolbar button:hover .ql-fill {
+                fill: #1e40af !important;
+              }
+              .ql-snow.ql-toolbar .ql-stroke {
+                stroke: #475569 !important;
+                stroke-width: 2px;
+              }
+              .ql-snow.ql-toolbar .ql-fill {
+                fill: #475569 !important;
+              }
+              .ql-snow.ql-toolbar .ql-picker {
+                color: #475569 !important;
+                font-weight: 500;
+              }
+              .ql-snow.ql-toolbar .ql-picker-label {
+                border-radius: 6px;
+                padding-left: 8px !important;
+                padding-right: 8px !important;
+                transition: all 0.15s ease;
+              }
+              .ql-snow.ql-toolbar .ql-picker-label:hover {
+                background-color: #f1f5f9 !important;
+                color: #0f172a !important;
+              }
+              .ql-snow.ql-toolbar .ql-picker-label:hover .ql-stroke {
+                stroke: #0f172a !important;
+              }
+              .ql-snow.ql-toolbar .ql-picker-options {
+                background-color: #ffffff !important;
+                border-color: #e2e8f0 !important;
+                border-radius: 12px;
+                box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+                padding: 6px !important;
+              }
+              .ql-snow.ql-toolbar .ql-picker-item {
+                border-radius: 6px;
+                padding: 4px 8px !important;
+                transition: all 0.15s ease;
+              }
+              .ql-snow.ql-toolbar .ql-picker-item:hover {
+                background-color: #f1f5f9 !important;
+                color: #2563eb !important;
+              }
+              .ql-snow.ql-toolbar .ql-picker-item.ql-selected {
+                color: #2563eb !important;
+                background-color: #eff6ff !important;
+              }
+
+              /* Scrollbar Styling - Light Mode */
               .ql-editor::-webkit-scrollbar {
                 width: 8px;
                 height: 8px;
               }
               .ql-editor::-webkit-scrollbar-track {
-                background: #111827 !important;
+                background: #ffffff !important;
               }
               .ql-editor::-webkit-scrollbar-thumb {
-                background: #374151 !important;
+                background: #cbd5e1 !important;
                 border-radius: 9999px;
-                border: 2px solid #111827;
+                border: 2px solid #ffffff;
               }
               .ql-editor::-webkit-scrollbar-thumb:hover {
-                background: #4b5563 !important;
+                background: #94a3b8 !important;
+              }
+
+              /* Dark Mode overrides */
+              .dark .ql-toolbar.ql-snow {
+                background-color: #1e293b !important;
+                border-color: #334155 !important;
+              }
+              .dark .ql-container.ql-snow {
+                background-color: #0f172a !important;
+                border-color: #334155 !important;
+              }
+              .dark .ql-editor {
+                color: #f8fafc !important;
+              }
+              .dark .ql-editor.ql-blank::before {
+                color: #64748b !important;
+              }
+              
+              /* Toolbar Buttons & Pickers - Dark Mode */
+              .dark .ql-snow.ql-toolbar button:hover,
+              .dark .ql-snow .ql-toolbar button:hover {
+                background-color: #334155 !important;
+              }
+              .dark .ql-snow.ql-toolbar button.ql-active,
+              .dark .ql-snow .ql-toolbar button.ql-active {
+                background-color: #1e3a8a !important;
+              }
+              .dark .ql-snow.ql-toolbar button.ql-active .ql-stroke,
+              .dark .ql-snow .ql-toolbar button.ql-active .ql-stroke {
+                stroke: #60a5fa !important;
+              }
+              .dark .ql-snow.ql-toolbar button.ql-active .ql-fill,
+              .dark .ql-snow .ql-toolbar button.ql-active .ql-fill {
+                fill: #60a5fa !important;
+              }
+              .dark .ql-snow.ql-toolbar button:hover .ql-stroke,
+              .dark .ql-snow .ql-toolbar button:hover .ql-stroke {
+                stroke: #60a5fa !important;
+              }
+              .dark .ql-snow.ql-toolbar button:hover .ql-fill,
+              .dark .ql-snow .ql-toolbar button:hover .ql-fill {
+                fill: #60a5fa !important;
+              }
+              .dark .ql-snow.ql-toolbar .ql-stroke {
+                stroke: #cbd5e1 !important;
+              }
+              .dark .ql-snow.ql-toolbar .ql-fill {
+                fill: #cbd5e1 !important;
+              }
+              .dark .ql-snow.ql-toolbar .ql-picker {
+                color: #cbd5e1 !important;
+              }
+              .dark .ql-snow.ql-toolbar .ql-picker-label:hover {
+                background-color: #334155 !important;
+                color: #ffffff !important;
+              }
+              .dark .ql-snow.ql-toolbar .ql-picker-label:hover .ql-stroke {
+                stroke: #ffffff !important;
+              }
+              .dark .ql-snow.ql-toolbar .ql-picker-options {
+                background-color: #1e293b !important;
+                border-color: #334155 !important;
+                box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -4px rgba(0, 0, 0, 0.3);
+              }
+              .dark .ql-snow.ql-toolbar .ql-picker-item:hover {
+                background-color: #334155 !important;
+                color: #60a5fa !important;
+              }
+              .dark .ql-snow.ql-toolbar .ql-picker-item.ql-selected {
+                color: #60a5fa !important;
+                background-color: #1e3a8a !important;
+              }
+
+              /* Scrollbar Styling - Dark Mode */
+              .dark .ql-editor::-webkit-scrollbar-track {
+                background: #0f172a !important;
+              }
+              .dark .ql-editor::-webkit-scrollbar-thumb {
+                background: #475569 !important;
+                border: 2px solid #0f172a;
+              }
+              .dark .ql-editor::-webkit-scrollbar-thumb:hover {
+                background: #64748b !important;
               }
             `}</style>
             <div ref={editorRef} style={{ height: "60vh" }} />

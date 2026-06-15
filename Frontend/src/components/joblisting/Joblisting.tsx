@@ -27,7 +27,7 @@ export default function Joblisting({ jData }: { jData: Job[] }) {
   const API_URL = process.env.NEXT_PUBLIC_API_URL;
   const [searchitem, setSearchitem] = useState<string>('');
   const [filteredjobs, setFilteredJobs] = useState<Job[]>(jData || []);
-  const [isGridView, setIsGridView] = useState<boolean>(true);
+  const [isGridView, setIsGridView] = useState<boolean>(false);
 
   useEffect(() => {
     setFilteredJobs(jData || []);
