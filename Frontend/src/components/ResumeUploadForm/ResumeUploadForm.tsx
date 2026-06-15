@@ -10,6 +10,22 @@ export default function ResumeUploadForm({closeModal, jobId, onApplySuccess} : {
    const API_URL = process.env.NEXT_PUBLIC_API_URL;
   const [candidData, setcanditData] = useState<any[]>([]);
      const [selectedOption, setSelectedOption] = useState<any[]>([]);
+     const [isDark, setIsDark] = useState(false);
+
+     useEffect(() => {
+       if (typeof window !== "undefined") {
+         setIsDark(document.documentElement.classList.contains("dark"));
+         
+         const observer = new MutationObserver(() => {
+           setIsDark(document.documentElement.classList.contains("dark"));
+         });
+         observer.observe(document.documentElement, {
+           attributes: true,
+           attributeFilter: ["class"],
+         });
+         return () => observer.disconnect();
+       }
+     }, []);
 
          const handleSkillsChange = (selected: any) => {
       const values = selected ? selected.map((opt: any) => opt.value) : [];
@@ -27,14 +43,35 @@ export default function ResumeUploadForm({closeModal, jobId, onApplySuccess} : {
     skills: "",
   });
 
+  const [errors, setErrors] = useState({
+    email: "",
+    mobile: "",
+  });
+
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = e.target;
+    
+    if (name === "mobile") {
+      const numericValue = value.replace(/\D/g, "");
+      if (numericValue.length > 10) return;
+      setFormData((prev) => ({
+        ...prev,
+        [name]: numericValue,
+      }));
+      setErrors((prev) => ({ ...prev, mobile: "" }));
+      return;
+    }
+
     setFormData((prev) => ({
       ...prev,
       [name]: value,
     }));
+    // Clear errors as user types
+    if (name === "email" || name === "mobile") {
+      setErrors((prev) => ({ ...prev, [name]: "" }));
+    }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -47,8 +84,35 @@ export default function ResumeUploadForm({closeModal, jobId, onApplySuccess} : {
     }
   };
 
+  const validate = () => {
+    let isValid = true;
+    const tempErrors = { email: "", mobile: "" };
+
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!formData.email.trim()) {
+      tempErrors.email = "Email is required";
+      isValid = false;
+    } else if (!emailRegex.test(formData.email)) {
+      tempErrors.email = "Please enter a valid email address";
+      isValid = false;
+    }
+
+    const mobileRegex = /^\d{10}$/;
+    if (!formData.mobile.trim()) {
+      tempErrors.mobile = "Mobile number is required";
+      isValid = false;
+    } else if (!mobileRegex.test(formData.mobile)) {
+      tempErrors.mobile = "Mobile number must be exactly 10 digits";
+      isValid = false;
+    }
+
+    setErrors(tempErrors);
+    return isValid;
+  };
+
   const handlSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (!validate()) return;
     
     const token = localStorage.getItem("token");
 
@@ -138,6 +202,126 @@ export default function ResumeUploadForm({closeModal, jobId, onApplySuccess} : {
     fetchSkills()
         },[])
 
+  const customSelectStyles = {
+    control: (provided: any, state: any) => {
+      return {
+        ...provided,
+        backgroundColor: isDark ? '#1f2937' : '#ffffff', // gray-800 or white
+        borderColor: state.isFocused
+          ? '#3b82f6' // blue-500
+          : isDark
+          ? '#374151' // gray-700
+          : '#e5e7eb', // gray-200
+        borderRadius: '0.75rem', // rounded-xl
+        padding: '2px 4px',
+        fontSize: '0.875rem', // text-sm
+        boxShadow: state.isFocused
+          ? '0 0 0 2px rgba(59, 130, 246, 0.2)'
+          : 'none',
+        '&:hover': {
+          borderColor: isDark ? '#4b5563' : '#d1d5db',
+        },
+        transition: 'all 0.2s ease',
+      };
+    },
+    menu: (provided: any) => {
+      return {
+        ...provided,
+        backgroundColor: isDark ? '#111827' : '#ffffff', // gray-900 or white
+        borderRadius: '0.75rem',
+        border: isDark ? '1px solid #374151' : '1px solid #e5e7eb',
+        boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+        overflow: 'hidden',
+        zIndex: 9999,
+      };
+    },
+    menuList: (provided: any) => {
+      return {
+        ...provided,
+        maxHeight: '180px',
+        padding: '4px',
+        scrollbarWidth: 'thin' as any, // Firefox
+        scrollbarColor: isDark ? '#4b5563 transparent' : '#cbd5e1 transparent', // Firefox
+        '&::-webkit-scrollbar': {
+          width: '6px',
+          height: '6px',
+        },
+        '&::-webkit-scrollbar-track': {
+          background: 'transparent',
+        },
+        '&::-webkit-scrollbar-thumb': {
+          background: isDark ? '#374151' : '#cbd5e1',
+          borderRadius: '9999px',
+          border: '1px solid transparent',
+        },
+        '&::-webkit-scrollbar-thumb:hover': {
+          background: isDark ? '#4b5563' : '#94a3b8',
+        },
+      };
+    },
+    option: (provided: any, state: any) => {
+      return {
+        ...provided,
+        backgroundColor: state.isSelected
+          ? '#3b82f6'
+          : state.isFocused
+          ? isDark
+            ? '#1f2937' // gray-800
+            : '#f3f4f6' // gray-100
+          : 'transparent',
+        color: state.isSelected
+          ? '#ffffff'
+          : isDark
+          ? '#f9fafb' // gray-50
+          : '#111827', // gray-900
+        padding: '8px 12px',
+        borderRadius: '0.5rem',
+        fontSize: '0.875rem',
+        cursor: 'pointer',
+        '&:active': {
+          backgroundColor: '#3b82f6',
+          color: '#ffffff',
+        },
+        transition: 'all 0.15s ease',
+      };
+    },
+    multiValue: (provided: any) => {
+      return {
+        ...provided,
+        backgroundColor: isDark ? '#374151' : '#e5e7eb', // gray-700 or gray-200
+        borderRadius: '0.375rem',
+        padding: '2px 6px',
+      };
+    },
+    multiValueLabel: (provided: any) => {
+      return {
+        ...provided,
+        color: isDark ? '#f9fafb' : '#111827',
+        fontSize: '0.75rem',
+        fontWeight: '500',
+      };
+    },
+    multiValueRemove: (provided: any) => {
+      return {
+        ...provided,
+        color: isDark ? '#9ca3af' : '#4b5563',
+        '&:hover': {
+          backgroundColor: isDark ? '#4b5563' : '#d1d5db',
+          color: isDark ? '#f9fafb' : '#111827',
+        },
+        borderRadius: '0.25rem',
+        transition: 'all 0.15s ease',
+      };
+    },
+    placeholder: (provided: any) => {
+      return {
+        ...provided,
+        color: isDark ? '#6b7280' : '#9ca3af',
+        fontSize: '0.875rem',
+      };
+    },
+  };
+
   return (
     <div className="relative w-full p-2 sm:p-4">
       <div className="px-2 pr-14">
@@ -188,6 +372,9 @@ export default function ResumeUploadForm({closeModal, jobId, onApplySuccess} : {
                     value={formData.email}
                     onChange={handleChange}
                   />
+                  {errors.email && (
+                    <p className="text-xs text-rose-500 mt-1.5 font-medium">{errors.email}</p>
+                  )}
                 </div>
 
                 <div className="col-span-2 lg:col-span-1">
@@ -199,6 +386,9 @@ export default function ResumeUploadForm({closeModal, jobId, onApplySuccess} : {
                     value={formData.mobile}
                     onChange={handleChange}
                   />
+                  {errors.mobile && (
+                    <p className="text-xs text-rose-500 mt-1.5 font-medium">{errors.mobile}</p>
+                  )}
                 </div>
 
                 <div className="col-span-2 lg:col-span-1">
@@ -237,15 +427,16 @@ export default function ResumeUploadForm({closeModal, jobId, onApplySuccess} : {
                 <div className="col-span-2">
                   <Label>Skills</Label>
                  <Select
-  name="skills"
-  defaultValue={selectedOption|| undefined}
-  onChange={handleSkillsChange}
-  options={skills.map((skill: any) => ({
-    value: skill.name,
-    label: skill.name,
-  }))}
-  isMulti
-/>
+                  name="skills"
+                  defaultValue={selectedOption|| undefined}
+                  onChange={handleSkillsChange}
+                  options={skills.map((skill: any) => ({
+                    value: skill.name,
+                    label: skill.name,
+                  }))}
+                  isMulti
+                  styles={customSelectStyles}
+                />
                 </div>
 
                 <div className="col-span-2">

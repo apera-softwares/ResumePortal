@@ -17,12 +17,14 @@ export default function SignUpForm() {
     name: "",
     email: "",
     password: "",
+    confirmPassword: "",
   });
 
   const [errors, setErrors] = useState({
     name: "",
     email: "",
     password: "",
+    confirmPassword: "",
   });
 
   const [isLoading, setIsLoading] = useState(false);
@@ -34,7 +36,7 @@ export default function SignUpForm() {
 
   const validate = () => {
     let isValid = true;
-    const tempErrors = { name: "", email: "", password: "" };
+    const tempErrors = { name: "", email: "", password: "", confirmPassword: "" };
 
     if (!formData.name.trim()) {
       tempErrors.name = "Full name is required";
@@ -58,6 +60,14 @@ export default function SignUpForm() {
       isValid = false;
     }
 
+    if (!formData.confirmPassword.trim()) {
+      tempErrors.confirmPassword = "Confirm password is required";
+      isValid = false;
+    } else if (formData.password !== formData.confirmPassword) {
+      tempErrors.confirmPassword = "Passwords do not match";
+      isValid = false;
+    }
+
     setErrors(tempErrors);
     return isValid;
   };
@@ -76,7 +86,9 @@ export default function SignUpForm() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          ...formData,
+          name: formData.name,
+          email: formData.email,
+          password: formData.password,
           role: "CANDIDATE",
         }),
       });
@@ -181,6 +193,35 @@ export default function SignUpForm() {
                 </div>
                 {errors.password && (
                   <p className="text-xs text-rose-500 mt-1">{errors.password}</p>
+                )}
+              </div>
+
+              <div>
+                <Label>
+                  Confirm Password <span className="text-rose-500">*</span>
+                </Label>
+                <div className="relative">
+                  <Input
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Confirm your password"
+                    name="confirmPassword"
+                    value={formData.confirmPassword}
+                    onChange={handleOnChange}
+                    required
+                  />
+                  <span
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute z-30 -translate-y-1/2 cursor-pointer right-4 top-1/2"
+                  >
+                    {showPassword ? (
+                      <EyeIcon className="fill-gray-500 dark:fill-gray-400" />
+                    ) : (
+                      <EyeCloseIcon className="fill-gray-500 dark:fill-gray-400" />
+                    )}
+                  </span>
+                </div>
+                {errors.confirmPassword && (
+                  <p className="text-xs text-rose-500 mt-1">{errors.confirmPassword}</p>
                 )}
               </div>
 
