@@ -72,13 +72,20 @@ const AppSidebar: React.FC = () => {
 
   const [role, setRole] = useState("")
    const [name ,setName] =useState('');
+  const [mounted, setMounted] = useState(false);
   
   useEffect(()=>{
-  const localStorageRole = localStorage.getItem("role")
+    setMounted(true);
+    const localStorageRole = localStorage.getItem("role")
     const localStoragename = localStorage.getItem("name")
-  setRole(localStorageRole || "")
-setName(localStoragename || "")
+    setRole(localStorageRole || "")
+    setName(localStoragename || "")
   },[])
+  
+  // Prevent rendering until component is mounted on client
+  if (!mounted) {
+    return null;
+  }
       
    let routes: NavItem[] = [];
 

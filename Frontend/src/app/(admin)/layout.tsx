@@ -24,11 +24,13 @@ export default function AdminLayout({
    
 
 useEffect(()=>{
+  // Check if token exists in localStorage
   const token = localStorage.getItem("token");
+  // Redirect to login if no token found
   if(!token){
-router.replace("/")
+    router.replace("/login");
   }
-},[router])
+}, [router])
 
   return (
     <> 

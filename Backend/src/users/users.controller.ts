@@ -25,9 +25,9 @@ export class UsersController {
   constructor(private usersService: UsersService) {}
 
   // create user
-  @UseGuards(AuthGuard)
-  @SetMetadata('roles', [Role.ADMIN, Role.HR])
-  @UseGuards(RoleGuard)
+  //@UseGuards(AuthGuard)
+ // @SetMetadata('roles', [Role.ADMIN, Role.HR])
+  //@UseGuards(RoleGuard)
   @Post('create')
   async create(@Body() createDto: UsersCreateDto) {
     return this.usersService.createUser(createDto);

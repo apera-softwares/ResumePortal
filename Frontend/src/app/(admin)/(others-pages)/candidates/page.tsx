@@ -27,7 +27,7 @@ interface Candidate {
 }
 
 export default function Candidates() {
-  const API_URL = process.env.NEXT_PUBLIC_API_URL;
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || (typeof window !== "undefined" ? `http://${window.location.hostname}:3001` : "http://localhost:3001");
   const [role, setRole] = useState<string | null>(null);
   const [userId, setUserId] = useState<number | null>(null);
   const [candidatesData, setCandidatesData] = useState<Candidate[]>([]);
@@ -69,7 +69,8 @@ export default function Candidates() {
         const mobileMatch = cand.mobile?.toLowerCase().includes(term) || false;
         const eduMatch = cand.education?.toLowerCase().includes(term) || false;
         const skillsMatch = cand.skills?.some((s) => s.name.toLowerCase().includes(term)) || false;
-        const resumeTextMatch = (cand as any).resumeText?.toLowerCase().includes(term) || false;
+        const resumeTextCleaned = (cand as any).resumeText?.replace(/<[^>]*>/g, '').toLowerCase() || '';
+        const resumeTextMatch = resumeTextCleaned.includes(term);
         return nameMatch || emailMatch || mobileMatch || eduMatch || skillsMatch || resumeTextMatch;
       });
     setFiltercandidates(filtered);

@@ -7,7 +7,7 @@ import toast from "react-hot-toast";
 
 
 export default function ResumeUploadForm({closeModal, jobId, onApplySuccess} : {closeModal: () => void; jobId?: number | null; onApplySuccess?: (jobId: number) => void} ) {
-   const API_URL = process.env.NEXT_PUBLIC_API_URL;
+   const API_URL = process.env.NEXT_PUBLIC_API_URL || (typeof window !== "undefined" ? `http://${window.location.hostname}:3001` : "http://localhost:3001");
   const [candidData, setcanditData] = useState<any[]>([]);
      const [selectedOption, setSelectedOption] = useState<any[]>([]);
 

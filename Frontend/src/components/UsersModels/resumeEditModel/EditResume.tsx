@@ -21,10 +21,90 @@ interface EditResumeProps {
   onSave?: (updatedCandidate: any) => void;
 }
 
+function parsePlainTextToHtml(text: string): string {
+  if (!text) return "";
+  
+  const lines = text.split(/\r?\n/);
+  let html = "";
+  let listType: "bullet" | "ordered" | null = null;
+  
+  for (let line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      if (listType === "bullet") {
+        html += "</ul>";
+        listType = null;
+      } else if (listType === "ordered") {
+        html += "</ol>";
+        listType = null;
+      }
+      html += "<p><br></p>";
+      continue;
+    }
+    
+    // Check for footer / page numbers like "-- 1 of 1 --" or "Page 1" to remove them or treat as paragraph
+    const isFooter = /^--\s*\d+\s*of\s*\d+\s*--$/i.test(trimmed) || /^page\s*\d+/i.test(trimmed);
+    if (isFooter) {
+      continue;
+    }
+    
+    const bulletMatch = trimmed.match(/^[•\*\-\u2022]\s*(.*)/);
+    const numberMatch = trimmed.match(/^(\d+)[\.\)]\s*(.*)/);
+    
+    if (bulletMatch) {
+      if (listType === "ordered") {
+        html += "</ol>";
+        listType = null;
+      }
+      if (!listType) {
+        html += "<ul>";
+        listType = "bullet";
+      }
+      html += `<li>${bulletMatch[1]}</li>`;
+    } else if (numberMatch) {
+      if (listType === "bullet") {
+        html += "</ul>";
+        listType = null;
+      }
+      if (!listType) {
+        html += "<ol>";
+        listType = "ordered";
+      }
+      html += `<li>${numberMatch[2]}</li>`;
+    } else {
+      if (listType === "bullet") {
+        html += "</ul>";
+        listType = null;
+      } else if (listType === "ordered") {
+        html += "</ol>";
+        listType = null;
+      }
+      
+      // Check for headers (e.g. short lines like "Career Summary", "Education")
+      const isHeader = trimmed.length < 50 && 
+        /^(Career Summary|Adult Care Experience|Childcare Experience|Employment History|Education|Skills|Summary|Experience|Projects|Languages|Certifications|Professional Experience|Work Experience|Summary of Qualifications)$/i.test(trimmed);
+        
+      if (isHeader) {
+        html += `<h3>${trimmed}</h3>`;
+      } else {
+        html += `<p>${trimmed}</p>`;
+      }
+    }
+  }
+  
+  if (listType === "bullet") {
+    html += "</ul>";
+  } else if (listType === "ordered") {
+    html += "</ol>";
+  }
+  
+  return html;
+}
+
 export default function EditResume({ candidate, onSave }: EditResumeProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const API_URL = process.env.NEXT_PUBLIC_API_URL;
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || (typeof window !== "undefined" ? `http://${window.location.hostname}:3001` : "http://localhost:3001");
   const editorRef = useRef<HTMLDivElement>(null);
   const quillRef = useRef<any>(null);
 
@@ -51,7 +131,14 @@ export default function EditResume({ candidate, onSave }: EditResumeProps) {
         });
 
         if (candidate.resumeText) {
-          quillRef.current.setText(candidate.resumeText);
+          const text = candidate.resumeText;
+          const isHtml = /<[a-z][\s\S]*>/i.test(text);
+          if (isHtml) {
+            quillRef.current.clipboard.dangerouslyPasteHTML(text);
+          } else {
+            const formattedHtml = parsePlainTextToHtml(text);
+            quillRef.current.clipboard.dangerouslyPasteHTML(formattedHtml);
+          }
         }
       };
 
@@ -123,8 +210,8 @@ export default function EditResume({ candidate, onSave }: EditResumeProps) {
       const fileName = `${candidate.firstName}_${candidate.lastName}_cleaned.pdf`;
       formData.append("file", pdfBlob, fileName);
       
-      const plainText = quillRef.current.getText();
-      formData.append("resumeText", plainText);
+      const htmlText = quillRef.current.root.innerHTML;
+      formData.append("resumeText", htmlText);
 
       // 3. Send upload request to backend
       const token = localStorage.getItem("token");
@@ -142,8 +229,8 @@ export default function EditResume({ candidate, onSave }: EditResumeProps) {
 
       const updatedCandidate = await response.json();
       
-      // Update local state with the plain text too
-      onSave?.({ ...updatedCandidate, resumeText: plainText });
+      // Update local state with the HTML too
+      onSave?.({ ...updatedCandidate, resumeText: htmlText });
 
       toast.success("Cleaned resume saved and uploaded successfully!", { id: loadingToast });
       setIsOpen(false);
@@ -237,33 +324,70 @@ export default function EditResume({ candidate, onSave }: EditResumeProps) {
                 border-color: #374151 !important;
                 border-bottom-left-radius: 16px;
                 border-bottom-right-radius: 16px;
-                background-color: #111827 !important;
+                background-color: #f3f4f6 !important; /* light gray desk surface */
+                overflow-y: auto !important;
+                height: 60vh !important;
               }
               .ql-editor {
-                color: #f9fafb !important;
-                font-size: 14px !important;
-                line-height: 1.7 !important;
+                background-color: #ffffff !important; /* white paper page */
+                color: #1f2937 !important; /* dark gray text */
+                font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+                font-size: 15px !important;
+                line-height: 1.6 !important;
+                width: 100% !important;
+                max-width: 800px !important;
+                min-height: 297mm !important; /* A4 aspect ratio height scale */
+                padding: 50px 60px !important;
+                margin: 30px auto !important;
+                box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1) !important;
+                border: 1px solid #e5e7eb !important;
+                border-radius: 4px;
+                overflow-y: visible !important;
+              }
+              .ql-editor h1, .ql-editor h2, .ql-editor h3 {
+                font-weight: 700 !important;
+                color: #111827 !important;
+                margin-top: 1.25em !important;
+                margin-bottom: 0.5em !important;
+                line-height: 1.25 !important;
+              }
+              .ql-editor h1 { font-size: 22px !important; border-bottom: 1px solid #e5e7eb; padding-bottom: 6px; }
+              .ql-editor h2 { font-size: 18px !important; }
+              .ql-editor h3 { font-size: 16px !important; }
+              .ql-editor p {
+                margin-bottom: 1em !important;
+                color: #374151 !important;
+              }
+              .ql-editor ul, .ql-editor ol {
+                padding-left: 20px !important;
+                margin-bottom: 1em !important;
+              }
+              .ql-editor li {
+                margin-bottom: 0.25em !important;
+                color: #374151 !important;
               }
               .ql-editor.ql-blank::before {
                 color: #9ca3af !important;
+                left: 60px !important;
+                top: 50px !important;
               }
-              .ql-editor::-webkit-scrollbar {
+              .ql-container::-webkit-scrollbar {
                 width: 8px;
                 height: 8px;
               }
-              .ql-editor::-webkit-scrollbar-track {
-                background: #111827 !important;
+              .ql-container::-webkit-scrollbar-track {
+                background: #f3f4f6 !important;
               }
-              .ql-editor::-webkit-scrollbar-thumb {
-                background: #374151 !important;
+              .ql-container::-webkit-scrollbar-thumb {
+                background: #cbd5e1 !important;
                 border-radius: 9999px;
-                border: 2px solid #111827;
+                border: 2px solid #f3f4f6;
               }
-              .ql-editor::-webkit-scrollbar-thumb:hover {
-                background: #4b5563 !important;
+              .ql-container::-webkit-scrollbar-thumb:hover {
+                background: #94a3b8 !important;
               }
             `}</style>
-            <div ref={editorRef} style={{ height: "60vh" }} />
+            <div ref={editorRef} />
           </div>
 
           <div className="flex justify-end pt-2 gap-3 border-t border-gray-100 dark:border-gray-850">

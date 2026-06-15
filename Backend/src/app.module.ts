@@ -6,6 +6,7 @@ import { AppService } from './app.service';
 import { JobsModule } from './jobs/jobs.module';
 import { CandidateModule } from './candidate/candidate.module';
 import { SkillsModule } from './skills/skills.module';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { SkillsModule } from './skills/skills.module';
     JobsModule,
     CandidateModule,
     SkillsModule,
+    EventEmitterModule.forRoot(),
   ],
   controllers: [AppController],
   providers: [AppService],
