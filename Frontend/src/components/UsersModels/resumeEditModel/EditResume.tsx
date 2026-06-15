@@ -262,7 +262,7 @@ export default function EditResume({ candidate, onSave }: EditResumeProps) {
                 Edit and format resume for {candidate.firstName} {candidate.lastName}
               </p>
             </div>
-            
+
             <div className="flex flex-wrap items-center gap-2 mr-8">
               <button
                 onClick={handleCopy}
@@ -300,28 +300,17 @@ export default function EditResume({ candidate, onSave }: EditResumeProps) {
 
           <div className="flex-grow rounded-2xl overflow-hidden text-gray-100">
             <style>{`
+              /* Default/Light Mode styles for Quill Editor */
               .ql-toolbar.ql-snow {
-                background-color: #1f2937 !important;
-                border-color: #374151 !important;
+                background-color: #f8fafc !important;
+                border-color: #e2e8f0 !important;
                 border-top-left-radius: 16px;
                 border-top-right-radius: 16px;
-              }
-              .ql-toolbar.ql-snow .ql-stroke {
-                stroke: #e5e7eb !important;
-              }
-              .ql-toolbar.ql-snow .ql-fill {
-                fill: #e5e7eb !important;
-              }
-              .ql-toolbar.ql-snow .ql-picker {
-                color: #e5e7eb !important;
-              }
-              .ql-toolbar.ql-snow .ql-picker-options {
-                background-color: #1f2937 !important;
-                border-color: #374151 !important;
-                color: #e5e7eb !important;
+                padding: 12px !important;
               }
               .ql-container.ql-snow {
-                border-color: #374151 !important;
+                background-color: #ffffff !important;
+                border-color: #e2e8f0 !important;
                 border-bottom-left-radius: 16px;
                 border-bottom-right-radius: 16px;
                 background-color: #f3f4f6 !important; /* light gray desk surface */

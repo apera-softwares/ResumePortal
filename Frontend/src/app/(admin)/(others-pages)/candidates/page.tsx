@@ -33,6 +33,7 @@ export default function Candidates() {
   const [candidatesData, setCandidatesData] = useState<Candidate[]>([]);
   const [filtercandidate, setFiltercandidates] = useState<Candidate[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [expFilter, setExpFilter] = useState("");
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -47,34 +48,41 @@ export default function Candidates() {
   useEffect(() => {
     const isCompanyUser = role && role !== "ADMIN";
     
-    if (!searchTerm.trim()) {
+    let filtered = candidatesData.filter((cand) => {
       if (isCompanyUser) {
-        setFiltercandidates(candidatesData.filter((cand) => cand.job?.createdById === userId));
-      } else {
-        setFiltercandidates(candidatesData || []);
+        return cand.job?.createdById === userId;
       }
-      return;
-    }
-    const term = searchTerm.toLowerCase();
-    const filtered = candidatesData
-      .filter((cand) => {
-        if (isCompanyUser) {
-          return cand.job?.createdById === userId;
-        }
+      return true;
+    });
+
+    // Apply Experience Range Filter
+    if (expFilter) {
+      filtered = filtered.filter((cand) => {
+        const exp = cand.yearsOfExperience;
+        if (expFilter === "0-2") return exp >= 0 && exp <= 2;
+        if (expFilter === "3-5") return exp >= 3 && exp <= 5;
+        if (expFilter === "6-9") return exp >= 6 && exp <= 9;
+        if (expFilter === "10+") return exp >= 10;
         return true;
-      })
-      .filter((cand) => {
+      });
+    }
+
+    // Apply Search Term Filter (removed education, added experience number match)
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase();
+      filtered = filtered.filter((cand) => {
         const nameMatch = `${cand.firstName} ${cand.lastName}`.toLowerCase().includes(term);
         const emailMatch = cand.email.toLowerCase().includes(term);
         const mobileMatch = cand.mobile?.toLowerCase().includes(term) || false;
-        const eduMatch = cand.education?.toLowerCase().includes(term) || false;
         const skillsMatch = cand.skills?.some((s) => s.name.toLowerCase().includes(term)) || false;
         const resumeTextCleaned = (cand as any).resumeText?.replace(/<[^>]*>/g, '').toLowerCase() || '';
         const resumeTextMatch = resumeTextCleaned.includes(term);
         return nameMatch || emailMatch || mobileMatch || eduMatch || skillsMatch || resumeTextMatch;
       });
+    }
+
     setFiltercandidates(filtered);
-  }, [searchTerm, candidatesData, role, userId]);
+  }, [searchTerm, expFilter, candidatesData, role, userId]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -174,33 +182,49 @@ export default function Candidates() {
             Candidate Database
           </h3>
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-            Search candidates by name, email, education, tagged skills, or keywords in their resume.
+            Search candidates by name, email, tagged skills, experience, or keywords in their resume.
           </p>
         </div>
-        <div className="relative w-full md:w-96">
-          <input
-            type="text"
-            placeholder="Search candidates..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 text-sm text-gray-900 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-gray-950 dark:text-white transition-all"
-          />
-          <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400">
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-              />
-            </svg>
-          </span>
+        <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+          {/* Experience Filter */}
+          <select
+            value={expFilter}
+            onChange={(e) => setExpFilter(e.target.value)}
+            className="px-3 py-2.5 text-sm text-gray-900 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-white transition-all cursor-pointer font-semibold"
+          >
+            <option value="">All Experience</option>
+            <option value="0-2">0 - 2 Years</option>
+            <option value="3-5">3 - 5 Years</option>
+            <option value="6-9">6 - 9 Years</option>
+            <option value="10+">10+ Years</option>
+          </select>
+
+          {/* Search Input */}
+          <div className="relative w-full sm:w-80">
+            <input
+              type="text"
+              placeholder="Search candidates..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 text-sm text-gray-900 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-gray-950 dark:text-white transition-all"
+            />
+            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400">
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                />
+              </svg>
+            </span>
+          </div>
         </div>
       </div>
 
@@ -215,7 +239,6 @@ export default function Candidates() {
                   <TableCell isHeader className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-start">Email</TableCell>
                   <TableCell isHeader className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-start">Mobile No</TableCell>
                   <TableCell isHeader className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-start">Years of Experience</TableCell>
-                  <TableCell isHeader className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-start">Education</TableCell>
                   <TableCell isHeader className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-start">Skills</TableCell>
                   <TableCell isHeader className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-start">Applied Position</TableCell>
                   <TableCell isHeader className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-start">Status</TableCell>
@@ -265,11 +288,6 @@ export default function Candidates() {
                           <span className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-900/50">
                             {user.yearsOfExperience} Yrs
                           </span>
-                        </TableCell>
-
-                        {/* Education */}
-                        <TableCell className="px-6 py-4 text-start text-sm text-gray-700 dark:text-gray-300">
-                          {user.education || "-"}
                         </TableCell>
 
                         {/* Skills */}
@@ -387,7 +405,7 @@ export default function Candidates() {
                   })
                 ) : (
                   <TableRow>
-                    <td colSpan={role === "CLIENT" ? 9 : 10} className="py-12 text-center text-gray-400 dark:text-gray-500 text-sm">
+                    <td colSpan={role === "CLIENT" ? 8 : 9} className="py-12 text-center text-gray-400 dark:text-gray-500 text-sm">
                       No candidates found.
                     </td>
                   </TableRow>

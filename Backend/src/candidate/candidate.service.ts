@@ -326,12 +326,32 @@ export class CandidateService {
       }
     }
 
+    // Extract text from the new file
+    let extractedText = '';
+    const filePath = join(process.cwd(), 'uploads', file.filename);
+    try {
+      if (fs.existsSync(filePath)) {
+        const buffer = fs.readFileSync(filePath);
+        if (fileExtension === '.pdf') {
+          const parser = new PDFParse({ data: buffer });
+          const result = await parser.getText();
+          extractedText = result.text || '';
+          await parser.destroy();
+        } else if (fileExtension === '.docx') {
+          const result = await mammoth.convertToHtml({ buffer });
+          extractedText = result.value || '';
+        }
+      }
+    } catch (error) {
+      console.error('Error extracting text from uploaded cleaned resume:', error);
+    }
+
     // Update candidate record
     return await this.prisma.candidate.update({
       where: { id },
       data: {
         cleanedResume: file.filename,
-        resumeText: resumeText || undefined,
+        resumeText: extractedText || resumeText || undefined,
       },
       include: {
         skills: true,

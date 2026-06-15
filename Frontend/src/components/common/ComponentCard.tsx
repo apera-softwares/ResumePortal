@@ -116,6 +116,7 @@ const ComponentCard: React.FC<ComponentCardProps> = ({
                 </option>
                 <option value="HR">HR</option>
                 <option value="CLIENT">Client</option>
+                <option value="CANDIDATE">Candidate</option>
               </select>
             </div>
 

@@ -185,6 +185,17 @@ export default function LogInForm() {
                     Log in
                   </Button>
                 </div>
+                <div className="text-center pt-2">
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Don't have an account?{" "}
+                    <Link
+                      href="/signup"
+                      className="text-blue-600 hover:text-blue-700 dark:text-blue-400 font-semibold transition-colors"
+                    >
+                      Sign Up
+                    </Link>
+                  </p>
+                </div>
               </div>
             </form>
           </div>

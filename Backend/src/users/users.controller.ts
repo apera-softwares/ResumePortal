@@ -39,6 +39,13 @@ export class UsersController {
     return this.usersService.loginUser(loginDto);
   }
 
+  // create signup route for candidate
+  @Post('signup')
+  async signup(@Body() signupDto: UsersCreateDto) {
+    signupDto.role = Role.CANDIDATE;
+    return this.usersService.createUser(signupDto);
+  }
+
   // get all data
   @UseGuards(AuthGuard)
   @SetMetadata('roles', [Role.ADMIN, Role.HR, Role.CLIENT])
