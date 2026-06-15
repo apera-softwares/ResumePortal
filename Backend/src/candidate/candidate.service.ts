@@ -12,9 +12,15 @@ import { Document, Packer, Paragraph, TextRun } from 'docx';
 import * as libre from 'libreoffice-convert';
 import { promisify } from 'util';
 
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { CandidateCreatedEvent } from 'src/envent/events';
+
 @Injectable()
 export class CandidateService {
-  constructor(private prisma: PrismaService) { }
+  constructor(
+    private prisma: PrismaService,
+    private eventEmitter: EventEmitter2,
+  ) {}
 
   async uploadFileMulter(
     file: Express.Multer.File,
@@ -47,24 +53,57 @@ export class CandidateService {
       }
     }
 
-    // Extract text from resume file
-    let resumeText = '';
-    const filePath = join(process.cwd(), 'uploads', uniqueFileName);
-    try {
-      if (fs.existsSync(filePath)) {
-        const buffer = fs.readFileSync(filePath);
-        if (fileExtension === '.pdf') {
-          const parser = new PDFParse({ data: buffer });
-          const result = await parser.getText();
-          resumeText = result.text || '';
-          await parser.destroy();
-        } else if (fileExtension === '.docx') {
-          const result = await mammoth.convertToHtml({ buffer });
-          resumeText = result.value || '';
+    // Check if candidate with this email already exists to avoid unique constraint violations
+    const existingCandidate = await this.prisma.candidate.findUnique({
+      where: { email: candidateData.email },
+    });
+
+    if (existingCandidate) {
+      // Delete old resume file if it exists and is different from the newly uploaded one
+      if (existingCandidate.resume && existingCandidate.resume !== file.filename) {
+        const oldFilePath = join(process.cwd(), 'uploads', existingCandidate.resume);
+        try {
+          if (fs.existsSync(oldFilePath)) {
+            fs.unlinkSync(oldFilePath);
+          }
+        } catch (err) {
+          console.error(`Error deleting old resume file: ${existingCandidate.resume}`, err);
         }
       }
-    } catch (error) {
-      console.error('Error extracting text from resume:', error);
+
+      // Update candidate record
+      const updatedCandidate = await this.prisma.candidate.update({
+        where: { id: existingCandidate.id },
+        data: {
+          firstName: candidateData.firstName,
+          lastName: candidateData.lastName,
+          mobile: candidateData.mobile,
+          yearsOfExperience,
+          education: candidateData.education,
+          noticePeriod,
+          resume: file.filename,
+          resumeText: '', // reset and parse asynchronously via event
+          skills: {
+            set: [], // clear existing skills associations
+            connectOrCreate: skillsArray.map((name) => ({
+              where: { name },
+              create: { name },
+            })),
+          },
+          jobId: (candidateData as any).jobId ? Number((candidateData as any).jobId) : undefined,
+        },
+        include: {
+          skills: true,
+          job: true,
+        },
+      });
+
+      console.log('Updated Candidate: ', updatedCandidate);
+
+      // Emit candidate.created event for asynchronous text extraction
+      this.eventEmitter.emit('candidate.created', new CandidateCreatedEvent(updatedCandidate.id));
+
+      return updatedCandidate;
     }
 
     // Create a new candidate record in the database
@@ -78,7 +117,7 @@ export class CandidateService {
         education: candidateData.education,
         noticePeriod,
         resume: file.filename,
-        resumeText,
+        resumeText: '', // initially empty, parsed in event handler
         skills: {
           connectOrCreate: skillsArray.map((name) => ({
             where: { name },
@@ -95,7 +134,8 @@ export class CandidateService {
 
     console.log('Created Candidate: ', createdCandidate);
 
-    console.log('FilePath ', filePath);
+    // Emit candidate.created event for asynchronous text extraction
+    this.eventEmitter.emit('candidate.created', new CandidateCreatedEvent(createdCandidate.id));
 
     return createdCandidate;
   }
@@ -164,7 +204,16 @@ export class CandidateService {
       throw new NotFoundException(`Candidate with ID ${id} does not have any resume text to clean`);
     }
 
-    const cleanedText = this.cleanContactDetails(candidate.resumeText);
+    let plainText = candidate.resumeText;
+    const isHtml = /<[a-z][\s\S]*>/i.test(plainText);
+    if (isHtml) {
+      plainText = plainText
+        .replace(/<\/p>/g, '\n')
+        .replace(/<br\s*\/?>/g, '\n')
+        .replace(/<[^>]*>/g, '');
+    }
+
+    const cleanedText = this.cleanContactDetails(plainText);
 
     // Generate docx
     const doc = new Document({

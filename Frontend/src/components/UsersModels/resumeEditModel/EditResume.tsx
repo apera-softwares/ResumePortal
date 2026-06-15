@@ -21,70 +21,90 @@ interface EditResumeProps {
   onSave?: (updatedCandidate: any) => void;
 }
 
-function convertPlainTextToHtml(text: string): string {
+function parsePlainTextToHtml(text: string): string {
   if (!text) return "";
+  
   const lines = text.split(/\r?\n/);
   let html = "";
-  let inList = false;
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim();
-
-    if (!line) {
-      if (inList) {
+  let listType: "bullet" | "ordered" | null = null;
+  
+  for (let line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      if (listType === "bullet") {
         html += "</ul>";
-        inList = false;
+        listType = null;
+      } else if (listType === "ordered") {
+        html += "</ol>";
+        listType = null;
       }
       html += "<p><br></p>";
       continue;
     }
-
-    const isBullet = /^[•\-\*\▪]\s*/.test(line) || /^\d+\.\s+/.test(line);
-    const isHeader =
-      line.length < 50 &&
-      /^[A-Z\d\s\-\,\&\/\(\)]+$/.test(line) &&
-      !line.endsWith(".") &&
-      !line.includes("@") &&
-      !line.includes(":") &&
-      !/^[•\-\*\▪]/.test(line);
-
-    if (isHeader) {
-      if (inList) {
-        html += "</ul>";
-        inList = false;
+    
+    // Check for footer / page numbers like "-- 1 of 1 --" or "Page 1" to remove them or treat as paragraph
+    const isFooter = /^--\s*\d+\s*of\s*\d+\s*--$/i.test(trimmed) || /^page\s*\d+/i.test(trimmed);
+    if (isFooter) {
+      continue;
+    }
+    
+    const bulletMatch = trimmed.match(/^[•\*\-\u2022]\s*(.*)/);
+    const numberMatch = trimmed.match(/^(\d+)[\.\)]\s*(.*)/);
+    
+    if (bulletMatch) {
+      if (listType === "ordered") {
+        html += "</ol>";
+        listType = null;
       }
-      html += `<h2><strong>${line}</strong></h2>`;
-    } else if (isBullet) {
-      if (!inList) {
+      if (!listType) {
         html += "<ul>";
-        inList = true;
+        listType = "bullet";
       }
-      const cleanLine = line.replace(/^[•\-\*\▪\d+\.]\s*/, "");
-      html += `<li>${cleanLine}</li>`;
-    } else {
-      if (inList) {
+      html += `<li>${bulletMatch[1]}</li>`;
+    } else if (numberMatch) {
+      if (listType === "bullet") {
         html += "</ul>";
-        inList = false;
+        listType = null;
       }
-      if (html === "" && line.length < 30) {
-        html += `<h1><strong>${line}</strong></h1>`;
+      if (!listType) {
+        html += "<ol>";
+        listType = "ordered";
+      }
+      html += `<li>${numberMatch[2]}</li>`;
+    } else {
+      if (listType === "bullet") {
+        html += "</ul>";
+        listType = null;
+      } else if (listType === "ordered") {
+        html += "</ol>";
+        listType = null;
+      }
+      
+      // Check for headers (e.g. short lines like "Career Summary", "Education")
+      const isHeader = trimmed.length < 50 && 
+        /^(Career Summary|Adult Care Experience|Childcare Experience|Employment History|Education|Skills|Summary|Experience|Projects|Languages|Certifications|Professional Experience|Work Experience|Summary of Qualifications)$/i.test(trimmed);
+        
+      if (isHeader) {
+        html += `<h3>${trimmed}</h3>`;
       } else {
-        html += `<p>${line}</p>`;
+        html += `<p>${trimmed}</p>`;
       }
     }
   }
-
-  if (inList) {
+  
+  if (listType === "bullet") {
     html += "</ul>";
+  } else if (listType === "ordered") {
+    html += "</ol>";
   }
-
+  
   return html;
 }
 
 export default function EditResume({ candidate, onSave }: EditResumeProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const API_URL = process.env.NEXT_PUBLIC_API_URL;
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || (typeof window !== "undefined" ? `http://${window.location.hostname}:3001` : "http://localhost:3001");
   const editorRef = useRef<HTMLDivElement>(null);
   const quillRef = useRef<any>(null);
 
@@ -111,12 +131,13 @@ export default function EditResume({ candidate, onSave }: EditResumeProps) {
         });
 
         if (candidate.resumeText) {
-          const text = candidate.resumeText.trim();
-          if (text.startsWith("<") && (text.includes("</p>") || text.includes("</div>") || text.includes("</h2>") || text.includes("</ul>"))) {
+          const text = candidate.resumeText;
+          const isHtml = /<[a-z][\s\S]*>/i.test(text);
+          if (isHtml) {
             quillRef.current.clipboard.dangerouslyPasteHTML(text);
           } else {
-            const formatted = convertPlainTextToHtml(text);
-            quillRef.current.clipboard.dangerouslyPasteHTML(formatted);
+            const formattedHtml = parsePlainTextToHtml(text);
+            quillRef.current.clipboard.dangerouslyPasteHTML(formattedHtml);
           }
         }
       };
@@ -188,9 +209,9 @@ export default function EditResume({ candidate, onSave }: EditResumeProps) {
       const formData = new FormData();
       const fileName = `${candidate.firstName}_${candidate.lastName}_cleaned.pdf`;
       formData.append("file", pdfBlob, fileName);
-
-      const plainText = quillRef.current.root.innerHTML;
-      formData.append("resumeText", plainText);
+      
+      const htmlText = quillRef.current.root.innerHTML;
+      formData.append("resumeText", htmlText);
 
       // 3. Send upload request to backend
       const token = localStorage.getItem("token");
@@ -207,9 +228,9 @@ export default function EditResume({ candidate, onSave }: EditResumeProps) {
       }
 
       const updatedCandidate = await response.json();
-
-      // Update local state with the plain text too
-      onSave?.({ ...updatedCandidate, resumeText: plainText });
+      
+      // Update local state with the HTML too
+      onSave?.({ ...updatedCandidate, resumeText: htmlText });
 
       toast.success("Cleaned resume saved and uploaded successfully!", { id: loadingToast });
       setIsOpen(false);
@@ -292,196 +313,70 @@ export default function EditResume({ candidate, onSave }: EditResumeProps) {
                 border-color: #e2e8f0 !important;
                 border-bottom-left-radius: 16px;
                 border-bottom-right-radius: 16px;
-                font-family: inherit !important;
+                background-color: #f3f4f6 !important; /* light gray desk surface */
+                overflow-y: auto !important;
+                height: 60vh !important;
               }
               .ql-editor {
-                color: #0f172a !important;
+                background-color: #ffffff !important; /* white paper page */
+                color: #1f2937 !important; /* dark gray text */
+                font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
                 font-size: 15px !important;
-                line-height: 1.75 !important;
-                padding: 20px 24px !important;
+                line-height: 1.6 !important;
+                width: 100% !important;
+                max-width: 800px !important;
+                min-height: 297mm !important; /* A4 aspect ratio height scale */
+                padding: 50px 60px !important;
+                margin: 30px auto !important;
+                box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1) !important;
+                border: 1px solid #e5e7eb !important;
+                border-radius: 4px;
+                overflow-y: visible !important;
+              }
+              .ql-editor h1, .ql-editor h2, .ql-editor h3 {
+                font-weight: 700 !important;
+                color: #111827 !important;
+                margin-top: 1.25em !important;
+                margin-bottom: 0.5em !important;
+                line-height: 1.25 !important;
+              }
+              .ql-editor h1 { font-size: 22px !important; border-bottom: 1px solid #e5e7eb; padding-bottom: 6px; }
+              .ql-editor h2 { font-size: 18px !important; }
+              .ql-editor h3 { font-size: 16px !important; }
+              .ql-editor p {
+                margin-bottom: 1em !important;
+                color: #374151 !important;
+              }
+              .ql-editor ul, .ql-editor ol {
+                padding-left: 20px !important;
+                margin-bottom: 1em !important;
+              }
+              .ql-editor li {
+                margin-bottom: 0.25em !important;
+                color: #374151 !important;
               }
               .ql-editor.ql-blank::before {
-                color: #94a3b8 !important;
-                left: 24px !important;
+                color: #9ca3af !important;
+                left: 60px !important;
+                top: 50px !important;
               }
-              
-              /* Toolbar Button & Picker Styles - Light Mode */
-              .ql-snow.ql-toolbar button,
-              .ql-snow .ql-toolbar button {
-                border-radius: 6px;
-                transition: all 0.15s ease;
-                margin-right: 4px;
-              }
-              .ql-snow.ql-toolbar button:hover,
-              .ql-snow .ql-toolbar button:hover {
-                background-color: #f1f5f9 !important;
-              }
-              .ql-snow.ql-toolbar button.ql-active,
-              .ql-snow .ql-toolbar button.ql-active {
-                background-color: #eff6ff !important;
-              }
-              .ql-snow.ql-toolbar button.ql-active .ql-stroke,
-              .ql-snow .ql-toolbar button.ql-active .ql-stroke {
-                stroke: #2563eb !important;
-              }
-              .ql-snow.ql-toolbar button.ql-active .ql-fill,
-              .ql-snow .ql-toolbar button.ql-active .ql-fill {
-                fill: #2563eb !important;
-              }
-              .ql-snow.ql-toolbar button:hover .ql-stroke,
-              .ql-snow .ql-toolbar button:hover .ql-stroke {
-                stroke: #1e40af !important;
-              }
-              .ql-snow.ql-toolbar button:hover .ql-fill,
-              .ql-snow .ql-toolbar button:hover .ql-fill {
-                fill: #1e40af !important;
-              }
-              .ql-snow.ql-toolbar .ql-stroke {
-                stroke: #475569 !important;
-                stroke-width: 2px;
-              }
-              .ql-snow.ql-toolbar .ql-fill {
-                fill: #475569 !important;
-              }
-              .ql-snow.ql-toolbar .ql-picker {
-                color: #475569 !important;
-                font-weight: 500;
-              }
-              .ql-snow.ql-toolbar .ql-picker-label {
-                border-radius: 6px;
-                padding-left: 8px !important;
-                padding-right: 8px !important;
-                transition: all 0.15s ease;
-              }
-              .ql-snow.ql-toolbar .ql-picker-label:hover {
-                background-color: #f1f5f9 !important;
-                color: #0f172a !important;
-              }
-              .ql-snow.ql-toolbar .ql-picker-label:hover .ql-stroke {
-                stroke: #0f172a !important;
-              }
-              .ql-snow.ql-toolbar .ql-picker-options {
-                background-color: #ffffff !important;
-                border-color: #e2e8f0 !important;
-                border-radius: 12px;
-                box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
-                padding: 6px !important;
-              }
-              .ql-snow.ql-toolbar .ql-picker-item {
-                border-radius: 6px;
-                padding: 4px 8px !important;
-                transition: all 0.15s ease;
-              }
-              .ql-snow.ql-toolbar .ql-picker-item:hover {
-                background-color: #f1f5f9 !important;
-                color: #2563eb !important;
-              }
-              .ql-snow.ql-toolbar .ql-picker-item.ql-selected {
-                color: #2563eb !important;
-                background-color: #eff6ff !important;
-              }
-
-              /* Scrollbar Styling - Light Mode */
-              .ql-editor::-webkit-scrollbar {
+              .ql-container::-webkit-scrollbar {
                 width: 8px;
                 height: 8px;
               }
-              .ql-editor::-webkit-scrollbar-track {
-                background: #ffffff !important;
+              .ql-container::-webkit-scrollbar-track {
+                background: #f3f4f6 !important;
               }
-              .ql-editor::-webkit-scrollbar-thumb {
+              .ql-container::-webkit-scrollbar-thumb {
                 background: #cbd5e1 !important;
                 border-radius: 9999px;
-                border: 2px solid #ffffff;
+                border: 2px solid #f3f4f6;
               }
-              .ql-editor::-webkit-scrollbar-thumb:hover {
+              .ql-container::-webkit-scrollbar-thumb:hover {
                 background: #94a3b8 !important;
               }
-
-              /* Dark Mode overrides */
-              .dark .ql-toolbar.ql-snow {
-                background-color: #1e293b !important;
-                border-color: #334155 !important;
-              }
-              .dark .ql-container.ql-snow {
-                background-color: #0f172a !important;
-                border-color: #334155 !important;
-              }
-              .dark .ql-editor {
-                color: #f8fafc !important;
-              }
-              .dark .ql-editor.ql-blank::before {
-                color: #64748b !important;
-              }
-              
-              /* Toolbar Buttons & Pickers - Dark Mode */
-              .dark .ql-snow.ql-toolbar button:hover,
-              .dark .ql-snow .ql-toolbar button:hover {
-                background-color: #334155 !important;
-              }
-              .dark .ql-snow.ql-toolbar button.ql-active,
-              .dark .ql-snow .ql-toolbar button.ql-active {
-                background-color: #1e3a8a !important;
-              }
-              .dark .ql-snow.ql-toolbar button.ql-active .ql-stroke,
-              .dark .ql-snow .ql-toolbar button.ql-active .ql-stroke {
-                stroke: #60a5fa !important;
-              }
-              .dark .ql-snow.ql-toolbar button.ql-active .ql-fill,
-              .dark .ql-snow .ql-toolbar button.ql-active .ql-fill {
-                fill: #60a5fa !important;
-              }
-              .dark .ql-snow.ql-toolbar button:hover .ql-stroke,
-              .dark .ql-snow .ql-toolbar button:hover .ql-stroke {
-                stroke: #60a5fa !important;
-              }
-              .dark .ql-snow.ql-toolbar button:hover .ql-fill,
-              .dark .ql-snow .ql-toolbar button:hover .ql-fill {
-                fill: #60a5fa !important;
-              }
-              .dark .ql-snow.ql-toolbar .ql-stroke {
-                stroke: #cbd5e1 !important;
-              }
-              .dark .ql-snow.ql-toolbar .ql-fill {
-                fill: #cbd5e1 !important;
-              }
-              .dark .ql-snow.ql-toolbar .ql-picker {
-                color: #cbd5e1 !important;
-              }
-              .dark .ql-snow.ql-toolbar .ql-picker-label:hover {
-                background-color: #334155 !important;
-                color: #ffffff !important;
-              }
-              .dark .ql-snow.ql-toolbar .ql-picker-label:hover .ql-stroke {
-                stroke: #ffffff !important;
-              }
-              .dark .ql-snow.ql-toolbar .ql-picker-options {
-                background-color: #1e293b !important;
-                border-color: #334155 !important;
-                box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -4px rgba(0, 0, 0, 0.3);
-              }
-              .dark .ql-snow.ql-toolbar .ql-picker-item:hover {
-                background-color: #334155 !important;
-                color: #60a5fa !important;
-              }
-              .dark .ql-snow.ql-toolbar .ql-picker-item.ql-selected {
-                color: #60a5fa !important;
-                background-color: #1e3a8a !important;
-              }
-
-              /* Scrollbar Styling - Dark Mode */
-              .dark .ql-editor::-webkit-scrollbar-track {
-                background: #0f172a !important;
-              }
-              .dark .ql-editor::-webkit-scrollbar-thumb {
-                background: #475569 !important;
-                border: 2px solid #0f172a;
-              }
-              .dark .ql-editor::-webkit-scrollbar-thumb:hover {
-                background: #64748b !important;
-              }
             `}</style>
-            <div ref={editorRef} style={{ height: "60vh" }} />
+            <div ref={editorRef} />
           </div>
 
           <div className="flex justify-end pt-2 gap-3 border-t border-gray-100 dark:border-gray-850">
