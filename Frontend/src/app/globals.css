@@ -738,3 +738,18 @@ span.flatpickr-weekday,
   opacity: 0.8;
   cursor: grabbing; /* Changes the cursor to indicate dragging */
 }
+
+/* Custom TipTap Editor Styling */
+.prose table {
+  width: 100% !important;
+  max-width: 100% !important;
+  table-layout: fixed !important;
+  border-collapse: collapse;
+  margin: 4px 0 !important;
+}
+
+.prose td, .prose th {
+  word-break: break-word !important;
+  overflow-wrap: break-word !important;
+  vertical-align: top;
+}

@@ -159,7 +159,7 @@ export default function DashboardPage() {
       xaxis: { lines: { show: true } },
       yaxis: { lines: { show: false } }
     },
-    theme: { mode: isDark ? 'dark' : 'light' }
+    theme: { mode: isDark ? ('dark' as const) : ('light' as const) }
   };
 
   const jobTypeDonutOptions = {
@@ -201,7 +201,7 @@ export default function DashboardPage() {
         }
       }
     },
-    theme: { mode: isDark ? 'dark' : 'light' }
+    theme: { mode: isDark ? ('dark' as const) : ('light' as const) }
   };
 
   return (
