@@ -75,6 +75,7 @@ export default function Candidates() {
         const emailMatch = cand.email.toLowerCase().includes(term);
         const mobileMatch = cand.mobile?.toLowerCase().includes(term) || false;
         const skillsMatch = cand.skills?.some((s) => s.name.toLowerCase().includes(term)) || false;
+        const eduMatch = cand.education?.toLowerCase().includes(term) || false;
         const resumeTextCleaned = (cand as any).resumeText?.replace(/<[^>]*>/g, '').toLowerCase() || '';
         const resumeTextMatch = resumeTextCleaned.includes(term);
         return nameMatch || emailMatch || mobileMatch || eduMatch || skillsMatch || resumeTextMatch;
