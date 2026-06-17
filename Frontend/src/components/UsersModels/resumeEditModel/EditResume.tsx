@@ -101,6 +101,150 @@ function parsePlainTextToHtml(text: string): string {
   return html;
 }
 
+function cleanPdftohtmlForEditor(htmlStr: string): string {
+  if (!htmlStr) return "";
+
+  // Check if it has absolute positioning; if not, return as is
+  if (!htmlStr.includes("position:absolute")) {
+    return htmlStr;
+  }
+
+  // 1. Parse all <style> classes to know which ones are bold/italic or headings
+  const styleMap: Record<string, { bold: boolean; fontSize: number }> = {};
+  const styleRegex = /\.([\w-]+)\{([^}]+)\}/g;
+  let styleMatch;
+  while ((styleMatch = styleRegex.exec(htmlStr)) !== null) {
+    const className = styleMatch[1];
+    const styleContent = styleMatch[2];
+    styleMap[className] = {
+      bold: styleContent.includes("bold") || styleContent.includes("Montserrat-SemiBold") || styleContent.includes("Lora-Bold"),
+      fontSize: parseInt((styleContent.match(/font-size:(\d+)px/) || [])[1] || "14", 10),
+    };
+  }
+
+  // 2. Parse all <p> tags
+  const pRegex = /<p\s+style="([^"]*)"\s+class="([^"]*)"[^>]*>([\s\S]*?)<\/p>/gi;
+  const paragraphs: Array<{
+    top: number;
+    left: number;
+    text: string;
+    fontSize: number;
+    isBold: boolean;
+    className: string;
+  }> = [];
+  let pMatch;
+
+  while ((pMatch = pRegex.exec(htmlStr)) !== null) {
+    const styleAttr = pMatch[1];
+    const className = pMatch[2];
+    const rawContent = pMatch[3];
+
+    // Extract top and left coordinates
+    const top = parseInt((styleAttr.match(/top:(\d+)px/) || [])[1] || "0", 10);
+    const left = parseInt((styleAttr.match(/left:(\d+)px/) || [])[1] || "0", 10);
+
+    // Clean text content (remove tags, replace non-breaking spaces)
+    const cleanText = rawContent
+      .replace(/<br\s*\/?>/gi, "__BR__")
+      .replace(/<[^>]*>/g, "") // strip nested tags like <b>
+      .replace(/__BR__/g, "<br/>")
+      .replace(/&#160;/g, " ")
+      .replace(/&nbsp;/g, " ")
+      .trim();
+
+    if (!cleanText) continue;
+
+    const classInfo = styleMap[className] || { fontSize: 14, bold: false };
+    const isBold = classInfo.bold || rawContent.includes("<b>") || rawContent.includes("<strong>");
+
+    paragraphs.push({
+      top,
+      left,
+      text: cleanText,
+      fontSize: classInfo.fontSize,
+      isBold,
+      className,
+    });
+  }
+
+  if (paragraphs.length === 0) {
+    return htmlStr;
+  }
+
+  // 3. Detect column layout
+  const leftGroup = paragraphs.filter(p => p.left < 300);
+  const rightGroup = paragraphs.filter(p => p.left >= 300);
+  const hasColumns = leftGroup.length > 5 && rightGroup.length > 5;
+
+  // 4. Sort and group paragraphs
+  const finalBlocks: string[] = [];
+
+  const processColumn = (items: typeof paragraphs) => {
+    // Sort items by top coordinate, then by left coordinate
+    items.sort((a, b) => {
+      if (Math.abs(a.top - b.top) < 8) {
+        return a.left - b.left;
+      }
+      return a.top - b.top;
+    });
+
+    // Merge paragraphs that are on the same line (top diff < 8px)
+    const lines: Array<typeof paragraphs> = [];
+    let currentLine: typeof paragraphs = [];
+
+    for (const p of items) {
+      if (currentLine.length === 0) {
+        currentLine.push(p);
+      } else {
+        const lastP = currentLine[currentLine.length - 1];
+        if (Math.abs(p.top - lastP.top) < 8) {
+          currentLine.push(p);
+        } else {
+          lines.push(currentLine);
+          currentLine = [p];
+        }
+      }
+    }
+    if (currentLine.length > 0) {
+      lines.push(currentLine);
+    }
+
+    // Convert lines into HTML blocks
+    return lines.map(line => {
+      const mergedText = line.map(p => p.text).join(" ");
+      const maxFontSize = Math.max(...line.map(p => p.fontSize));
+      const isHeader = maxFontSize > 18 || line.some(p => p.isBold && p.text.toUpperCase() === p.text && p.text.length < 50);
+      const isBullet = line.some(p => p.text.startsWith("•") || p.text.startsWith("-") || p.text.startsWith("▪"));
+
+      const cleanTextStr = mergedText.replace(/^[•\-\▪]\s*/, "").trim();
+
+      if (isHeader) {
+        return `<h3><strong>${cleanTextStr}</strong></h3>`;
+      } else if (isBullet) {
+        return `<ul><li>${cleanTextStr}</li></ul>`;
+      } else {
+        return `<p>${cleanTextStr}</p>`;
+      }
+    });
+  };
+
+  if (hasColumns) {
+    finalBlocks.push("<h2><strong>CONTACT & PROFILE</strong></h2>");
+    finalBlocks.push(...processColumn(leftGroup));
+    finalBlocks.push("<hr/>");
+    finalBlocks.push("<h2><strong>EXPERIENCE & HISTORY</strong></h2>");
+    finalBlocks.push(...processColumn(rightGroup));
+  } else {
+    finalBlocks.push(...processColumn(paragraphs));
+  }
+
+  // Clean consecutive <ul> tags
+  let resultHtml = finalBlocks.join("\n");
+  resultHtml = resultHtml.replace(/<\/ul>\n<ul>/g, "\n");
+
+  return resultHtml;
+}
+
 export default function EditResume({ candidate, onSave }: EditResumeProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -132,12 +276,30 @@ export default function EditResume({ candidate, onSave }: EditResumeProps) {
 
         if (candidate.resumeText) {
           const text = candidate.resumeText;
-          const isHtml = /<[a-z][\s\S]*>/i.test(text);
+          const isHtml = /<[^>]+>/i.test(text);
           if (isHtml) {
-            quillRef.current.clipboard.dangerouslyPasteHTML(text);
+            const cleanHtml = cleanPdftohtmlForEditor(text);
+            quillRef.current.clipboard.dangerouslyPasteHTML(cleanHtml);
           } else {
             const formattedHtml = parsePlainTextToHtml(text);
             quillRef.current.clipboard.dangerouslyPasteHTML(formattedHtml);
+          }
+        } else {
+          // Fetch resumeText from backend if not already provided
+          try {
+            const token = localStorage.getItem("token");
+            const response = await fetch(`${API_URL}/candidates/${candidate.id}`, {
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            if (response.ok) {
+              const data = await response.json();
+              if (data.resumeText) {
+                const cleanHtml = cleanPdftohtmlForEditor(data.resumeText);
+                quillRef.current.clipboard.dangerouslyPasteHTML(cleanHtml);
+              }
+            }
+          } catch (err) {
+            console.error("Failed to fetch resume HTML", err);
           }
         }
       };

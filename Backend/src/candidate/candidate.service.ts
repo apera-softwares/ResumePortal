@@ -6,11 +6,11 @@ import { join } from 'path';
 import { extname } from 'path';
 import { NotFoundException } from '@nestjs/common';
 import * as fs from 'fs';
-import { PDFParse } from 'pdf-parse';
 import * as mammoth from 'mammoth';
 import { Document, Packer, Paragraph, TextRun } from 'docx';
 import * as libre from 'libreoffice-convert';
 import { promisify } from 'util';
+import { execSync } from 'child_process';
 
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { CandidateCreatedEvent } from 'src/envent/events';
@@ -333,13 +333,47 @@ export class CandidateService {
       if (fs.existsSync(filePath)) {
         const buffer = fs.readFileSync(filePath);
         if (fileExtension === '.pdf') {
-          const parser = new PDFParse({ data: buffer });
-          const result = await parser.getText();
-          extractedText = result.text || '';
-          await parser.destroy();
-        } else if (fileExtension === '.docx') {
-          const result = await mammoth.convertToHtml({ buffer });
-          extractedText = result.value || '';
+          const outputDir = join(process.cwd(), 'uploads');
+          const htmlFileName = file.filename.replace(/\.pdf$/i, '.html');
+          const htmlFilePath = join(outputDir, htmlFileName);
+
+          try {
+            // Convert to HTML using pdftohtml to preserve exact styles, positions, and fonts
+            const command = `pdftohtml -s -noframes -c -dataurls "${filePath}" "${htmlFilePath}"`;
+            execSync(command);
+
+            if (fs.existsSync(htmlFilePath)) {
+              extractedText = fs.readFileSync(htmlFilePath, 'utf8');
+              fs.unlinkSync(htmlFilePath);
+              console.log(`[Cleaned Upload] pdftohtml conversion succeeded for candidate ID: ${id}`);
+            }
+          } catch (execError) {
+            console.error('[Cleaned Upload] pdftohtml conversion failed:', execError.message);
+          }
+        } else if (fileExtension === '.docx' || fileExtension === '.doc') {
+          const outputDir = join(process.cwd(), 'uploads');
+          const htmlFileName = file.filename.replace(/\.(docx|doc)$/i, '.html');
+          const htmlFilePath = join(outputDir, htmlFileName);
+
+          try {
+            // Convert to HTML using headless LibreOffice to preserve exact layout and styles of Word files
+            const command = `libreoffice --headless --convert-to html --outdir "${outputDir}" "${filePath}"`;
+            execSync(command);
+
+            if (fs.existsSync(htmlFilePath)) {
+              extractedText = fs.readFileSync(htmlFilePath, 'utf8');
+              fs.unlinkSync(htmlFilePath);
+              console.log(`[Cleaned Upload] LibreOffice Word-to-HTML conversion succeeded for candidate ID: ${id}`);
+            }
+          } catch (libreOfficeError) {
+            console.warn('[Cleaned Upload] LibreOffice conversion failed, falling back to Mammoth:', libreOfficeError.message);
+            try {
+              const result = await mammoth.convertToHtml({ buffer });
+              extractedText = result.value || '';
+            } catch (mammothError) {
+              console.error('[Cleaned Upload] Fallback Mammoth DOCX conversion failed:', mammothError);
+            }
+          }
         }
       }
     } catch (error) {

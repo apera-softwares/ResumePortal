@@ -4,7 +4,6 @@ import { CandidateCreatedEvent } from 'src/envent/events';
 import { PrismaService } from 'src/prisma.service';
 import { join, extname } from 'path';
 import * as fs from 'fs';
-import { PDFParse } from 'pdf-parse';
 import * as mammoth from 'mammoth';
 import { execSync } from 'child_process';
 
@@ -42,31 +41,41 @@ export class CandidateCreatedListener {
           const htmlFilePath = join(outputDir, htmlFileName);
 
           try {
-            const command = `pdf2htmlEX --dest-dir "${outputDir}" "${filePath}"`;
+            // Convert to HTML using pdftohtml to preserve exact styles, positions, and fonts
+            const command = `pdftohtml -s -noframes -c -dataurls "${filePath}" "${htmlFilePath}"`;
             execSync(command);
 
             if (fs.existsSync(htmlFilePath)) {
               resumeText = fs.readFileSync(htmlFilePath, 'utf8');
               fs.unlinkSync(htmlFilePath);
+              console.log(`[Event Handler] pdftohtml conversion succeeded for candidate ID: ${candidateId}`);
             }
           } catch (execError) {
-            console.warn('[Event Handler] pdf2htmlEX failed, falling back to PDFParse:', execError.message);
-            // Fallback to PDFParse
-            try {
-              const parser = new PDFParse({ data: buffer });
-              const result = await parser.getText();
-              resumeText = result.text || '';
-              await parser.destroy();
-            } catch (pdfParseError) {
-              console.error('[Event Handler] Fallback PDFParse also failed:', pdfParseError);
-            }
+            console.error('[Event Handler] pdftohtml conversion failed:', execError.message);
           }
-        } else if (fileExtension === '.docx') {
+        } else if (fileExtension === '.docx' || fileExtension === '.doc') {
+          const outputDir = join(process.cwd(), 'uploads');
+          const htmlFileName = uniqueFileName.replace(/\.(docx|doc)$/i, '.html');
+          const htmlFilePath = join(outputDir, htmlFileName);
+
           try {
-            const result = await mammoth.convertToHtml({ buffer });
-            resumeText = result.value || '';
-          } catch (mammothError) {
-            console.error('[Event Handler] Mammoth DOCX conversion failed:', mammothError);
+            // Convert to HTML using headless LibreOffice to preserve exact layout and styles of Word files
+            const command = `libreoffice --headless --convert-to html --outdir "${outputDir}" "${filePath}"`;
+            execSync(command);
+
+            if (fs.existsSync(htmlFilePath)) {
+              resumeText = fs.readFileSync(htmlFilePath, 'utf8');
+              fs.unlinkSync(htmlFilePath);
+              console.log(`[Event Handler] LibreOffice Word-to-HTML conversion succeeded for candidate ID: ${candidateId}`);
+            }
+          } catch (libreOfficeError) {
+            console.warn('[Event Handler] LibreOffice conversion failed, falling back to Mammoth:', libreOfficeError.message);
+            try {
+              const result = await mammoth.convertToHtml({ buffer });
+              resumeText = result.value || '';
+            } catch (mammothError) {
+              console.error('[Event Handler] Fallback Mammoth DOCX conversion failed:', mammothError);
+            }
           }
         }
 
