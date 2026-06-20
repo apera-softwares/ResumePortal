@@ -1,11 +1,34 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Modal } from "../../ui/modal";
 import toast from "react-hot-toast";
 import { saveAs } from "file-saver";
 import dynamic from "next/dynamic";
 import { jsPDF } from "jspdf";
+import {
+  AlignCenter,
+  AlignJustify,
+  AlignLeft,
+  AlignRight,
+  Bold,
+  Italic,
+  List,
+  ListOrdered,
+  Redo2,
+  Underline as UnderlineIcon,
+  Undo2,
+} from "lucide-react";
+
+function jsonToHtml(jsonStr: string): string {
+  try {
+    const data = JSON.parse(jsonStr);
+    if (typeof data === "string") return data;
+    return jsonStr;
+  } catch {
+    return jsonStr;
+  }
+}
 
 // Import CanvasResumeEditor dynamically with SSR disabled to prevent hydration mismatch errors
 const CanvasResumeEditor = dynamic(() => import("./CanvasResumeEditor"), {
@@ -23,6 +46,259 @@ const CanvasResumeEditor = dynamic(() => import("./CanvasResumeEditor"), {
   ),
 });
 
+interface ExactHtmlResumeEditorProps {
+  html: string;
+  title: string;
+  onChange: (html: string) => void;
+}
+
+const exactEditorFonts = [
+  { label: "Default", value: "" },
+  { label: "Arial", value: "Arial, Helvetica, sans-serif" },
+  { label: "Georgia", value: "Georgia, serif" },
+  { label: "Times", value: "'Times New Roman', Times, serif" },
+  { label: "Verdana", value: "Verdana, Geneva, sans-serif" },
+  { label: "Inter", value: "Inter, sans-serif" },
+];
+
+const exactEditorFontSizes = ["9px", "10px", "11px", "12px", "13px", "14px", "16px", "18px", "20px", "24px"];
+
+function buildIframeDocument(html: string, editable = false): string {
+  const bodyHtml = html || "<div></div>";
+  const hasDocumentShell = /<!doctype|<html[\s>]/i.test(bodyHtml);
+  const chromeStyles = `
+    <style>
+      html, body {
+        min-height: 100%;
+        margin: 0;
+        background: #9ca3af;
+      }
+      body {
+        overflow: auto;
+      }
+      ${editable ? `
+      [contenteditable="true"] {
+        outline: 2px solid transparent;
+        cursor: text;
+      }
+      [contenteditable="true"]:focus {
+        outline: 2px solid rgba(37, 99, 235, 0.35);
+        outline-offset: 2px;
+      }
+      ` : ""}
+    </style>
+  `;
+
+  if (hasDocumentShell) {
+    const withStyles = bodyHtml.replace(/<\/head>/i, `${chromeStyles}</head>`);
+    if (!editable) return withStyles;
+    return withStyles.replace(/<body([^>]*)>/i, `<body$1 contenteditable="true" spellcheck="false">`);
+  }
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+${chromeStyles}
+</head>
+<body${editable ? ' contenteditable="true" spellcheck="false"' : ""}>${bodyHtml}</body>
+</html>`;
+}
+
+function ExactHtmlResumeEditor({ html, title, onChange }: ExactHtmlResumeEditorProps) {
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const savedRangeRef = useRef<Range | null>(null);
+  const initialDocumentRef = useRef(buildIframeDocument(html, true));
+
+  const getDoc = () => iframeRef.current?.contentDocument || null;
+
+  const syncHtml = (doc: Document) => {
+    onChange(`<!DOCTYPE html>\n${doc.documentElement.outerHTML}`);
+  };
+
+  const saveSelection = (doc = getDoc()) => {
+    const selection = doc?.getSelection();
+    if (selection && selection.rangeCount > 0) {
+      savedRangeRef.current = selection.getRangeAt(0).cloneRange();
+    }
+  };
+
+  const restoreSelection = (doc: Document) => {
+    if (!savedRangeRef.current) return;
+    const selection = doc.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(savedRangeRef.current);
+  };
+
+  const runCommand = (command: string, value?: string) => {
+    const doc = getDoc();
+    if (!doc?.body) return;
+
+    doc.body.focus();
+    restoreSelection(doc);
+    doc.execCommand("styleWithCSS", false, "true");
+    doc.execCommand(command, false, value);
+    saveSelection(doc);
+    syncHtml(doc);
+  };
+
+  const applyInlineStyle = (styles: Partial<CSSStyleDeclaration>) => {
+    const doc = getDoc();
+    if (!doc?.body) return;
+
+    doc.body.focus();
+    restoreSelection(doc);
+    const selection = doc.getSelection();
+    if (!selection || selection.rangeCount === 0) return;
+
+    const range = selection.getRangeAt(0);
+    if (range.collapsed) return;
+
+    const span = doc.createElement("span");
+    Object.assign(span.style, styles);
+
+    try {
+      range.surroundContents(span);
+    } catch {
+      const contents = range.extractContents();
+      span.appendChild(contents);
+      range.insertNode(span);
+    }
+
+    selection.removeAllRanges();
+    const nextRange = doc.createRange();
+    nextRange.selectNodeContents(span);
+    selection.addRange(nextRange);
+    saveSelection(doc);
+    syncHtml(doc);
+  };
+
+  const handleLoad = () => {
+    const iframe = iframeRef.current;
+    if (!iframe) return;
+
+    const doc = iframe.contentDocument;
+    if (!doc?.body) return;
+
+    doc.designMode = "on";
+    doc.body.setAttribute("contenteditable", "true");
+    doc.body.setAttribute("spellcheck", "false");
+
+    const handleInput = () => syncHtml(doc);
+    const handleSelection = () => saveSelection(doc);
+
+    doc.addEventListener("input", handleInput);
+    doc.addEventListener("blur", handleInput, true);
+    doc.addEventListener("selectionchange", handleSelection);
+    doc.addEventListener("keyup", handleSelection);
+    doc.addEventListener("mouseup", handleSelection);
+  };
+
+  const toolbarButtonClass =
+    "p-2 text-gray-650 hover:bg-gray-100 dark:text-gray-350 dark:hover:bg-gray-800 rounded-lg transition-all";
+
+  return (
+    <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-gray-200 bg-gray-100 shadow-inner dark:border-gray-800 dark:bg-gray-950">
+      <div className="flex flex-wrap items-center gap-1.5 border-b border-gray-200 bg-white p-2.5 dark:border-gray-800 dark:bg-gray-900">
+        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => runCommand("undo")} className={toolbarButtonClass} title="Undo">
+          <Undo2 className="h-4 w-4" />
+        </button>
+        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => runCommand("redo")} className={toolbarButtonClass} title="Redo">
+          <Redo2 className="h-4 w-4" />
+        </button>
+
+        <div className="mx-1 h-5 w-px bg-gray-200 dark:bg-gray-800" />
+
+        <select
+          onMouseDown={() => saveSelection()}
+          onChange={(e) => e.target.value && applyInlineStyle({ fontFamily: e.target.value })}
+          className="rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-xs font-semibold text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+          defaultValue=""
+        >
+          {exactEditorFonts.map((font) => (
+            <option key={font.label} value={font.value}>{font.label}</option>
+          ))}
+        </select>
+
+        <select
+          onMouseDown={() => saveSelection()}
+          onChange={(e) => applyInlineStyle({ fontSize: e.target.value })}
+          className="rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-xs font-semibold text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+          defaultValue="12px"
+        >
+          {exactEditorFontSizes.map((size) => (
+            <option key={size} value={size}>{size.replace("px", "")}</option>
+          ))}
+        </select>
+
+        <div className="mx-1 h-5 w-px bg-gray-200 dark:bg-gray-800" />
+
+        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => runCommand("bold")} className={toolbarButtonClass} title="Bold">
+          <Bold className="h-4 w-4" />
+        </button>
+        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => runCommand("italic")} className={toolbarButtonClass} title="Italic">
+          <Italic className="h-4 w-4" />
+        </button>
+        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => runCommand("underline")} className={toolbarButtonClass} title="Underline">
+          <UnderlineIcon className="h-4 w-4" />
+        </button>
+
+        <label className="flex h-8 items-center gap-1 rounded-lg px-2 text-xs font-semibold text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800" title="Text Color">
+          <span>A</span>
+          <input
+            type="color"
+            className="h-5 w-6 cursor-pointer border-0 bg-transparent p-0"
+            onMouseDown={() => saveSelection()}
+            onChange={(e) => runCommand("foreColor", e.target.value)}
+          />
+        </label>
+        <label className="flex h-8 items-center gap-1 rounded-lg px-2 text-xs font-semibold text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800" title="Highlight">
+          <span>HL</span>
+          <input
+            type="color"
+            className="h-5 w-6 cursor-pointer border-0 bg-transparent p-0"
+            onMouseDown={() => saveSelection()}
+            onChange={(e) => runCommand("hiliteColor", e.target.value)}
+          />
+        </label>
+
+        <div className="mx-1 h-5 w-px bg-gray-200 dark:bg-gray-800" />
+
+        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => runCommand("justifyLeft")} className={toolbarButtonClass} title="Align Left">
+          <AlignLeft className="h-4 w-4" />
+        </button>
+        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => runCommand("justifyCenter")} className={toolbarButtonClass} title="Align Center">
+          <AlignCenter className="h-4 w-4" />
+        </button>
+        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => runCommand("justifyRight")} className={toolbarButtonClass} title="Align Right">
+          <AlignRight className="h-4 w-4" />
+        </button>
+        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => runCommand("justifyFull")} className={toolbarButtonClass} title="Justify">
+          <AlignJustify className="h-4 w-4" />
+        </button>
+
+        <div className="mx-1 h-5 w-px bg-gray-200 dark:bg-gray-800" />
+
+        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => runCommand("insertUnorderedList")} className={toolbarButtonClass} title="Bullet List">
+          <List className="h-4 w-4" />
+        </button>
+        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => runCommand("insertOrderedList")} className={toolbarButtonClass} title="Numbered List">
+          <ListOrdered className="h-4 w-4" />
+        </button>
+      </div>
+
+      <iframe
+        ref={iframeRef}
+        onLoad={handleLoad}
+        title={title}
+        srcDoc={initialDocumentRef.current}
+        className="min-h-0 flex-1 bg-gray-400"
+        sandbox="allow-same-origin"
+      />
+    </div>
+  );
+}
+
 interface Candidate {
   id: number;
   firstName: string;
@@ -30,26 +306,41 @@ interface Candidate {
   resume: string;
   resumeText?: string;
   cleanedResume?: string;
+  editedHtml?: string;
 }
 
 interface EditResumeProps {
   candidate: Candidate;
-  onSave?: (updatedCandidate: any) => void;
+  onSave?: (updatedCandidate: Candidate & Record<string, unknown>) => void;
+  isInline?: boolean;
+  onClose?: () => void;
 }
 
-export default function EditResume({ candidate, onSave }: EditResumeProps) {
-  const [isOpen, setIsOpen] = useState(false);
+export default function EditResume({ candidate, onSave, isInline = false, onClose }: EditResumeProps) {
+  const [isOpen, setIsOpen] = useState(isInline);
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploadingFile, setIsUploadingFile] = useState(false);
   const [rawHtml, setRawHtml] = useState<string>("");
+  const [previewHtml, setPreviewHtml] = useState<string>("");
+  const [viewMode, setViewMode] = useState<"preview" | "edit">("preview");
+  const [styleHeader, setStyleHeader] = useState<string>("");
   const [zoom, setZoom] = useState<number>(1.0);
+  const [editorKey, setEditorKey] = useState<number>(0);
+  
+  const isLoadedRef = useRef(false);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const API_URL =
     process.env.NEXT_PUBLIC_API_URL ||
     (typeof window !== "undefined" ? `http://${window.location.hostname}:3001` : "http://localhost:3001");
 
-  // Fetch initial content from backend on open
+  // Fetch initial content from backend on open (Load ONCE only)
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) {
+      isLoadedRef.current = false;
+      return;
+    }
 
     const loadContent = async () => {
       try {
@@ -59,8 +350,15 @@ export default function EditResume({ candidate, onSave }: EditResumeProps) {
         });
         if (response.ok) {
           const data = await response.json();
-          const contentSource = data.editedHtml || data.resumeText || "";
-          setRawHtml(contentSource);
+          const sourceHtml = data.editedHtml || data.resumeText || "";
+          
+          setStyleHeader("");
+          setPreviewHtml(sourceHtml);
+          setRawHtml(sourceHtml);
+          setViewMode("preview");
+          
+          // Mark as loaded so subsequent state updates do not overwrite TipTap editor
+          isLoadedRef.current = true;
         }
       } catch (err) {
         console.error("Failed to fetch resume HTML", err);
@@ -70,69 +368,140 @@ export default function EditResume({ candidate, onSave }: EditResumeProps) {
     loadContent();
   }, [isOpen, candidate.id, API_URL]);
 
+
   const handleEditorChange = (html: string) => {
     setRawHtml(html);
   };
 
+  const renderResumeSurface = () => {
+    if (viewMode === "preview") {
+      return (
+        <div className="h-full overflow-hidden rounded-2xl border border-gray-200 bg-gray-100 shadow-inner dark:border-gray-800 dark:bg-gray-950">
+          <iframe
+            key={`${candidate.id}-${previewHtml.length}`}
+            title={`${candidate.firstName} ${candidate.lastName} resume preview`}
+            srcDoc={buildIframeDocument(previewHtml || rawHtml)}
+            className="h-full w-full bg-gray-400"
+            sandbox="allow-same-origin"
+          />
+        </div>
+      );
+    }
+
+    if (rawHtml) {
+      return (
+        <ExactHtmlResumeEditor
+          html={rawHtml}
+          title={`${candidate.firstName} ${candidate.lastName} resume editor`}
+          onChange={handleEditorChange}
+        />
+      );
+    }
+
+    return (
+      <CanvasResumeEditor
+        key={`${candidate.id}-${editorKey}`}
+        initialContent={rawHtml}
+        styleHeader={styleHeader}
+        onChange={handleEditorChange}
+        zoom={zoom}
+        onZoomChange={setZoom}
+      />
+    );
+  };
+
+  // Extract cleanest HTML representation from rawHtml payload
+  const getCleanHtml = (raw: string): string => {
+    if (!raw) return "";
+    const jsonMatch = raw.match(/<!--JSON_DATA:([\s\S]*?)-->/);
+    if (jsonMatch && jsonMatch[1]) {
+      return jsonToHtml(jsonMatch[1]);
+    }
+    if (raw.trim().startsWith("[")) {
+      return jsonToHtml(raw);
+    }
+    return raw;
+  };
+
   const handleCopy = () => {
     if (rawHtml) {
+      const htmlContent = getCleanHtml(rawHtml);
       const tempDiv = document.createElement("div");
-      tempDiv.innerHTML = rawHtml;
+      tempDiv.innerHTML = htmlContent;
       const text = tempDiv.textContent || tempDiv.innerText || "";
       navigator.clipboard.writeText(text);
       toast.success("Resume text copied to clipboard!");
-    } else {
-      toast.error("No text available to copy.");
     }
   };
 
   const handleOpenPdf = () => {
-    window.open(`${API_URL}/uploads/${candidate.resume}`, "_blank");
+    if (candidate.resume) {
+      window.open(`${API_URL}/uploads/${candidate.resume}`, "_blank");
+    } else {
+      toast.error("No resume file available.");
+    }
   };
 
-  // Helper to generate a client-side PDF file to submit to backend
-  const generateSimplePdfBlob = (htmlContent: string, candidateName: string): Blob => {
-    const doc = new jsPDF();
-    
-    // Strip HTML tags to get plain text for the PDF fallback
+  // Helper to generate a simple PDF blob for server persistence
+  const generateSimplePdfBlob = (htmlContent: string, title: string): Blob => {
+    const doc = new jsPDF({
+      orientation: "portrait",
+      unit: "pt",
+      format: "a4"
+    });
+
     const tempDiv = document.createElement("div");
     tempDiv.innerHTML = htmlContent;
     const plainText = tempDiv.textContent || tempDiv.innerText || "";
     
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(18);
-    doc.text(`Resume: ${candidateName}`, 20, 20);
-    doc.line(20, 24, 190, 24);
+    doc.setFont("Helvetica");
+    doc.setFontSize(14);
+    doc.text(title, 40, 40);
     
-    doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
-    const splitText = doc.splitTextToSize(plainText, 170);
+    const splitText = doc.splitTextToSize(plainText, 515);
+    let y = 70;
     
-    let y = 35;
-    for (let i = 0; i < splitText.length; i++) {
-      if (y > 280) {
+    splitText.forEach((line: string) => {
+      if (y > 780) {
         doc.addPage();
-        y = 20;
+        y = 40;
       }
-      doc.text(splitText[i], 20, y);
-      y += 12;
-    }
-    
+      doc.text(line, 40, y);
+      y += 15;
+    });
+
     return doc.output("blob");
   };
 
-  const handleExportWord = () => {
+  const handleExportPdf = () => {
+    if (!rawHtml) return;
     try {
+      const cleanHtml = getCleanHtml(rawHtml);
+      const blob = generateSimplePdfBlob(cleanHtml, `${candidate.firstName} ${candidate.lastName}`);
+      saveAs(blob, `${candidate.firstName}_${candidate.lastName}_resume.pdf`);
+      toast.success("PDF exported successfully!");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to export PDF.");
+    }
+  };
+
+  const handleExportWord = () => {
+    if (!rawHtml) return;
+    try {
+      const cleanHtml = getCleanHtml(rawHtml);
       const header = "<html xmlns:o='urn:schemas-microsoft-com:office:office' " +
         "xmlns:w='urn:schemas-microsoft-com:office:word' " +
         "xmlns='http://www.w3.org/TR/REC-html40'>" +
         "<head><title>Resume</title><meta charset='utf-8'></head><body>";
       const footer = "</body></html>";
-      const sourceHTML = header + rawHtml + footer;
+      const sourceHTML = header + cleanHtml + footer;
       
       const blob = new Blob(['\ufeff' + sourceHTML], {
         type: 'application/msword'
       });
+      
       saveAs(blob, `${candidate.firstName}_${candidate.lastName}_resume.doc`);
       toast.success("Word document exported successfully!");
     } catch (err) {
@@ -141,14 +510,53 @@ export default function EditResume({ candidate, onSave }: EditResumeProps) {
     }
   };
 
-  const handleExportPdf = () => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingFile(true);
+    const uploadToast = toast.loading("Uploading and parsing new resume file...");
+
     try {
-      const pdfBlob = generateSimplePdfBlob(rawHtml, `${candidate.firstName} ${candidate.lastName}`);
-      saveAs(pdfBlob, `${candidate.firstName}_${candidate.lastName}_resume.pdf`);
-      toast.success("PDF document exported successfully!");
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const token = localStorage.getItem("token");
+      const response = await fetch(`${API_URL}/candidates/${candidate.id}/update-resume`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to update candidate resume file");
+      }
+
+      const updatedCandidate = await response.json();
+      
+      onSave?.(updatedCandidate);
+
+      const parsedContent = updatedCandidate.resumeText || "";
+      if (parsedContent) {
+        // Clear styleHeader; our converter processes and inlines all styles
+        setStyleHeader("");
+
+        setPreviewHtml(parsedContent);
+        setRawHtml(parsedContent);
+        setViewMode("preview");
+        setEditorKey(prev => prev + 1); // Reset CanvasResumeEditor state and force remount with new parsed HTML
+        toast.success("Resume updated and parsed successfully!", { id: uploadToast });
+      } else {
+        toast.success("Resume updated! Text parsing is processing in background.", { id: uploadToast });
+      }
     } catch (err) {
-      console.error(err);
-      toast.error("Failed to export PDF document.");
+      console.error("File update failed:", err);
+      toast.error("Failed to update resume file.", { id: uploadToast });
+    } finally {
+      setIsUploadingFile(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
@@ -159,21 +567,18 @@ export default function EditResume({ candidate, onSave }: EditResumeProps) {
     }
 
     setIsSaving(true);
-    const loadingToast = toast.loading("Saving changes...");
+    const loadingToast = toast.loading("Saving changes to server...");
 
     try {
-      // 1. Generate client-side PDF file to satisfy backend multer requirements
-      const pdfBlob = generateSimplePdfBlob(rawHtml, `${candidate.firstName} ${candidate.lastName}`);
-      
-      // 2. Prepare FormData
       const formData = new FormData();
-      const fileName = `${candidate.firstName}_${candidate.lastName}_cleaned.pdf`;
-      formData.append("file", pdfBlob, fileName);
-      formData.append("resumeText", rawHtml);
+      const fullHtml = /<!doctype|<html[\s>]/i.test(rawHtml)
+        ? rawHtml
+        : `<!DOCTYPE html>\n<html>\n<head>\n<meta charset="utf-8">\n</head>\n<body bgcolor="#A0A0A0" vlink="blue" link="blue">\n${rawHtml}\n</body>\n</html>`;
+      formData.append("resumeText", fullHtml);
+      formData.append("editedHtml", fullHtml);
 
-      // 3. Send upload request to backend
       const token = localStorage.getItem("token");
-      const response = await fetch(`${API_URL}/candidates/${candidate.id}/upload-cleaned`, {
+      const response = await fetch(`${API_URL}/candidates/${candidate.id}/update-resume`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -188,9 +593,12 @@ export default function EditResume({ candidate, onSave }: EditResumeProps) {
       const updatedCandidate = await response.json();
       
       onSave?.({ ...updatedCandidate, resumeText: rawHtml });
+      setPreviewHtml(fullHtml);
+      setViewMode("preview");
 
       toast.success("Resume saved successfully!", { id: loadingToast });
-      setIsOpen(false);
+      if (isInline) onClose?.();
+      else setIsOpen(false);
     } catch (err) {
       console.error("Save failed:", err);
       toast.error("Failed to save resume changes.", { id: loadingToast });
@@ -198,6 +606,155 @@ export default function EditResume({ candidate, onSave }: EditResumeProps) {
       setIsSaving(false);
     }
   };
+
+  if (isInline) {
+    return (
+      <div className="flex flex-col gap-4 p-5 md:p-6 bg-white dark:bg-gray-900 border border-gray-150/80 dark:border-gray-800/80 rounded-3xl h-[calc(100vh-170px)] min-h-[600px] w-full overflow-hidden box-border shadow-md">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 border-b border-gray-150 dark:border-gray-800 pb-4">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-200 transition-all border border-gray-200 dark:border-gray-750 shadow-xs"
+              title="Back to Candidates"
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+            </button>
+            <div>
+              <h4 className="text-xl font-bold text-gray-900 dark:text-white">
+                Resume Visual Editor
+              </h4>
+              <p className="text-xs text-gray-500 mt-1">
+                Edit and format resume layout for {candidate.firstName} {candidate.lastName}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-800">
+              <button
+                onClick={() => setViewMode("preview")}
+                disabled={isSaving || isUploadingFile}
+                className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all disabled:opacity-50 ${
+                  viewMode === "preview"
+                    ? "bg-white text-blue-600 shadow-xs dark:bg-gray-900 dark:text-blue-400"
+                    : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                }`}
+              >
+                Exact Preview
+              </button>
+              <button
+                onClick={() => setViewMode("edit")}
+                disabled={isSaving || isUploadingFile}
+                className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all disabled:opacity-50 ${
+                  viewMode === "edit"
+                    ? "bg-white text-blue-600 shadow-xs dark:bg-gray-900 dark:text-blue-400"
+                    : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                }`}
+              >
+                Edit
+              </button>
+            </div>
+
+            <button
+              onClick={handleCopy}
+              disabled={isSaving || isUploadingFile}
+              className="px-3 py-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-955/40 rounded-lg transition-all disabled:opacity-50"
+            >
+              Copy Text
+            </button>
+
+            <button
+              onClick={handleOpenPdf}
+              disabled={isSaving || isUploadingFile}
+              className="px-3 py-1.5 text-xs font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-all disabled:opacity-50"
+            >
+              Open Original
+            </button>
+
+            {/* Premium Update File Button */}
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isSaving || isUploadingFile}
+              className="px-3 py-1.5 text-xs font-bold text-violet-600 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-955/40 rounded-lg transition-all disabled:opacity-50 flex items-center gap-1.5"
+            >
+              {isUploadingFile ? (
+                <svg className="animate-spin h-3.5 w-3.5" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+              ) : (
+                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                </svg>
+              )}
+              {isUploadingFile ? "Uploading..." : "Update File"}
+            </button>
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+              accept=".pdf,.docx,.doc"
+              className="hidden"
+            />
+
+            <button
+              onClick={handleExportWord}
+              disabled={isSaving || isUploadingFile}
+              className="px-3 py-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-955/40 rounded-lg transition-all disabled:opacity-50"
+            >
+              Export Word
+            </button>
+
+            <button
+              onClick={handleExportPdf}
+              disabled={isSaving || isUploadingFile}
+              className="px-3 py-1.5 text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-955/40 rounded-lg transition-all disabled:opacity-50"
+            >
+              Export PDF
+            </button>
+          </div>
+        </div>
+
+        {/* Canvas Rich Editor */}
+        <div className="flex-1 min-h-0">
+          {renderResumeSurface()}
+        </div>
+
+        {/* Footer Actions */}
+        <div className="flex justify-between items-center pt-4 border-t border-gray-100 dark:border-gray-800">
+          <div className="flex items-center gap-2">
+          </div>
+
+          <div className="flex justify-end gap-3">
+            <button
+              onClick={onClose}
+              disabled={isSaving || isUploadingFile}
+              className="px-5 py-2.5 text-sm font-semibold bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-200 rounded-xl transition-all disabled:opacity-50"
+            >
+              Cancel
+            </button>
+
+            <button
+              onClick={handleSave}
+              disabled={isSaving || isUploadingFile}
+              className="px-6 py-2.5 text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-all shadow-md active:scale-95 flex items-center gap-2"
+            >
+              {isSaving && (
+                <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+              )}
+              {isSaving ? "Saving..." : "Save to Server"}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -208,10 +765,15 @@ export default function EditResume({ candidate, onSave }: EditResumeProps) {
         View Resume
       </button>
 
-      <Modal isOpen={isOpen} onClose={() => !isSaving && setIsOpen(false)} className="max-w-[1300px] w-[92vw] m-4">
-        <div className="flex flex-col gap-5 p-6 md:p-8 bg-white dark:bg-gray-900 rounded-3xl h-[88vh]">
+      <Modal 
+        isOpen={isOpen} 
+        onClose={() => !isSaving && !isUploadingFile && setIsOpen(false)} 
+        isFullscreen={true}
+        className="bg-white dark:bg-gray-900"
+      >
+        <div className="flex flex-col gap-4 p-5 md:p-6 bg-white dark:bg-gray-900 h-screen w-screen overflow-hidden box-border">
           {/* Header */}
-          <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 border-b border-gray-100 dark:border-gray-800 pb-4">
+          <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 border-b border-gray-150 dark:border-gray-800 pb-4">
             <div>
               <h4 className="text-xl font-bold text-gray-900 dark:text-white">
                 Resume Visual Editor
@@ -221,35 +783,86 @@ export default function EditResume({ candidate, onSave }: EditResumeProps) {
               </p>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2 pr-12 sm:pr-16">
+              <div className="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-800">
+                <button
+                  onClick={() => setViewMode("preview")}
+                  disabled={isSaving || isUploadingFile}
+                  className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all disabled:opacity-50 ${
+                    viewMode === "preview"
+                      ? "bg-white text-blue-600 shadow-xs dark:bg-gray-900 dark:text-blue-400"
+                      : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                  }`}
+                >
+                  Exact Preview
+                </button>
+                <button
+                  onClick={() => setViewMode("edit")}
+                  disabled={isSaving || isUploadingFile}
+                  className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all disabled:opacity-50 ${
+                    viewMode === "edit"
+                      ? "bg-white text-blue-600 shadow-xs dark:bg-gray-900 dark:text-blue-400"
+                      : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                  }`}
+                >
+                  Edit
+                </button>
+              </div>
+
               <button
                 onClick={handleCopy}
-                disabled={isSaving}
-                className="px-3 py-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded-lg transition-all disabled:opacity-50"
+                disabled={isSaving || isUploadingFile}
+                className="px-3 py-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-955/40 rounded-lg transition-all disabled:opacity-50"
               >
                 Copy Text
               </button>
 
               <button
                 onClick={handleOpenPdf}
-                disabled={isSaving}
+                disabled={isSaving || isUploadingFile}
                 className="px-3 py-1.5 text-xs font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-all disabled:opacity-50"
               >
                 Open Original
               </button>
 
+              {/* Premium Update File Button */}
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isSaving || isUploadingFile}
+                className="px-3 py-1.5 text-xs font-bold text-violet-600 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-955/40 rounded-lg transition-all disabled:opacity-50 flex items-center gap-1.5"
+              >
+                {isUploadingFile ? (
+                  <svg className="animate-spin h-3.5 w-3.5" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                ) : (
+                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                  </svg>
+                )}
+                {isUploadingFile ? "Uploading..." : "Update File"}
+              </button>
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                accept=".pdf,.docx,.doc"
+                className="hidden"
+              />
+
               <button
                 onClick={handleExportWord}
-                disabled={isSaving}
-                className="px-3 py-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 rounded-lg transition-all disabled:opacity-50"
+                disabled={isSaving || isUploadingFile}
+                className="px-3 py-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-955/40 rounded-lg transition-all disabled:opacity-50"
               >
                 Export Word
               </button>
 
               <button
                 onClick={handleExportPdf}
-                disabled={isSaving}
-                className="px-3 py-1.5 text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition-all disabled:opacity-50"
+                disabled={isSaving || isUploadingFile}
+                className="px-3 py-1.5 text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-955/40 rounded-lg transition-all disabled:opacity-50"
               >
                 Export PDF
               </button>
@@ -258,36 +871,38 @@ export default function EditResume({ candidate, onSave }: EditResumeProps) {
 
           {/* Canvas Rich Editor */}
           <div className="flex-1 min-h-0">
-            <CanvasResumeEditor
-              initialContent={rawHtml}
-              onChange={handleEditorChange}
-              zoom={zoom}
-              onZoomChange={setZoom}
-            />
+            {renderResumeSurface()}
           </div>
 
           {/* Footer Actions */}
-          <div className="flex justify-end pt-4 gap-3 border-t border-gray-100 dark:border-gray-800">
-            <button
-              onClick={() => setIsOpen(false)}
-              disabled={isSaving}
-              className="px-5 py-2.5 text-sm font-semibold bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-200 rounded-xl transition-all disabled:opacity-50"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={isSaving}
-              className="px-5 py-2.5 text-sm font-semibold bg-blue-600 hover:bg-blue-750 text-white rounded-xl transition-all shadow-md shadow-blue-500/10 hover:shadow-lg disabled:opacity-50 flex items-center gap-2"
-            >
-              {isSaving && (
-                <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                </svg>
-              )}
-              {isSaving ? "Saving..." : "Save Changes"}
-            </button>
+          <div className="flex justify-between items-center pt-4 border-t border-gray-100 dark:border-gray-800">
+            {/* Auto-Save Indicator Status */}
+            <div className="flex items-center gap-2">
+            </div>
+
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setIsOpen(false)}
+                disabled={isSaving || isUploadingFile}
+                className="px-5 py-2.5 text-sm font-semibold bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-200 rounded-xl transition-all disabled:opacity-50"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={handleSave}
+                disabled={isSaving || isUploadingFile}
+                className="px-6 py-2.5 text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-all shadow-md active:scale-95 flex items-center gap-2"
+              >
+                {isSaving && (
+                  <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                )}
+                {isSaving ? "Saving..." : "Save to Server"}
+              </button>
+            </div>
           </div>
         </div>
       </Modal>
