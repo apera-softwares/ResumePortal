@@ -93,4 +93,16 @@ export class CandidateController {
   ) {
     return await this.candidateService.uploadCleanedResume(id, file, resumeText);
   }
+
+  // update candidate resume file by id
+  @Post(':id/update-resume')
+  @UseInterceptors(FileInterceptor('file', { storage }))
+  async updateResumeFile(
+    @Param('id', ParseIntPipe) id: number,
+    @UploadedFile() file?: Express.Multer.File,
+    @Body('resumeText') resumeText?: string,
+  ) {
+    return await this.candidateService.updateResumeFile(id, file, resumeText);
+  }
 }
+

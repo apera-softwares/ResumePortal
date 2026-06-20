@@ -62,7 +62,7 @@ export const Modal: React.FC<ModalProps> = ({
     : "relative z-10 w-full rounded-3xl bg-white dark:bg-gray-900 border border-gray-150/80 dark:border-gray-800/80 shadow-2xl overflow-hidden";
 
   return createPortal(
-    <div className="fixed inset-0 flex items-center justify-center overflow-y-auto modal z-[999999] p-4 sm:p-6 md:p-10">
+    <div className={`fixed inset-0 flex items-center justify-center overflow-y-auto modal z-[999999] ${isFullscreen ? "p-0" : "p-4 sm:p-6 md:p-10"}`}>
       {!isFullscreen && (
         <div
           className="absolute inset-0 w-full h-full bg-black/60 backdrop-blur-md"

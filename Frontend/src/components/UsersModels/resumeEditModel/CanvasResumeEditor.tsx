@@ -1,375 +1,910 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import { useEditor, EditorContent, Editor } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+import Paragraph from "@tiptap/extension-paragraph";
+import Heading from "@tiptap/extension-heading";
+import Underline from "@tiptap/extension-underline";
+import Link from "@tiptap/extension-link";
+import TextAlign from "@tiptap/extension-text-align";
+import { TextStyle } from "@tiptap/extension-text-style";
+import Color from "@tiptap/extension-color";
+import { Table } from "@tiptap/extension-table";
+import TableRow from "@tiptap/extension-table-row";
+import TableCell from "@tiptap/extension-table-cell";
+import TableHeader from "@tiptap/extension-table-header";
+import Image from "@tiptap/extension-image";
+import { Node, Mark } from "@tiptap/core";
 import { 
-  Bold as BoldIcon, 
-  Italic as ItalicIcon, 
+  Undo2, 
+  Redo2, 
+  Bold, 
+  Italic, 
   Underline as UnderlineIcon, 
-  Undo as UndoIcon, 
-  Redo as RedoIcon, 
+  AlignLeft, 
+  AlignCenter, 
+  AlignRight, 
+  AlignJustify, 
+  List, 
+  ListOrdered, 
+  Link2, 
+  Unlink, 
+  PaintBucket, 
+  Type, 
+  Table2, 
+  Plus, 
+  Trash2, 
   ZoomIn, 
   ZoomOut,
-  Palette
+  ChevronDown
 } from "lucide-react";
-
-interface ParsedPage {
-  id: string;
-  width: string;
-  height: string;
-  innerHTML: string;
-  style: string;
-}
 
 interface CanvasResumeEditorProps {
   initialContent: string;
-  onChange: (html: string) => void;
+  styleHeader?: string;
+  onChange: (combinedHtml: string) => void;
   zoom: number;
   onZoomChange: (zoom: number) => void;
 }
 
+// Custom Node and Mark definitions to preserve all PDF layout styles & IDs
+const CustomParagraph = Paragraph.extend({
+  addAttributes() {
+    return {
+      style: {
+        default: null,
+        parseHTML: element => element.getAttribute("style"),
+        renderHTML: attributes => attributes.style ? { style: attributes.style } : {},
+      },
+      id: {
+        default: null,
+        parseHTML: element => element.getAttribute("id"),
+        renderHTML: attributes => attributes.id ? { id: attributes.id } : {},
+      },
+      class: {
+        default: null,
+        parseHTML: element => element.getAttribute("class"),
+        renderHTML: attributes => attributes.class ? { class: attributes.class } : {},
+      }
+    };
+  },
+});
+
+const CustomHeading = Heading.extend({
+  addAttributes() {
+    return {
+      style: {
+        default: null,
+        parseHTML: element => element.getAttribute("style"),
+        renderHTML: attributes => attributes.style ? { style: attributes.style } : {},
+      },
+      id: {
+        default: null,
+        parseHTML: element => element.getAttribute("id"),
+        renderHTML: attributes => attributes.id ? { id: attributes.id } : {},
+      },
+      class: {
+        default: null,
+        parseHTML: element => element.getAttribute("class"),
+        renderHTML: attributes => attributes.class ? { class: attributes.class } : {},
+      }
+    };
+  },
+});
+
+const CustomDiv = Node.create({
+  name: "div",
+  group: "block",
+  content: "block*",
+  defining: true,
+  addAttributes() {
+    return {
+      style: {
+        default: null,
+        parseHTML: element => element.getAttribute("style"),
+        renderHTML: attributes => attributes.style ? { style: attributes.style } : {},
+      },
+      id: {
+        default: null,
+        parseHTML: element => element.getAttribute("id"),
+        renderHTML: attributes => attributes.id ? { id: attributes.id } : {},
+      },
+      class: {
+        default: null,
+        parseHTML: element => element.getAttribute("class"),
+        renderHTML: attributes => attributes.class ? { class: attributes.class } : {},
+      }
+    };
+  },
+  parseHTML() {
+    return [{ tag: "div" }];
+  },
+  renderHTML({ HTMLAttributes }) {
+    return ["div", HTMLAttributes, 0];
+  },
+});
+
+const CustomSpan = Mark.create({
+  name: "span",
+  priority: 80,          // higher than TextStyle (50) so badge spans are parsed first
+  spanning: true,
+  addAttributes() {
+    return {
+      style: {
+        default: null,
+        parseHTML: element => element.getAttribute("style"),
+        renderHTML: attributes => attributes.style ? { style: attributes.style } : {},
+      },
+      id: {
+        default: null,
+        parseHTML: element => element.getAttribute("id"),
+        renderHTML: attributes => attributes.id ? { id: attributes.id } : {},
+      },
+      class: {
+        default: null,
+        parseHTML: element => element.getAttribute("class"),
+        renderHTML: attributes => attributes.class ? { class: attributes.class } : {},
+      }
+    };
+  },
+  parseHTML() {
+    return [{ tag: "span" }];
+  },
+  renderHTML({ HTMLAttributes }) {
+    return ["span", HTMLAttributes, 0];
+  },
+});
+
+const CustomImage = Image.extend({
+  inline: true,
+  group: "inline",
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      style: {
+        default: null,
+        parseHTML: element => element.getAttribute("style"),
+        renderHTML: attributes => attributes.style ? { style: attributes.style } : {},
+      },
+      class: {
+        default: null,
+        parseHTML: element => element.getAttribute("class"),
+        renderHTML: attributes => attributes.class ? { class: attributes.class } : {},
+      }
+    };
+  },
+});
+
+const BackgroundImage = Node.create({
+  name: "backgroundImage",
+  group: "block",
+  inline: false,
+  draggable: false,
+  priority: 100,
+  addAttributes() {
+    return {
+      src: {
+        default: null,
+        parseHTML: element => element.getAttribute("src"),
+        renderHTML: attributes => attributes.src ? { src: attributes.src } : {},
+      },
+      alt: {
+        default: null,
+        parseHTML: element => element.getAttribute("alt"),
+        renderHTML: attributes => attributes.alt ? { alt: attributes.alt } : {},
+      },
+      width: {
+        default: null,
+        parseHTML: element => element.getAttribute("width"),
+        renderHTML: attributes => attributes.width ? { width: attributes.width } : {},
+      },
+      height: {
+        default: null,
+        parseHTML: element => element.getAttribute("height"),
+        renderHTML: attributes => attributes.height ? { height: attributes.height } : {},
+      },
+      style: {
+        default: null,
+        parseHTML: element => element.getAttribute("style"),
+        renderHTML: attributes => attributes.style ? { style: attributes.style } : {},
+      },
+      class: {
+        default: null,
+        parseHTML: element => element.getAttribute("class"),
+        renderHTML: attributes => attributes.class ? { class: attributes.class } : {},
+      }
+    };
+  },
+  parseHTML() {
+    return [{ tag: "img.page-background-img" }];
+  },
+  renderHTML({ HTMLAttributes }) {
+    return ["img", HTMLAttributes];
+  },
+});
+
+
+// JSON fallback parser to support older data schema, if any
+export function jsonToHtml(jsonStr: string): string {
+  try {
+    const data = JSON.parse(jsonStr);
+    if (typeof data === "string") return data;
+    return jsonStr;
+  } catch (e) {
+    return jsonStr;
+  }
+}
+
+const fonts = [
+  { label: "Default Font", value: "" },
+  { label: "Arial", value: "Arial, sans-serif" },
+  { label: "Times New Roman", value: "'Times New Roman', Times, serif" },
+  { label: "Georgia", value: "Georgia, serif" },
+  { label: "Courier New", value: "'Courier New', Courier, monospace" },
+  { label: "Verdana", value: "Verdana, Geneva, sans-serif" },
+  { label: "Inter", value: "Inter, sans-serif" },
+];
+
+const fontSizes = [
+  { label: "10", value: "10px" },
+  { label: "11", value: "11px" },
+  { label: "12", value: "12px" },
+  { label: "13", value: "13px" },
+  { label: "14", value: "14px" },
+  { label: "15", value: "15px" },
+  { label: "16", value: "16px" },
+  { label: "18", value: "18px" },
+  { label: "20", value: "20px" },
+  { label: "24", value: "24px" },
+];
+
+const colors = [
+  "#000000", "#374151", "#5b21b6", "#1e40af", "#065f46", "#92400e", "#991b1b", "#86198f"
+];
+
+const highlights = [
+  "transparent", "#fef08a", "#bbf7d0", "#bfdbfe", "#fbcfe8", "#ddd6fe", "#ffedd5"
+];
+
+const lineSpacings = [
+  { label: "Single", value: "1" },
+  { label: "1.15", value: "1.15" },
+  { label: "1.3", value: "1.3" },
+  { label: "1.5", value: "1.5" },
+  { label: "Double", value: "2" },
+];
+
 export default function CanvasResumeEditor({ 
   initialContent, 
+  styleHeader = "",
   onChange, 
   zoom, 
   onZoomChange 
 }: CanvasResumeEditorProps) {
-  const [pages, setPages] = useState<ParsedPage[]>([]);
-  const [styleSheets, setStyleSheets] = useState<string[]>([]);
-  const [activeIframeIdx, setActiveIframeIdx] = useState<number | null>(null);
-  
-  const iframesRef = useRef<(HTMLIFrameElement | null)[]>([]);
-  const isInitializedRef = useRef(false);
+  const isLoadedRef = useRef(false);
+  const [showTableMenu, setShowTableMenu] = useState(false);
 
-  // Parse HTML content into separate pages and styles
+  const editor = useEditor({
+    extensions: [
+      StarterKit.configure({
+        paragraph: false,
+        heading: false,
+      }),
+      CustomParagraph,
+      CustomHeading,
+      CustomDiv,
+      CustomSpan,
+      CustomImage,
+      BackgroundImage,
+      Underline,
+      Link.configure({ openOnClick: false }),
+      TextAlign.configure({ types: ["heading", "paragraph"] }),
+      TextStyle,
+      Color,
+      Table.configure({
+        resizable: true,
+      }),
+      TableRow,
+      TableHeader,
+      TableCell,
+    ],
+    content: "",
+    onUpdate({ editor }) {
+      onChange(editor.getHTML());
+    },
+  });
+
+  // Load content once when editor is ready
   useEffect(() => {
-    if (!initialContent) return;
-
-    // Reset initial state when candidate content changes
-    isInitializedRef.current = false;
-    iframesRef.current = [];
-
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(initialContent, "text/html");
-
-    // Extract stylesheets
-    const styles: string[] = [];
-    doc.querySelectorAll("style").forEach(style => {
-      styles.push(style.innerHTML);
-    });
-    setStyleSheets(styles);
-
-    // Find all page-like divs
-    const body = doc.body;
-    const childDivs = Array.from(body.children).filter(
-      el => el.tagName === "DIV" && (el.id.includes("page") || el.getAttribute("style")?.includes("position"))
-    );
-
-    const parsedPages: ParsedPage[] = [];
-
-    if (childDivs.length === 0) {
-      // Fallback if no page wrappers
-      parsedPages.push({
-        id: "page-1",
-        width: "892",
-        height: "1262",
-        innerHTML: body.innerHTML,
-        style: "position:relative; width:892px; height:1262px; background:white; margin:0 auto;",
-      });
-    } else {
-      childDivs.forEach((div, idx) => {
-        const styleAttr = div.getAttribute("style") || "";
-        const width = styleAttr.match(/width:\s*(\d+)px/)?.[1] || "892";
-        const height = styleAttr.match(/height:\s*(\d+)px/)?.[1] || "1262";
-
-        // Create editable markup for the iframe content
-        const clone = div.cloneNode(true) as HTMLElement;
-        const textElements = clone.querySelectorAll("p, span, h1, h2, h3, h4, h5, h6, li, td, div");
-        
-        textElements.forEach(el => {
-          // Only make leaf-like text nodes editable to prevent nested cursor issues
-          if (el.children.length === 0 || (el.tagName === "P" && Array.from(el.children).every(c => c.tagName === "SPAN" || c.tagName === "B" || c.tagName === "I"))) {
-            el.setAttribute("contenteditable", "true");
-            el.setAttribute("spellcheck", "false");
-            el.classList.add("editable-text-block");
-          }
-        });
-
-        parsedPages.push({
-          id: div.id || `page-${idx + 1}`,
-          width,
-          height,
-          innerHTML: clone.innerHTML,
-          style: styleAttr,
-        });
-      });
+    if (editor && initialContent && !isLoadedRef.current) {
+      editor.commands.setContent(initialContent);
+      isLoadedRef.current = true;
     }
+  }, [editor, initialContent]);
 
-    setPages(parsedPages);
-  }, [initialContent]);
+  if (!editor) return null;
 
-  // Write content and load iframes exactly once per change
-  useEffect(() => {
-    if (pages.length === 0 || isInitializedRef.current) return;
-
-    pages.forEach((page, idx) => {
-      const iframe = iframesRef.current[idx];
-      if (!iframe) return;
-
-      const setupIframe = () => {
-        const doc = iframe.contentDocument;
-        if (!doc) return;
-
-        // Construct standard style block including user fonts and pdf styles
-        const pageStyles = styleSheets.map(s => `<style>${s}</style>`).join("\n");
-        const iframeHtml = `
-          <!DOCTYPE html>
-          <html>
-          <head>
-            <meta charset="utf-8">
-            ${pageStyles}
-            <style>
-              html, body {
-                margin: 0 !important;
-                padding: 0 !important;
-                width: 100% !important;
-                height: 100% !important;
-                overflow: hidden !important;
-                background: transparent !important;
-                -webkit-print-color-adjust: exact;
-                font-smooth: antialiased;
-                -webkit-font-smoothing: antialiased;
-              }
-              
-              /* Editable Highlights */
-              .editable-text-block {
-                outline: none !important;
-                cursor: text;
-                transition: box-shadow 0.1s ease, background-color 0.1s ease;
-              }
-              .editable-text-block:hover {
-                box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.4) !important;
-                background-color: rgba(59, 130, 246, 0.05) !important;
-              }
-              .editable-text-block:focus {
-                box-shadow: 0 0 0 2px #3b82f6 !important;
-                background-color: rgba(59, 130, 246, 0.08) !important;
-              }
-              table {
-                border-collapse: collapse;
-              }
-            </style>
-          </head>
-          <body>
-            <div id="${page.id}" style="${page.style}">
-              ${page.innerHTML}
-            </div>
-          </body>
-          </html>
-        `;
-
-        doc.open();
-        doc.write(iframeHtml);
-        doc.close();
-
-        // Listen for user inputs
-        doc.addEventListener("input", triggerChange);
-        
-        // Listen for active selection focus
-        doc.addEventListener("focusin", () => {
-          setActiveIframeIdx(idx);
-        });
-        doc.addEventListener("click", () => {
-          setActiveIframeIdx(idx);
-        });
-      };
-
-      if (iframe.contentDocument?.readyState === "complete") {
-        setupIframe();
-      } else {
-        iframe.onload = setupIframe;
-      }
-    });
-
-    isInitializedRef.current = true;
-  }, [pages, styleSheets]);
-
-  // Handle rich text formatting command
-  const executeCommand = (command: string, value: string = "") => {
-    if (activeIframeIdx !== null) {
-      const iframe = iframesRef.current[activeIframeIdx];
-      const iframeDoc = iframe?.contentDocument;
-      if (iframeDoc) {
-        iframeDoc.execCommand(command, false, value);
-        triggerChange();
-      }
-    } else {
-      document.execCommand(command, false, value);
-    }
-  };
-
-  // Collect updated HTML and trigger parent onChange handler
-  const triggerChange = () => {
-    let bodyHtml = "";
+  // Modify inline style attribute of current selection (e.g. font family, size, background color)
+  const applyInlineStyle = (propName: string, propValue: string) => {
+    const currentAttrs = editor.getAttributes("span");
+    const oldStyle = currentAttrs.style || "";
+    const stylesObj: Record<string, string> = {};
     
-    pages.forEach((page, idx) => {
-      const iframe = iframesRef.current[idx];
-      const iframeDoc = iframe?.contentDocument;
-      const pageDiv = iframeDoc?.getElementById(page.id);
-
-      if (pageDiv) {
-        // Clone the page div to avoid mutating the live iframe DOM
-        const clone = pageDiv.cloneNode(true) as HTMLElement;
-
-        // Strip helper attributes and classes
-        clone.querySelectorAll("[contenteditable]").forEach(el => {
-          el.removeAttribute("contenteditable");
-          el.removeAttribute("spellcheck");
-          el.classList.remove("editable-text-block");
-        });
-
-        const id = clone.getAttribute("id") || "";
-        const style = clone.getAttribute("style") || "";
-        bodyHtml += `<div id="${id}" style="${style}">${clone.innerHTML}</div>\n`;
-      } else {
-        bodyHtml += `<div id="${page.id}" style="${page.style}">${page.innerHTML}</div>\n`;
-      }
+    oldStyle.split(";").forEach((p: string) => {
+      const [k, v] = p.split(":").map(s => s.trim());
+      if (k && v) stylesObj[k] = v;
     });
 
-    // Reconstruct stylesheets
-    let styleHtml = "";
-    styleSheets.forEach(sheet => {
-      styleHtml += `<style>\n${sheet}\n</style>\n`;
-    });
+    if (propValue === "transparent" || propValue === "inherit" || !propValue) {
+      delete stylesObj[propName];
+    } else {
+      stylesObj[propName] = propValue;
+    }
 
-    const fullHtml = `<!DOCTYPE html>\n<html>\n<head>\n${styleHtml}</head>\n<body>\n${bodyHtml}</body>\n</html>`;
-    onChange(fullHtml);
+    const newStyleStr = Object.entries(stylesObj)
+      .map(([k, v]) => `${k}: ${v}`)
+      .join("; ");
+
+    if (newStyleStr) {
+      editor.chain().focus().setMark("span", { style: newStyleStr }).run();
+    } else {
+      editor.chain().focus().unsetMark("span").run();
+    }
   };
 
-  const colors = [
-    "#000000", "#333333", "#666666", "#999999", 
-    "#ef4444", "#f97316", "#f59e0b", "#10b981", 
-    "#3b82f6", "#6366f1", "#8b5cf6", "#ec4899"
-  ];
+  // Modify block style attribute of selected blocks (e.g. line height)
+  const applyBlockStyle = (propName: string, propValue: string) => {
+    const { selection } = editor.state;
+    editor.state.doc.nodesBetween(selection.from, selection.to, (node, pos) => {
+      if (node.type.name === 'paragraph' || node.type.name === 'heading') {
+        const oldStyle = node.attrs.style || "";
+        const stylesObj: Record<string, string> = {};
+        oldStyle.split(";").forEach((p: string) => {
+          const [k, v] = p.split(":").map(s => s.trim());
+          if (k && v) stylesObj[k] = v;
+        });
+
+        if (!propValue) {
+          delete stylesObj[propName];
+        } else {
+          stylesObj[propName] = propValue;
+        }
+
+        const newStyleStr = Object.entries(stylesObj)
+          .map(([k, v]) => `${k}: ${v}`)
+          .join("; ");
+
+        editor.chain().updateAttributes(node.type.name, { style: newStyleStr }).run();
+      }
+    });
+  };
+
+  const insertLink = () => {
+    const previousUrl = editor.getAttributes("link").href;
+    const url = window.prompt("Enter URL:", previousUrl);
+    if (url === null) return;
+    if (url === "") {
+      editor.chain().focus().extendMarkRange("link").unsetLink().run();
+      return;
+    }
+    editor.chain().focus().extendMarkRange("link").setLink({ href: url }).run();
+  };
+
+  const hasPages = initialContent
+    ? (initialContent.includes("page1-div") || initialContent.includes("position:absolute") || initialContent.includes("class=\"pf\""))
+    : false;
+
+  const wrapperClass = hasPages
+    ? "w-auto bg-transparent border-none shadow-none p-0 text-gray-900 dark:text-gray-100 transition-all duration-200 ease-out"
+    : "w-[816px] min-h-[1056px] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-sm shadow-2xl p-[1.2in] text-gray-900 dark:text-gray-100 transition-all duration-200 ease-out";
 
   return (
-    <div className="flex flex-col h-full bg-gray-150 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden shadow-xs">
-      {/* Editor Canvas Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 select-none z-10">
-        <div className="flex items-center gap-1.5">
-          {/* History Controls */}
+    <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-2xl overflow-hidden shadow-inner">
+      {/* Top Sticky Toolbar */}
+      <div className="sticky top-0 z-20 flex flex-wrap items-center justify-between gap-y-2 gap-x-4 p-3 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-xs">
+        <div className="flex flex-wrap items-center gap-1.5">
+          {/* History */}
           <button
-            onClick={() => executeCommand("undo")}
-            title="Undo"
-            className="p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            onClick={() => editor.chain().focus().undo().run()}
+            disabled={!editor.can().undo()}
+            title="Undo (Ctrl+Z)"
+            className="p-2 text-gray-650 hover:bg-gray-100 dark:text-gray-350 dark:hover:bg-gray-800 rounded-lg transition-all disabled:opacity-40"
           >
-            <UndoIcon className="w-4 h-4" />
+            <Undo2 className="w-4 h-4" />
           </button>
           <button
-            onClick={() => executeCommand("redo")}
-            title="Redo"
-            className="p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            onClick={() => editor.chain().focus().redo().run()}
+            disabled={!editor.can().redo()}
+            title="Redo (Ctrl+Y)"
+            className="p-2 text-gray-650 hover:bg-gray-100 dark:text-gray-350 dark:hover:bg-gray-800 rounded-lg transition-all disabled:opacity-40"
           >
-            <RedoIcon className="w-4 h-4" />
+            <Redo2 className="w-4 h-4" />
           </button>
 
-          <div className="w-[1px] h-6 bg-gray-200 dark:bg-gray-700 mx-1" />
+          <div className="w-[1px] h-5 bg-gray-200 dark:bg-gray-800 mx-1" />
 
-          {/* Format Controls */}
-          <button
-            onClick={() => executeCommand("bold")}
-            title="Bold"
-            className="p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors font-bold"
+          {/* Heading Style Selector */}
+          <select
+            onChange={(e) => {
+              const val = e.target.value;
+              if (val === "p") {
+                editor.chain().focus().setParagraph().run();
+              } else {
+                editor.chain().focus().toggleHeading({ level: Number(val) as 1 | 2 | 3 }).run();
+              }
+            }}
+            value={
+              editor.isActive("heading", { level: 1 }) ? "1" :
+              editor.isActive("heading", { level: 2 }) ? "2" :
+              editor.isActive("heading", { level: 3 }) ? "3" : "p"
+            }
+            className="px-2.5 py-1.5 bg-gray-50 dark:bg-gray-800 text-xs font-semibold text-gray-700 dark:text-gray-200 rounded-lg border border-gray-200 dark:border-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
           >
-            <BoldIcon className="w-4 h-4" />
+            <option value="p">Normal Text</option>
+            <option value="1">Heading 1</option>
+            <option value="2">Heading 2</option>
+            <option value="3">Heading 3</option>
+          </select>
+
+          {/* Fonts Selector */}
+          <select
+            onChange={(e) => applyInlineStyle("font-family", e.target.value)}
+            className="px-2.5 py-1.5 bg-gray-50 dark:bg-gray-800 text-xs font-semibold text-gray-700 dark:text-gray-200 rounded-lg border border-gray-200 dark:border-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          >
+            {fonts.map(font => (
+              <option key={font.label} value={font.value}>{font.label}</option>
+            ))}
+          </select>
+
+          {/* Font Size Selector */}
+          <select
+            onChange={(e) => applyInlineStyle("font-size", e.target.value)}
+            className="px-2.5 py-1.5 bg-gray-50 dark:bg-gray-800 text-xs font-semibold text-gray-700 dark:text-gray-200 rounded-lg border border-gray-200 dark:border-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            defaultValue="14px"
+          >
+            {fontSizes.map(sz => (
+              <option key={sz.label} value={sz.value}>{sz.label}</option>
+            ))}
+          </select>
+
+          <div className="w-[1px] h-5 bg-gray-200 dark:bg-gray-800 mx-1" />
+
+          {/* Text Formatting */}
+          <button
+            onClick={() => editor.chain().focus().toggleBold().run()}
+            className={`p-2 rounded-lg transition-all ${editor.isActive("bold") ? "bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-200" : "text-gray-650 hover:bg-gray-100 dark:text-gray-350 dark:hover:bg-gray-800"}`}
+            title="Bold (Ctrl+B)"
+          >
+            <Bold className="w-4 h-4" />
           </button>
           <button
-            onClick={() => executeCommand("italic")}
-            title="Italic"
-            className="p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors italic"
+            onClick={() => editor.chain().focus().toggleItalic().run()}
+            className={`p-2 rounded-lg transition-all ${editor.isActive("italic") ? "bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-200" : "text-gray-650 hover:bg-gray-100 dark:text-gray-350 dark:hover:bg-gray-800"}`}
+            title="Italic (Ctrl+I)"
           >
-            <ItalicIcon className="w-4 h-4" />
+            <Italic className="w-4 h-4" />
           </button>
           <button
-            onClick={() => executeCommand("underline")}
-            title="Underline"
-            className="p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors underline"
+            onClick={() => editor.chain().focus().toggleUnderline().run()}
+            className={`p-2 rounded-lg transition-all ${editor.isActive("underline") ? "bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-200" : "text-gray-650 hover:bg-gray-100 dark:text-gray-350 dark:hover:bg-gray-800"}`}
+            title="Underline (Ctrl+U)"
           >
             <UnderlineIcon className="w-4 h-4" />
           </button>
 
-          <div className="w-[1px] h-6 bg-gray-200 dark:bg-gray-700 mx-1" />
-
-          {/* Text Color Selector */}
-          <div className="relative group flex items-center">
+          {/* Text Color Picker */}
+          <div className="relative group">
             <button
               title="Text Color"
-              className="p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors flex items-center gap-1"
+              className="p-2 text-gray-655 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors flex items-center gap-1"
             >
-              <Palette className="w-4 h-4" />
+              <PaintBucket className="w-4 h-4 text-violet-500" />
             </button>
-            <div className="absolute top-full left-0 mt-1 hidden group-hover:flex flex-wrap gap-1 p-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg w-40 z-20">
+            <div className="absolute top-full left-0 mt-1 hidden group-hover:flex flex-wrap gap-1.5 p-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg w-44 z-30">
               {colors.map(color => (
                 <button
                   key={color}
-                  onClick={() => executeCommand("foreColor", color)}
-                  className="w-6 h-6 rounded-full border border-gray-200/50 hover:scale-110 active:scale-95 transition-all shadow-xs"
+                  onClick={() => editor.chain().focus().setColor(color).run()}
+                  className="w-6 h-6 rounded-full border border-gray-200 hover:scale-110 active:scale-95 transition-all shadow-xs"
                   style={{ backgroundColor: color }}
+                />
+              ))}
+              <button
+                onClick={() => editor.chain().focus().unsetColor().run()}
+                className="w-full text-[10px] py-1 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750 text-gray-600 dark:text-gray-300 rounded font-semibold mt-1"
+              >
+                Reset Color
+              </button>
+            </div>
+          </div>
+
+          {/* Highlight Color Picker */}
+          <div className="relative group">
+            <button
+              title="Highlight Color"
+              className="p-2 text-gray-655 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors flex items-center gap-1"
+            >
+              <PaintBucket className="w-4 h-4 text-yellow-500" />
+            </button>
+            <div className="absolute top-full left-0 mt-1 hidden group-hover:flex flex-wrap gap-1.5 p-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg w-44 z-30">
+              {highlights.map(color => (
+                <button
+                  key={color}
+                  onClick={() => applyInlineStyle("background-color", color)}
+                  className="w-6 h-6 rounded-full border border-gray-200 hover:scale-110 active:scale-95 transition-all shadow-xs"
+                  style={{ backgroundColor: color === "transparent" ? "white" : color, border: color === "transparent" ? "1px dashed #ccc" : "" }}
                 />
               ))}
             </div>
           </div>
+
+          <div className="w-[1px] h-5 bg-gray-200 dark:bg-gray-800 mx-1" />
+
+          {/* Alignments */}
+          <button
+            onClick={() => editor.chain().focus().setTextAlign("left").run()}
+            className={`p-2 rounded-lg transition-all ${editor.isActive({ textAlign: "left" }) ? "bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-200" : "text-gray-655 hover:bg-gray-100 dark:text-gray-350 dark:hover:bg-gray-800"}`}
+            title="Align Left"
+          >
+            <AlignLeft className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => editor.chain().focus().setTextAlign("center").run()}
+            className={`p-2 rounded-lg transition-all ${editor.isActive({ textAlign: "center" }) ? "bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-200" : "text-gray-655 hover:bg-gray-100 dark:text-gray-350 dark:hover:bg-gray-800"}`}
+            title="Align Center"
+          >
+            <AlignCenter className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => editor.chain().focus().setTextAlign("right").run()}
+            className={`p-2 rounded-lg transition-all ${editor.isActive({ textAlign: "right" }) ? "bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-200" : "text-gray-655 hover:bg-gray-100 dark:text-gray-350 dark:hover:bg-gray-800"}`}
+            title="Align Right"
+          >
+            <AlignRight className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => editor.chain().focus().setTextAlign("justify").run()}
+            className={`p-2 rounded-lg transition-all ${editor.isActive({ textAlign: "justify" }) ? "bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-200" : "text-gray-655 hover:bg-gray-100 dark:text-gray-350 dark:hover:bg-gray-800"}`}
+            title="Justify"
+          >
+            <AlignJustify className="w-4 h-4" />
+          </button>
+
+          <div className="w-[1px] h-5 bg-gray-200 dark:bg-gray-800 mx-1" />
+
+          {/* Lists */}
+          <button
+            onClick={() => editor.chain().focus().toggleBulletList().run()}
+            className={`p-2 rounded-lg transition-all ${editor.isActive("bulletList") ? "bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-200" : "text-gray-655 hover:bg-gray-100 dark:text-gray-350 dark:hover:bg-gray-800"}`}
+            title="Bullet List"
+          >
+            <List className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => editor.chain().focus().toggleOrderedList().run()}
+            className={`p-2 rounded-lg transition-all ${editor.isActive("orderedList") ? "bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-200" : "text-gray-655 hover:bg-gray-100 dark:text-gray-350 dark:hover:bg-gray-800"}`}
+            title="Numbered List"
+          >
+            <ListOrdered className="w-4 h-4" />
+          </button>
+
+          <div className="w-[1px] h-5 bg-gray-200 dark:bg-gray-800 mx-1" />
+
+          {/* Line Spacing */}
+          <select
+            onChange={(e) => applyBlockStyle("line-height", e.target.value)}
+            className="px-2.5 py-1.5 bg-gray-50 dark:bg-gray-800 text-xs font-semibold text-gray-700 dark:text-gray-200 rounded-lg border border-gray-200 dark:border-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            defaultValue="1.15"
+          >
+            {lineSpacings.map(spacing => (
+              <option key={spacing.label} value={spacing.value}>{spacing.label} Line Spacing</option>
+            ))}
+          </select>
+
+          <div className="w-[1px] h-5 bg-gray-200 dark:bg-gray-800 mx-1" />
+
+          {/* Links */}
+          <button
+            onClick={insertLink}
+            className={`p-2 rounded-lg transition-all ${editor.isActive("link") ? "bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-200" : "text-gray-655 hover:bg-gray-100 dark:text-gray-350 dark:hover:bg-gray-800"}`}
+            title="Insert Link"
+          >
+            <LinkIcon2 className="w-4 h-4" />
+          </button>
+
+          {/* Table Dropdown Menu */}
+          <div className="relative">
+            <button
+              onClick={() => setShowTableMenu(!showTableMenu)}
+              className={`p-2 rounded-lg transition-all flex items-center gap-1 ${editor.isActive("table") ? "bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-200" : "text-gray-655 hover:bg-gray-100 dark:text-gray-350 dark:hover:bg-gray-800"}`}
+              title="Table Actions"
+            >
+              <Table2 className="w-4 h-4" />
+              <ChevronDown className="w-3.5 h-3.5 opacity-60" />
+            </button>
+            
+            {showTableMenu && (
+              <div 
+                className="absolute top-full left-0 mt-1 flex flex-col p-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg w-48 z-30"
+                onMouseLeave={() => setShowTableMenu(false)}
+              >
+                <button
+                  onClick={() => {
+                    editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: false }).run();
+                    setShowTableMenu(false);
+                  }}
+                  className="flex items-center gap-2 px-3 py-2 text-xs text-left text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-750 rounded-lg font-semibold"
+                >
+                  <Plus className="w-3.5 h-3.5 text-emerald-500" /> Insert Table
+                </button>
+                <div className="h-[1px] bg-gray-150 dark:bg-gray-750 my-1" />
+                <button
+                  onClick={() => {
+                    editor.chain().focus().addRowBefore().run();
+                    setShowTableMenu(false);
+                  }}
+                  disabled={!editor.isActive("table")}
+                  className="flex items-center gap-2 px-3 py-2 text-xs text-left text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-750 rounded-lg font-semibold disabled:opacity-40"
+                >
+                  Add Row Above
+                </button>
+                <button
+                  onClick={() => {
+                    editor.chain().focus().addRowAfter().run();
+                    setShowTableMenu(false);
+                  }}
+                  disabled={!editor.isActive("table")}
+                  className="flex items-center gap-2 px-3 py-2 text-xs text-left text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-750 rounded-lg font-semibold disabled:opacity-40"
+                >
+                  Add Row Below
+                </button>
+                <button
+                  onClick={() => {
+                    editor.chain().focus().addColumnBefore().run();
+                    setShowTableMenu(false);
+                  }}
+                  disabled={!editor.isActive("table")}
+                  className="flex items-center gap-2 px-3 py-2 text-xs text-left text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-750 rounded-lg font-semibold disabled:opacity-40"
+                >
+                  Add Column Left
+                </button>
+                <button
+                  onClick={() => {
+                    editor.chain().focus().addColumnAfter().run();
+                    setShowTableMenu(false);
+                  }}
+                  disabled={!editor.isActive("table")}
+                  className="flex items-center gap-2 px-3 py-2 text-xs text-left text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-750 rounded-lg font-semibold disabled:opacity-40"
+                >
+                  Add Column Right
+                </button>
+                <div className="h-[1px] bg-gray-150 dark:bg-gray-750 my-1" />
+                <button
+                  onClick={() => {
+                    editor.chain().focus().deleteRow().run();
+                    setShowTableMenu(false);
+                  }}
+                  disabled={!editor.isActive("table")}
+                  className="flex items-center gap-2 px-3 py-2 text-xs text-left text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-955/20 rounded-lg font-semibold disabled:opacity-40"
+                >
+                  <Trash2 className="w-3.5 h-3.5" /> Delete Row
+                </button>
+                <button
+                  onClick={() => {
+                    editor.chain().focus().deleteColumn().run();
+                    setShowTableMenu(false);
+                  }}
+                  disabled={!editor.isActive("table")}
+                  className="flex items-center gap-2 px-3 py-2 text-xs text-left text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-955/20 rounded-lg font-semibold disabled:opacity-40"
+                >
+                  <Trash2 className="w-3.5 h-3.5" /> Delete Column
+                </button>
+                <button
+                  onClick={() => {
+                    editor.chain().focus().deleteTable().run();
+                    setShowTableMenu(false);
+                  }}
+                  disabled={!editor.isActive("table")}
+                  className="flex items-center gap-2 px-3 py-2 text-xs text-left text-red-650 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-955/20 rounded-lg font-semibold disabled:opacity-40"
+                >
+                  <Trash2 className="w-3.5 h-3.5" /> Delete Table
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Zoom controls */}
-        <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-700 px-3 py-1.5 rounded-lg">
+        {/* Zoom Controls */}
+        <div className="flex items-center gap-1.5 bg-gray-100 dark:bg-gray-800 px-2.5 py-1 rounded-xl shrink-0">
           <button
             onClick={() => onZoomChange(Math.max(0.5, zoom - 0.1))}
-            className="p-1 hover:bg-white dark:hover:bg-gray-600 rounded shadow-xs text-gray-600 dark:text-gray-200"
+            className="p-1 hover:bg-white dark:hover:bg-gray-700 rounded-lg shadow-2xs text-gray-650 dark:text-gray-250 transition-all"
+            title="Zoom Out"
           >
-            <ZoomOut className="w-4 h-4" />
+            <ZoomOut className="w-3.5 h-3.5" />
           </button>
-          <span className="text-xs font-semibold w-12 text-center text-gray-700 dark:text-gray-300">
+          <span className="text-[11px] font-bold w-10 text-center text-gray-700 dark:text-gray-300">
             {Math.round(zoom * 100)}%
           </span>
           <button
             onClick={() => onZoomChange(Math.min(1.5, zoom + 0.1))}
-            className="p-1 hover:bg-white dark:hover:bg-gray-600 rounded shadow-xs text-gray-600 dark:text-gray-200"
+            className="p-1 hover:bg-white dark:hover:bg-gray-700 rounded-lg shadow-2xs text-gray-655 dark:text-gray-250 transition-all"
+            title="Zoom In"
           >
-            <ZoomIn className="w-4 h-4" />
+            <ZoomIn className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
 
-      {/* Pages Container */}
-      <div 
-        className="flex-1 overflow-auto p-8 flex flex-col items-center gap-8 bg-gray-100 dark:bg-gray-900"
-      >
-        {pages.map((page, idx) => (
-          <div
-            key={page.id}
-            style={{
-              width: `${Number(page.width) * zoom}px`,
-              height: `${Number(page.height) * zoom}px`,
-            }}
-            className="relative overflow-hidden shadow-2xl border border-gray-200/80 dark:border-gray-800 rounded-xs bg-white shrink-0 transition-all duration-200 ease-out"
-          >
-            <iframe
-              ref={el => { iframesRef.current[idx] = el; }}
-              style={{
-                transform: `scale(${zoom})`,
-                transformOrigin: "top left",
-                width: `${page.width}px`,
-                height: `${page.height}px`,
-                border: "none",
-                position: "absolute",
-                top: 0,
-                left: 0,
-              }}
-              title={`Page ${idx + 1}`}
-            />
-          </div>
-        ))}
+      {/* Main Pages Canvas Container */}
+      <div className="flex-1 overflow-auto p-6 flex flex-col items-center bg-gray-100 dark:bg-gray-950/70" style={{ minWidth: 0 }}>
+        <div
+          style={{
+            transform: `scale(${zoom})`,
+            transformOrigin: "top center",
+            transition: "transform 0.15s ease-out",
+          }}
+          className={wrapperClass}
+        >
+          {/* Injecting Editor specific styling for visual table lines & spacing rules */}
+          <style>{`
+            /* ================================================================
+               RESUME EDITOR  —  Production-grade CSS
+               Design principle: Inline styles from the PDF WIN.
+               This sheet only provides page chrome & structural scaffolding.
+               Nothing here uses !important on typography properties.
+            ================================================================ */
+
+            /* 1. Editor root — no font-size/family override */
+            .ProseMirror {
+              outline: none;
+              caret-color: #2563eb;
+              overflow-wrap: break-word;
+              word-wrap: break-word;
+            }
+
+            /* 2. A4 page container — chrome only */
+            .ProseMirror div[id$="-div"],
+            .ProseMirror .pf,
+            .ProseMirror .resume-page {
+              position: relative !important;
+              box-sizing: border-box !important;
+              width: 794px !important;      /* A4 @ 96dpi */
+              min-height: 1123px !important; /* A4 @ 96dpi */
+              margin: 32px auto !important;
+              padding: 56px 64px !important;
+              background: #ffffff !important;
+              box-shadow: 0 2px 16px 0 rgba(0,0,0,0.13), 0 0 0 1px rgba(0,0,0,0.06) !important;
+              border-radius: 3px !important;
+              overflow: visible !important;
+            }
+
+            /* 3. Template resumes (have a background image) — no padding */
+            .ProseMirror div[id$="-div"].has-bg-img,
+            .ProseMirror .pf.has-bg-img,
+            .ProseMirror .resume-page.has-bg-img {
+              padding: 0 !important;
+            }
+
+            /* 4. Dark mode page chrome */
+            .dark .ProseMirror div[id$="-div"],
+            .dark .ProseMirror .pf,
+            .dark .ProseMirror .resume-page {
+              background: #1e293b !important;
+              box-shadow: 0 2px 24px 0 rgba(0,0,0,0.45) !important;
+            }
+
+            /* 5. Background template image — fills page absolutely */
+            .ProseMirror img.page-background-img {
+              position: absolute !important;
+              inset: 0 !important;
+              width: 100% !important;
+              height: 100% !important;
+              z-index: 0 !important;
+              pointer-events: none !important;
+              display: block !important;
+              object-fit: fill !important;
+            }
+
+            /* 6. Direct children of page sit above background image */
+            .ProseMirror div[id$="-div"] > *:not(.page-background-img),
+            .ProseMirror .pf > *:not(.page-background-img),
+            .ProseMirror .resume-page > *:not(.page-background-img) {
+              position: relative;
+              z-index: 1;
+            }
+
+            /* 7. Skill badge spans — keep their inline-block display */
+            .ProseMirror span[style*="border-radius"],
+            .ProseMirror span[style*="background-color"],
+            .ProseMirror span[style*="padding"] {
+              display: inline-block;
+              white-space: nowrap;
+            }
+
+            /* 8. Content images — never become block-level */
+            .ProseMirror img:not(.page-background-img) {
+              display: inline-block;
+              max-width: 100%;
+              position: relative;
+              z-index: 2;
+            }
+
+            /* 9. Two-column layout table — no visible borders */
+            .ProseMirror table {
+              border-collapse: collapse;
+              width: 100%;
+              table-layout: fixed;
+              border: none;
+            }
+            .ProseMirror table td,
+            .ProseMirror table th {
+              border: none;
+              vertical-align: top;
+              padding: 0;
+            }
+
+            /* 10. Lists — preserve indentation */
+            .ProseMirror ul,
+            .ProseMirror ol {
+              padding-left: 20px;
+              margin: 2px 0 4px 0;
+            }
+            .ProseMirror li {
+              margin-bottom: 2px;
+            }
+
+            /* 11. HR dividers */
+            .ProseMirror hr {
+              border: none;
+              border-top: 1px solid #94a3b8;
+              margin: 6px 0;
+            }
+
+            /* 12. Paragraph & heading defaults — minimal, won't override inline styles */
+            .ProseMirror p {
+              margin: 0 0 2px 0;
+            }
+            .ProseMirror h2,
+            .ProseMirror h3,
+            .ProseMirror h4 {
+              margin: 8px 0 4px 0;
+            }
+
+            /* 13. Dark mode text fallback */
+            .dark .ProseMirror h2,
+            .dark .ProseMirror h3 {
+              color: #f1f5f9;
+            }
+
+            /* 14. Pass-through for any injected PDF stylesheet */
+            ${styleHeader}
+          `}</style>
+          <EditorContent editor={editor} />
+        </div>
       </div>
     </div>
+  );
+}
+
+// Named alias mapping for Lucide Link icon to prevent conflicts with nextjs/react-router Link component
+function LinkIcon2(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
+      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+    </svg>
   );
 }
