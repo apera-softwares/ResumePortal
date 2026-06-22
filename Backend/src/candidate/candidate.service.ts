@@ -14,14 +14,12 @@ import { execSync } from 'child_process';
 
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { CandidateCreatedEvent } from 'src/envent/events';
-import { StorageService } from './storage.service';
 
 @Injectable()
 export class CandidateService {
   constructor(
     private prisma: PrismaService,
     private eventEmitter: EventEmitter2,
-    private storageService: StorageService,
   ) {}
 
   async uploadFileMulter(
@@ -409,7 +407,6 @@ export class CandidateService {
     try {
       const page = await browser.newPage();
       
-      // Inject print-friendly stylesheet for accurate A4 representation
       const printFriendlyHtml = `
         <!DOCTYPE html>
         <html>
@@ -462,22 +459,194 @@ export class CandidateService {
    * Generates a DOCX document buffer from HTML content.
    */
   async generateDocxFromHtml(htmlContent: string): Promise<Buffer> {
+    const puppeteer = require('puppeteer');
     const htmlToDocx = require('html-to-docx');
+    
+    let cleanSemanticHtml = '';
+    const browser = await puppeteer.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+    });
+
+    try {
+      const page = await browser.newPage();
+      await page.setContent(htmlContent || '<div></div>', { waitUntil: 'networkidle0' });
+
+      // Reconstruct document in visual reading order (top-to-bottom, left-to-right)
+      cleanSemanticHtml = await page.evaluate(() => {
+        // Find all text elements (p, div, span, etc.)
+        const elements = Array.from(document.querySelectorAll('p, div, span, h1, h2, h3, h4, h5, h6, li'));
+        
+        // Filter out elements that don't have direct text, or are layout containers
+        const textNodes = elements.filter(el => {
+          const hasChildElement = Array.from(el.children).some(child => 
+            ['P', 'DIV', 'SPAN', 'H1', 'H2', 'H3', 'LI'].includes(child.tagName)
+          );
+          const hasText = el.textContent && el.textContent.trim().length > 0;
+          const isBase64 = el.innerHTML.includes('data:image');
+          return hasText && !hasChildElement && !isBase64;
+        });
+
+        // Get bounding boxes of all text elements
+        const positionedItems = textNodes.map(el => {
+          const rect = el.getBoundingClientRect();
+          return {
+            text: el.textContent ? el.textContent.trim() : '',
+            top: rect.top + window.scrollY,
+            left: rect.left + window.scrollX,
+            width: rect.width,
+            fontSize: window.getComputedStyle(el).fontSize,
+            fontWeight: window.getComputedStyle(el).fontWeight,
+          };
+        });
+
+        // Split items into Left Column (Sidebar) and Right Column (Main)
+        // Divider: 300px (to align sidebar boundary nicely)
+        const leftItems = positionedItems.filter(item => item.left < 300);
+        const rightItems = positionedItems.filter(item => item.left >= 300);
+
+        // Group left column items into lines
+        const leftLines: { top: number; items: typeof leftItems }[] = [];
+        leftItems.forEach(item => {
+          let foundLine = leftLines.find(line => Math.abs(line.top - item.top) < 6);
+          if (foundLine) {
+            foundLine.items.push(item);
+          } else {
+            leftLines.push({ top: item.top, items: [item] });
+          }
+        });
+        leftLines.sort((a, b) => a.top - b.top);
+        leftLines.forEach(line => line.items.sort((a, b) => a.left - b.left));
+
+        // Group right column items into lines
+        const rightLines: { top: number; items: typeof rightItems }[] = [];
+        rightItems.forEach(item => {
+          let foundLine = rightLines.find(line => Math.abs(line.top - item.top) < 6);
+          if (foundLine) {
+            foundLine.items.push(item);
+          } else {
+            rightLines.push({ top: item.top, items: [item] });
+          }
+        });
+        rightLines.sort((a, b) => a.top - b.top);
+        rightLines.forEach(line => line.items.sort((a, b) => a.left - b.left));
+
+        // Helper function to merge text elements on the same line and resolve pdf kerning word-splitting bugs
+        const mergeLineItems = (items: typeof positionedItems) => {
+          if (items.length === 0) return '';
+          let merged = items[0].text;
+          for (let i = 1; i < items.length; i++) {
+            const prev = items[i - 1];
+            const curr = items[i];
+            const gap = curr.left - (prev.left + prev.width);
+            
+            // If the visual horizontal gap is larger than 4px, join with space.
+            // Otherwise, merge characters directly to heal split words.
+            if (gap > 4) {
+              merged += ' ' + curr.text;
+            } else {
+              merged += curr.text;
+            }
+          }
+          return merged;
+        };
+
+        // Build Left Column HTML (White text, dark background)
+        let leftHtml = '';
+        leftLines.forEach(line => {
+          const mergedText = mergeLineItems(line.items);
+          if (!mergedText) return;
+
+          const firstItem = line.items[0];
+          const isBold = firstItem.fontWeight === 'bold' || parseInt(firstItem.fontWeight) >= 600;
+          const fontSizePx = parseFloat(firstItem.fontSize);
+
+          if (fontSizePx >= 18) {
+            leftHtml += `<h1 style="font-size: 18pt; font-weight: bold; color: #ffffff; margin-bottom: 8pt; margin-top: 10pt; font-family: Arial;">${mergedText}</h1>\n`;
+          } else if (isBold && (fontSizePx >= 13 || (mergedText.length < 30 && !mergedText.endsWith('.')))) {
+            leftHtml += `<h2 style="font-size: 12pt; font-weight: bold; color: #ffffff; border-bottom: 1px solid #ffffff; margin-top: 16pt; margin-bottom: 8pt; padding-bottom: 2pt; font-family: Arial; text-transform: uppercase;">${mergedText}</h2>\n`;
+          } else {
+            leftHtml += `<p style="font-size: 9.5pt; color: #eeeeee; line-height: 1.35; margin-bottom: 6pt; font-family: Arial;">${mergedText}</p>\n`;
+          }
+        });
+
+        // Build Right Column HTML (Dark text, white background)
+        let rightHtml = '';
+        rightLines.forEach(line => {
+          const mergedText = mergeLineItems(line.items);
+          if (!mergedText) return;
+
+          const firstItem = line.items[0];
+          const isBold = firstItem.fontWeight === 'bold' || parseInt(firstItem.fontWeight) >= 600;
+          const fontSizePx = parseFloat(firstItem.fontSize);
+
+          if (isBold && (fontSizePx >= 13 || (mergedText.length < 50 && !mergedText.endsWith('.')))) {
+            rightHtml += `<h2 style="font-size: 13pt; font-weight: bold; color: #2b0f54; border-bottom: 1px solid #e2e8f0; margin-top: 16pt; margin-bottom: 8pt; padding-bottom: 2pt; font-family: Arial; text-transform: uppercase;">${mergedText}</h2>\n`;
+          } else if (mergedText.startsWith('•') || mergedText.startsWith('-') || mergedText.startsWith('*')) {
+            const cleanLi = mergedText.replace(/^[•\-\*]\s*/, '');
+            rightHtml += `<ul style="margin-bottom: 4pt; padding-left: 20pt; font-family: Arial;"><li style="font-size: 11pt; line-height: 1.35; color: #333333;">${cleanLi}</li></ul>\n`;
+          } else {
+            rightHtml += `<p style="font-size: 11pt; line-height: 1.35; margin-bottom: 6pt; color: #333333; font-family: Arial;">${mergedText}</p>\n`;
+          }
+        });
+
+        // Assemble columns inside a full-height Word table (Wider sidebar layout: 35% / 65%)
+        return `
+          <table style="width: 100%; border: none; border-collapse: collapse;">
+            <tr>
+              <td width="35%" style="background-color: #2b0f54; color: #ffffff; padding: 36pt 18pt; vertical-align: top;">
+                ${leftHtml}
+              </td>
+              <td width="65%" style="background-color: #ffffff; color: #333333; padding: 36pt 24pt; vertical-align: top;">
+                ${rightHtml}
+              </td>
+            </tr>
+          </table>
+        `;
+      });
+    } catch (err) {
+      console.error('[Premium DOCX Gen] Puppeteer preprocessing failed, falling back to regex clean:', err);
+      let fallback = htmlContent || '';
+      fallback = fallback.replace(/<img[^>]+src="data:image\/[^>]+>/gi, '');
+      fallback = fallback.replace(/<img[^>]+alt="background image"[^>]*>/gi, '');
+      fallback = fallback.replace(/position:\s*(absolute|relative);?/gi, '');
+      fallback = fallback.replace(/top:\s*\d+(px|pt|em|%)?;?/gi, '');
+      fallback = fallback.replace(/left:\s*\d+(px|pt|em|%)?;?/gi, '');
+      fallback = fallback.replace(/white-space:\s*nowrap;?/gi, '');
+      cleanSemanticHtml = fallback;
+    } finally {
+      await browser.close();
+    }
+
     const styledHtml = `
       <!DOCTYPE html>
       <html>
       <head>
         <meta charset="utf-8">
+        <style>
+          body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+          }
+        </style>
       </head>
       <body>
-        ${htmlContent}
+        ${cleanSemanticHtml}
       </body>
       </html>
     `;
+
     const docxBuffer = await htmlToDocx(styledHtml, null, {
       table: { row: { cantSplit: true } },
-      footer: true,
-      pageNumber: true,
+      footer: false,
+      pageNumber: false,
+      margins: {
+        top: 0,
+        bottom: 0,
+        left: 0,
+        right: 0,
+      },
     });
     return Buffer.from(docxBuffer);
   }
@@ -516,65 +685,66 @@ export class CandidateService {
         throw new Error('Invalid file type. Only PDF and Word documents are allowed.');
       }
 
-      // Read file buffer
-      const filePath = join(process.cwd(), 'uploads', file.filename);
-      let buffer: Buffer;
-      try {
-        buffer = fs.readFileSync(filePath);
-      } catch (err) {
-        throw new Error(`Failed to read uploaded file: ${err.message}`);
-      }
-
       // Delete old resume file if it exists
       if (candidate.resume) {
-        await this.storageService.deleteFile(candidate.resume);
+        const oldFilePath = join(process.cwd(), 'uploads', candidate.resume);
+        try {
+          if (fs.existsSync(oldFilePath)) {
+            fs.unlinkSync(oldFilePath);
+          }
+        } catch (err) {
+          console.error(`Error deleting old resume file: ${candidate.resume}`, err);
+        }
       }
 
-      // Save new file to storage service (S3 or local disk fallback)
-      resumeFilename = await this.storageService.saveFile(file.filename, buffer, file.mimetype);
+      resumeFilename = file.filename;
 
       // Extract text synchronously if not provided
       if (!resumeText) {
+        const filePath = join(process.cwd(), 'uploads', file.filename);
         try {
-          if (fileExtension === '.pdf') {
-            const outputDir = join(process.cwd(), 'uploads');
-            const htmlFileName = file.filename.replace(/\.pdf$/i, '.html');
-            const htmlFilePath = join(outputDir, htmlFileName);
+          if (fs.existsSync(filePath)) {
+            const buffer = fs.readFileSync(filePath);
+            if (fileExtension === '.pdf') {
+              const outputDir = join(process.cwd(), 'uploads');
+              const htmlFileName = file.filename.replace(/\.pdf$/i, '.html');
+              const htmlFilePath = join(outputDir, htmlFileName);
 
-            try {
-              const command = `pdftohtml -s -noframes -c -dataurls "${filePath}" "${htmlFilePath}"`;
-              execSync(command);
-
-              if (fs.existsSync(htmlFilePath)) {
-                const rawHtml = fs.readFileSync(htmlFilePath, 'utf8');
-                extractedText = cleanPdftohtmlOutline(rawHtml);
-                fs.unlinkSync(htmlFilePath);
-                console.log(`[Sync Extract] pdftohtml conversion succeeded for candidate ID: ${id}`);
-              }
-            } catch (execError) {
-              console.error('[Sync Extract] pdftohtml conversion failed:', execError.message);
-            }
-          } else if (fileExtension === '.docx' || fileExtension === '.doc') {
-            const outputDir = join(process.cwd(), 'uploads');
-            const htmlFileName = file.filename.replace(/\.(docx|doc)$/i, '.html');
-            const htmlFilePath = join(outputDir, htmlFileName);
-
-            try {
-              const command = `libreoffice --headless --convert-to html --outdir "${outputDir}" "${filePath}"`;
-              execSync(command);
-
-              if (fs.existsSync(htmlFilePath)) {
-                extractedText = fs.readFileSync(htmlFilePath, 'utf8');
-                fs.unlinkSync(htmlFilePath);
-                console.log(`[Sync Extract] LibreOffice Word-to-HTML conversion succeeded for candidate ID: ${id}`);
-              }
-            } catch (libreOfficeError) {
-              console.warn('[Sync Extract] LibreOffice conversion failed, falling back to Mammoth:', libreOfficeError.message);
               try {
-                const result = await mammoth.convertToHtml({ buffer });
-                extractedText = result.value || '';
-              } catch (mammothError) {
-                console.error('[Sync Extract] Fallback Mammoth DOCX conversion failed:', mammothError);
+                const command = `pdftohtml -s -noframes -c -dataurls "${filePath}" "${htmlFilePath}"`;
+                execSync(command);
+
+                if (fs.existsSync(htmlFilePath)) {
+                  const rawHtml = fs.readFileSync(htmlFilePath, 'utf8');
+                  extractedText = cleanPdftohtmlOutline(rawHtml);
+                  fs.unlinkSync(htmlFilePath);
+                  console.log(`[Sync Extract] pdftohtml conversion succeeded for candidate ID: ${id}`);
+                }
+              } catch (execError) {
+                console.error('[Sync Extract] pdftohtml conversion failed:', execError.message);
+              }
+            } else if (fileExtension === '.docx' || fileExtension === '.doc') {
+              const outputDir = join(process.cwd(), 'uploads');
+              const htmlFileName = file.filename.replace(/\.(docx|doc)$/i, '.html');
+              const htmlFilePath = join(outputDir, htmlFileName);
+
+              try {
+                const command = `libreoffice --headless --convert-to html --outdir "${outputDir}" "${filePath}"`;
+                execSync(command);
+
+                if (fs.existsSync(htmlFilePath)) {
+                  extractedText = fs.readFileSync(htmlFilePath, 'utf8');
+                  fs.unlinkSync(htmlFilePath);
+                  console.log(`[Sync Extract] LibreOffice Word-to-HTML conversion succeeded for candidate ID: ${id}`);
+                }
+              } catch (libreOfficeError) {
+                console.warn('[Sync Extract] LibreOffice conversion failed, falling back to Mammoth:', libreOfficeError.message);
+                try {
+                  const result = await mammoth.convertToHtml({ buffer });
+                  extractedText = result.value || '';
+                } catch (mammothError) {
+                  console.error('[Sync Extract] Fallback Mammoth DOCX conversion failed:', mammothError);
+                }
               }
             }
           }
@@ -582,47 +752,96 @@ export class CandidateService {
           console.error('Error extracting text during resume update:', err);
         }
       }
-
-      // Cleanup local temp multer upload file since it is now persisted in storage service
-      try {
-        if (fs.existsSync(filePath)) {
-          fs.unlinkSync(filePath);
-        }
-      } catch (err) {
-        console.error(`Failed to cleanup temp upload file: ${filePath}`, err);
-      }
     } else if (resumeText) {
-      // 1. Generate premium PDF directly from edited HTML using headless Puppeteer
+      // Generate premium PDF directly from edited HTML using LibreOffice
+      const tempHtmlName = `temp-${id}-${Date.now()}.html`;
+      const tempHtmlPath = join(process.cwd(), 'uploads', tempHtmlName);
+
+      // Add clean styles to ensure beautiful styling when converting html to pdf
+      const styledHtml = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <style>
+            @page {
+              size: A4;
+              margin: 1.2in 1in 1.2in 1in;
+            }
+            body {
+              font-family: Arial, Helvetica, sans-serif;
+              line-height: 1.35;
+              color: #2b2b2b;
+              font-size: 11pt;
+            }
+            p { margin-top: 0; margin-bottom: 6px; }
+            h1, h2, h3, h4, h5, h6 { 
+              margin-top: 14px; 
+              margin-bottom: 6px; 
+              color: #111111;
+              font-weight: bold;
+            }
+            h1 { font-size: 20pt; text-align: center; margin-bottom: 12px; }
+            h2 { font-size: 14pt; border-bottom: 1.5px solid #4a5568; padding-bottom: 3px; margin-top: 18px; }
+            h3 { font-size: 12pt; }
+            table { 
+              width: 100%; 
+              border-collapse: collapse; 
+              margin-top: 4px; 
+              margin-bottom: 8px; 
+              page-break-inside: avoid;
+            }
+            td { 
+              padding: 2px 4px; 
+              vertical-align: top; 
+            }
+            ul, ol { margin-top: 4px; margin-bottom: 6px; padding-left: 20px; }
+            li { margin-bottom: 3px; }
+          </style>
+        </head>
+        <body>
+          ${resumeText}
+        </body>
+        </html>
+      `;
+
+      fs.writeFileSync(tempHtmlPath, styledHtml);
+
       try {
-        const pdfBuffer = await this.generatePdfFromHtml(resumeText);
-        
-        // 2. Delete old resume file if it exists
-        if (candidate.resume) {
-          await this.storageService.deleteFile(candidate.resume);
+        const outputDir = join(process.cwd(), 'uploads');
+        const pdfFileName = `resume-${id}-${Date.now()}.pdf`;
+        const tempPdfPath = join(outputDir, tempHtmlName.replace(/\.html$/i, '.pdf'));
+
+        const command = `libreoffice --headless --convert-to pdf --outdir "${outputDir}" "${tempHtmlPath}"`;
+        execSync(command);
+
+        if (fs.existsSync(tempHtmlPath)) {
+          fs.unlinkSync(tempHtmlPath);
         }
 
-        // 3. Save new PDF file using StorageService (S3 / Local storage fallback)
-        const pdfFileName = `resume-${id}-${Date.now()}.pdf`;
-        resumeFilename = await this.storageService.saveFile(pdfFileName, pdfBuffer, 'application/pdf');
-        
-        console.log(`[Puppeteer PDF Gen] PDF generated and stored successfully for candidate ID: ${id}`);
+        if (fs.existsSync(tempPdfPath)) {
+          const finalPdfPath = join(outputDir, pdfFileName);
+          fs.renameSync(tempPdfPath, finalPdfPath);
+          resumeFilename = pdfFileName;
 
-        // 4. Generate DOCX backup using html-to-docx for completeness
-        try {
-          const docxBuffer = await this.generateDocxFromHtml(resumeText);
-          const docxFileName = `resume-${id}-${Date.now()}.docx`;
-          const docxUrl = await this.storageService.saveFile(
-            docxFileName,
-            docxBuffer,
-            'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-          );
-          console.log(`[html-to-docx DOCX Gen] DOCX generated and stored successfully at: ${docxUrl}`);
-        } catch (docxErr) {
-          console.warn('[DOCX Gen] Failed to generate DOCX backup:', docxErr.message);
+          // Delete old resume file if it exists
+          if (candidate.resume) {
+            const oldFilePath = join(process.cwd(), 'uploads', candidate.resume);
+            try {
+              if (fs.existsSync(oldFilePath)) {
+                fs.unlinkSync(oldFilePath);
+              }
+            } catch (err) {
+              console.error(`Error deleting old resume file: ${candidate.resume}`, err);
+            }
+          }
+          console.log(`[Backend PDF Gen] PDF generated successfully for candidate ID: ${id}`);
         }
       } catch (err) {
-        console.error('[Puppeteer PDF Gen] Error generating PDF from resumeText on server:', err);
-        throw new Error(`Failed to generate and save PDF resume: ${err.message}`);
+        console.error('Error generating PDF from resumeText on server:', err);
+        if (fs.existsSync(tempHtmlPath)) {
+          fs.unlinkSync(tempHtmlPath);
+        }
       }
     }
 
@@ -631,8 +850,7 @@ export class CandidateService {
       where: { id },
       data: {
         resume: resumeFilename,
-        resumeText: extractedText || undefined,
-        editedHtml: resumeText || undefined,
+        resumeText: extractedText,
       },
       include: {
         skills: true,
