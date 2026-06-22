@@ -66,23 +66,97 @@ const exactEditorFontSizes = ["9px", "10px", "11px", "12px", "13px", "14px", "16
 function buildIframeDocument(html: string, editable = false): string {
   const bodyHtml = html || "<div></div>";
   const hasDocumentShell = /<!doctype|<html[\s>]/i.test(bodyHtml);
+  
+  const isDark = typeof window !== "undefined" && document.documentElement.classList.contains("dark");
+  const themeClass = isDark ? "dark" : "";
+
+  const hasPages = bodyHtml
+    ? (bodyHtml.includes("page1-div") || bodyHtml.includes("position:absolute") || bodyHtml.includes("class=\"pf\"") || bodyHtml.includes("class=\"resume-page\""))
+    : false;
+
   const chromeStyles = `
     <style>
-      html, body {
+      /* Base resetting and scrollbars */
+      html {
         min-height: 100%;
-        margin: 0;
-        background: #9ca3af;
+        background: transparent !important;
       }
+      
+      /* Scrollbar styling for a premium look */
+      ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: rgba(156, 163, 175, 0.4);
+        border-radius: 9999px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: rgba(156, 163, 175, 0.6);
+      }
+
+      ${hasPages ? `
+      /* Themeable scrollable area for structured page layout */
       body {
+        margin: 0;
+        background: transparent !important;
         overflow: auto;
       }
+      
+      /* Center pages like A4 sheets */
+      .resume-page,
+      div[id$="-div"],
+      .pf {
+        position: relative !important;
+        box-sizing: border-box !important;
+        margin: 32px auto !important;
+        background-color: #ffffff !important;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.04) !important;
+        border-radius: 4px !important;
+        transition: box-shadow 0.2s ease, background-color 0.2s ease;
+      }
+
+      /* Dark mode styles for pages */
+      .dark .resume-page,
+      .dark div[id$="-div"],
+      .dark .pf {
+        background-color: #1e293b !important;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.05) !important;
+        color: #f3f4f6 !important;
+      }
+      ` : `
+      /* Simple layout: style the body itself as the page container */
+      body {
+        box-sizing: border-box !important;
+        width: 816px !important;      /* Letter/A4 standard width */
+        min-height: 1056px !important;  /* Letter/A4 standard min-height */
+        margin: 32px auto !important;
+        padding: 1.2in !important;     /* Standard margins */
+        background-color: #ffffff !important;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.04) !important;
+        border-radius: 4px !important;
+        transition: box-shadow 0.2s ease, background-color 0.2s ease;
+        overflow: auto;
+      }
+
+      /* Dark mode styling for the single page body */
+      .dark body {
+        background-color: #1e293b !important;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.05) !important;
+        color: #f3f4f6 !important;
+      }
+      `}
+
       ${editable ? `
       [contenteditable="true"] {
         outline: 2px solid transparent;
         cursor: text;
       }
       [contenteditable="true"]:focus {
-        outline: 2px solid rgba(37, 99, 235, 0.35);
+        outline: 2px solid rgba(37, 99, 235, 0.2) !important;
         outline-offset: 2px;
       }
       ` : ""}
@@ -90,13 +164,23 @@ function buildIframeDocument(html: string, editable = false): string {
   `;
 
   if (hasDocumentShell) {
-    const withStyles = bodyHtml.replace(/<\/head>/i, `${chromeStyles}</head>`);
+    let withStyles = bodyHtml.replace(/<\/head>/i, `${chromeStyles}</head>`);
+    
+    // Inject HTML class for dark mode if matches
+    if (themeClass) {
+      if (/<html[^>]*class=/i.test(withStyles)) {
+        withStyles = withStyles.replace(/(<html[^>]*class=["'])([^"']*)(["'])/i, `$1$2 ${themeClass}$3`);
+      } else {
+        withStyles = withStyles.replace(/<html([^>]*)>/i, `<html$1 class="${themeClass}">`);
+      }
+    }
+    
     if (!editable) return withStyles;
     return withStyles.replace(/<body([^>]*)>/i, `<body$1 contenteditable="true" spellcheck="false">`);
   }
 
   return `<!DOCTYPE html>
-<html>
+<html class="${themeClass}">
 <head>
 <meta charset="utf-8" />
 ${chromeStyles}
@@ -109,6 +193,7 @@ function ExactHtmlResumeEditor({ html, title, onChange }: ExactHtmlResumeEditorP
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const savedRangeRef = useRef<Range | null>(null);
   const initialDocumentRef = useRef(buildIframeDocument(html, true));
+  const themeObserverRef = useRef<MutationObserver | null>(null);
 
   const getDoc = () => iframeRef.current?.contentDocument || null;
 
@@ -184,6 +269,24 @@ function ExactHtmlResumeEditor({ html, title, onChange }: ExactHtmlResumeEditorP
     doc.body.setAttribute("contenteditable", "true");
     doc.body.setAttribute("spellcheck", "false");
 
+    // Dynamic parent-to-iframe theme synchronization
+    const syncTheme = () => {
+      const isDark = document.documentElement.classList.contains("dark");
+      if (isDark) {
+        doc.documentElement.classList.add("dark");
+      } else {
+        doc.documentElement.classList.remove("dark");
+      }
+    };
+    syncTheme();
+
+    if (themeObserverRef.current) {
+      themeObserverRef.current.disconnect();
+    }
+    const observer = new MutationObserver(syncTheme);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+    themeObserverRef.current = observer;
+
     const handleInput = () => syncHtml(doc);
     const handleSelection = () => saveSelection(doc);
 
@@ -194,8 +297,16 @@ function ExactHtmlResumeEditor({ html, title, onChange }: ExactHtmlResumeEditorP
     doc.addEventListener("mouseup", handleSelection);
   };
 
+  useEffect(() => {
+    return () => {
+      if (themeObserverRef.current) {
+        themeObserverRef.current.disconnect();
+      }
+    };
+  }, []);
+
   const toolbarButtonClass =
-    "p-2 text-gray-650 hover:bg-gray-100 dark:text-gray-350 dark:hover:bg-gray-800 rounded-lg transition-all";
+    "p-2 text-gray-655 hover:bg-gray-100 dark:text-gray-350 dark:hover:bg-gray-800 rounded-lg transition-all";
 
   return (
     <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-gray-200 bg-gray-100 shadow-inner dark:border-gray-800 dark:bg-gray-950">
@@ -292,7 +403,7 @@ function ExactHtmlResumeEditor({ html, title, onChange }: ExactHtmlResumeEditorP
         onLoad={handleLoad}
         title={title}
         srcDoc={initialDocumentRef.current}
-        className="min-h-0 flex-1 bg-gray-400"
+        className="min-h-0 flex-1 bg-transparent border-none"
         sandbox="allow-same-origin"
       />
     </div>
@@ -330,6 +441,7 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
   const isLoadedRef = useRef(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const previewThemeObserverRef = useRef<MutationObserver | null>(null);
 
   const API_URL =
     process.env.NEXT_PUBLIC_API_URL ||
@@ -368,9 +480,39 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
     loadContent();
   }, [isOpen, candidate.id, API_URL]);
 
+  useEffect(() => {
+    return () => {
+      if (previewThemeObserverRef.current) {
+        previewThemeObserverRef.current.disconnect();
+      }
+    };
+  }, []);
 
   const handleEditorChange = (html: string) => {
     setRawHtml(html);
+  };
+
+  const handlePreviewLoad = (e: React.SyntheticEvent<HTMLIFrameElement>) => {
+    const iframe = e.currentTarget;
+    const doc = iframe.contentDocument;
+    if (!doc) return;
+
+    const syncTheme = () => {
+      const isDark = document.documentElement.classList.contains("dark");
+      if (isDark) {
+        doc.documentElement.classList.add("dark");
+      } else {
+        doc.documentElement.classList.remove("dark");
+      }
+    };
+    syncTheme();
+
+    if (previewThemeObserverRef.current) {
+      previewThemeObserverRef.current.disconnect();
+    }
+    const observer = new MutationObserver(syncTheme);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+    previewThemeObserverRef.current = observer;
   };
 
   const renderResumeSurface = () => {
@@ -379,9 +521,10 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
         <div className="h-full overflow-hidden rounded-2xl border border-gray-200 bg-gray-100 shadow-inner dark:border-gray-800 dark:bg-gray-950">
           <iframe
             key={`${candidate.id}-${previewHtml.length}`}
+            onLoad={handlePreviewLoad}
             title={`${candidate.firstName} ${candidate.lastName} resume preview`}
             srcDoc={buildIframeDocument(previewHtml || rawHtml)}
-            className="h-full w-full bg-gray-400"
+            className="h-full w-full bg-transparent border-none"
             sandbox="allow-same-origin"
           />
         </div>
@@ -474,39 +617,61 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
     return doc.output("blob");
   };
 
-  const handleExportPdf = () => {
+  const handleExportPdf = async () => {
     if (!rawHtml) return;
+    const loadingToast = toast.loading("Generating high-fidelity PDF...");
     try {
       const cleanHtml = getCleanHtml(rawHtml);
-      const blob = generateSimplePdfBlob(cleanHtml, `${candidate.firstName} ${candidate.lastName}`);
+      const token = localStorage.getItem("token");
+      
+      const response = await fetch(`${API_URL}/candidates/export-pdf`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ html: cleanHtml }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to export PDF from server.");
+      }
+
+      const blob = await response.blob();
       saveAs(blob, `${candidate.firstName}_${candidate.lastName}_resume.pdf`);
-      toast.success("PDF exported successfully!");
+      toast.success("PDF exported successfully!", { id: loadingToast });
     } catch (err) {
       console.error(err);
-      toast.error("Failed to export PDF.");
+      toast.error("Failed to export PDF.", { id: loadingToast });
     }
   };
 
-  const handleExportWord = () => {
+  const handleExportWord = async () => {
     if (!rawHtml) return;
+    const loadingToast = toast.loading("Generating Word document...");
     try {
       const cleanHtml = getCleanHtml(rawHtml);
-      const header = "<html xmlns:o='urn:schemas-microsoft-com:office:office' " +
-        "xmlns:w='urn:schemas-microsoft-com:office:word' " +
-        "xmlns='http://www.w3.org/TR/REC-html40'>" +
-        "<head><title>Resume</title><meta charset='utf-8'></head><body>";
-      const footer = "</body></html>";
-      const sourceHTML = header + cleanHtml + footer;
+      const token = localStorage.getItem("token");
       
-      const blob = new Blob(['\ufeff' + sourceHTML], {
-        type: 'application/msword'
+      const response = await fetch(`${API_URL}/candidates/export-docx`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ html: cleanHtml }),
       });
-      
-      saveAs(blob, `${candidate.firstName}_${candidate.lastName}_resume.doc`);
-      toast.success("Word document exported successfully!");
+
+      if (!response.ok) {
+        throw new Error("Failed to export Word document from server.");
+      }
+
+      const blob = await response.blob();
+      saveAs(blob, `${candidate.firstName}_${candidate.lastName}_resume.docx`);
+      toast.success("Word document exported successfully!", { id: loadingToast });
     } catch (err) {
       console.error(err);
-      toast.error("Failed to export Word document.");
+      toast.error("Failed to export Word document.", { id: loadingToast });
     }
   };
 

@@ -7,12 +7,13 @@ import {
   Param,Put,
   ParseIntPipe,
   Delete,
-  Query
+  Query,
+  Res
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { CandidateService } from './candidate.service';
 import { diskStorage } from 'multer';
-import type { Express } from 'express'
+import type { Express, Response } from 'express'
 import { extname } from 'path';
 import { CandidateDto } from 'src/Validations/candidate/create-candidate.dto';
 
@@ -92,6 +93,38 @@ export class CandidateController {
     @Body('resumeText') resumeText?: string,
   ) {
     return await this.candidateService.uploadCleanedResume(id, file, resumeText);
+  }
+
+  // Export high-fidelity PDF from HTML
+  @Post('export-pdf')
+  async exportPdf(@Body('html') html: string, @Res() res: Response) {
+    try {
+      const buffer = await this.candidateService.generatePdfFromHtml(html);
+      res.set({
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': 'attachment; filename=resume.pdf',
+        'Content-Length': buffer.length,
+      });
+      res.end(buffer);
+    } catch (err) {
+      res.status(500).json({ message: `PDF generation failed: ${err.message}` });
+    }
+  }
+
+  // Export DOCX from HTML
+  @Post('export-docx')
+  async exportDocx(@Body('html') html: string, @Res() res: Response) {
+    try {
+      const buffer = await this.candidateService.generateDocxFromHtml(html);
+      res.set({
+        'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'Content-Disposition': 'attachment; filename=resume.docx',
+        'Content-Length': buffer.length,
+      });
+      res.end(buffer);
+    } catch (err) {
+      res.status(500).json({ message: `DOCX generation failed: ${err.message}` });
+    }
   }
 
   // update candidate resume file by id

@@ -14,12 +14,14 @@ import { execSync } from 'child_process';
 
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { CandidateCreatedEvent } from 'src/envent/events';
+import { StorageService } from './storage.service';
 
 @Injectable()
 export class CandidateService {
   constructor(
     private prisma: PrismaService,
     private eventEmitter: EventEmitter2,
+    private storageService: StorageService,
   ) {}
 
   async uploadFileMulter(
@@ -395,6 +397,91 @@ export class CandidateService {
     });
   }
 
+  /**
+   * Generates a high-quality PDF buffer from HTML content using Puppeteer headless browser.
+   */
+  async generatePdfFromHtml(htmlContent: string): Promise<Buffer> {
+    const puppeteer = require('puppeteer');
+    const browser = await puppeteer.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+    });
+    try {
+      const page = await browser.newPage();
+      
+      // Inject print-friendly stylesheet for accurate A4 representation
+      const printFriendlyHtml = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <style>
+            @page {
+              size: A4;
+              margin: 15mm;
+            }
+            body {
+              font-family: Arial, Helvetica, sans-serif;
+              line-height: 1.4;
+              color: #2c3e50;
+              background-color: #ffffff;
+            }
+            p { margin: 0 0 8px 0; }
+            h1, h2, h3, h4, h5, h6 { 
+              color: #2c3e50; 
+              margin-top: 15px; 
+              margin-bottom: 8px;
+              font-weight: bold;
+            }
+            h1 { font-size: 24px; text-align: center; border-bottom: 2px solid #2c3e50; padding-bottom: 5px; }
+            h2 { font-size: 18px; border-bottom: 1.5px solid #bdc3c7; padding-bottom: 3px; }
+            table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+            td { padding: 4px; vertical-align: top; }
+            ul, ol { margin: 5px 0; padding-left: 20px; }
+            li { margin-bottom: 4px; }
+          </style>
+        </head>
+        <body>
+          ${htmlContent}
+        </body>
+        </html>
+      `;
+
+      await page.setContent(printFriendlyHtml, { waitUntil: 'networkidle0' });
+      const pdfBuffer = await page.pdf({
+        format: 'A4',
+        printBackground: true,
+      });
+      return Buffer.from(pdfBuffer);
+    } finally {
+      await browser.close();
+    }
+  }
+
+  /**
+   * Generates a DOCX document buffer from HTML content.
+   */
+  async generateDocxFromHtml(htmlContent: string): Promise<Buffer> {
+    const htmlToDocx = require('html-to-docx');
+    const styledHtml = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+      </head>
+      <body>
+        ${htmlContent}
+      </body>
+      </html>
+    `;
+    const docxBuffer = await htmlToDocx(styledHtml, null, {
+      table: { row: { cantSplit: true } },
+      footer: true,
+      pageNumber: true,
+    });
+    return Buffer.from(docxBuffer);
+  }
+
   async updateResumeFile(id: number, file?: Express.Multer.File, resumeText?: string): Promise<any> {
     const candidate = await this.prisma.candidate.findUnique({
       where: { id },
@@ -429,66 +516,65 @@ export class CandidateService {
         throw new Error('Invalid file type. Only PDF and Word documents are allowed.');
       }
 
-      // Delete old resume file if it exists
-      if (candidate.resume) {
-        const oldFilePath = join(process.cwd(), 'uploads', candidate.resume);
-        try {
-          if (fs.existsSync(oldFilePath)) {
-            fs.unlinkSync(oldFilePath);
-          }
-        } catch (err) {
-          console.error(`Error deleting old resume file: ${candidate.resume}`, err);
-        }
+      // Read file buffer
+      const filePath = join(process.cwd(), 'uploads', file.filename);
+      let buffer: Buffer;
+      try {
+        buffer = fs.readFileSync(filePath);
+      } catch (err) {
+        throw new Error(`Failed to read uploaded file: ${err.message}`);
       }
 
-      resumeFilename = file.filename;
+      // Delete old resume file if it exists
+      if (candidate.resume) {
+        await this.storageService.deleteFile(candidate.resume);
+      }
+
+      // Save new file to storage service (S3 or local disk fallback)
+      resumeFilename = await this.storageService.saveFile(file.filename, buffer, file.mimetype);
 
       // Extract text synchronously if not provided
       if (!resumeText) {
-        const filePath = join(process.cwd(), 'uploads', file.filename);
         try {
-          if (fs.existsSync(filePath)) {
-            const buffer = fs.readFileSync(filePath);
-            if (fileExtension === '.pdf') {
-              const outputDir = join(process.cwd(), 'uploads');
-              const htmlFileName = file.filename.replace(/\.pdf$/i, '.html');
-              const htmlFilePath = join(outputDir, htmlFileName);
+          if (fileExtension === '.pdf') {
+            const outputDir = join(process.cwd(), 'uploads');
+            const htmlFileName = file.filename.replace(/\.pdf$/i, '.html');
+            const htmlFilePath = join(outputDir, htmlFileName);
 
-              try {
-                const command = `pdftohtml -s -noframes -c -dataurls "${filePath}" "${htmlFilePath}"`;
-                execSync(command);
+            try {
+              const command = `pdftohtml -s -noframes -c -dataurls "${filePath}" "${htmlFilePath}"`;
+              execSync(command);
 
-                if (fs.existsSync(htmlFilePath)) {
-                  const rawHtml = fs.readFileSync(htmlFilePath, 'utf8');
-                  extractedText = cleanPdftohtmlOutline(rawHtml);
-                  fs.unlinkSync(htmlFilePath);
-                  console.log(`[Sync Extract] pdftohtml conversion succeeded for candidate ID: ${id}`);
-                }
-              } catch (execError) {
-                console.error('[Sync Extract] pdftohtml conversion failed:', execError.message);
+              if (fs.existsSync(htmlFilePath)) {
+                const rawHtml = fs.readFileSync(htmlFilePath, 'utf8');
+                extractedText = cleanPdftohtmlOutline(rawHtml);
+                fs.unlinkSync(htmlFilePath);
+                console.log(`[Sync Extract] pdftohtml conversion succeeded for candidate ID: ${id}`);
               }
-            } else if (fileExtension === '.docx' || fileExtension === '.doc') {
-              const outputDir = join(process.cwd(), 'uploads');
-              const htmlFileName = file.filename.replace(/\.(docx|doc)$/i, '.html');
-              const htmlFilePath = join(outputDir, htmlFileName);
+            } catch (execError) {
+              console.error('[Sync Extract] pdftohtml conversion failed:', execError.message);
+            }
+          } else if (fileExtension === '.docx' || fileExtension === '.doc') {
+            const outputDir = join(process.cwd(), 'uploads');
+            const htmlFileName = file.filename.replace(/\.(docx|doc)$/i, '.html');
+            const htmlFilePath = join(outputDir, htmlFileName);
 
+            try {
+              const command = `libreoffice --headless --convert-to html --outdir "${outputDir}" "${filePath}"`;
+              execSync(command);
+
+              if (fs.existsSync(htmlFilePath)) {
+                extractedText = fs.readFileSync(htmlFilePath, 'utf8');
+                fs.unlinkSync(htmlFilePath);
+                console.log(`[Sync Extract] LibreOffice Word-to-HTML conversion succeeded for candidate ID: ${id}`);
+              }
+            } catch (libreOfficeError) {
+              console.warn('[Sync Extract] LibreOffice conversion failed, falling back to Mammoth:', libreOfficeError.message);
               try {
-                const command = `libreoffice --headless --convert-to html --outdir "${outputDir}" "${filePath}"`;
-                execSync(command);
-
-                if (fs.existsSync(htmlFilePath)) {
-                  extractedText = fs.readFileSync(htmlFilePath, 'utf8');
-                  fs.unlinkSync(htmlFilePath);
-                  console.log(`[Sync Extract] LibreOffice Word-to-HTML conversion succeeded for candidate ID: ${id}`);
-                }
-              } catch (libreOfficeError) {
-                console.warn('[Sync Extract] LibreOffice conversion failed, falling back to Mammoth:', libreOfficeError.message);
-                try {
-                  const result = await mammoth.convertToHtml({ buffer });
-                  extractedText = result.value || '';
-                } catch (mammothError) {
-                  console.error('[Sync Extract] Fallback Mammoth DOCX conversion failed:', mammothError);
-                }
+                const result = await mammoth.convertToHtml({ buffer });
+                extractedText = result.value || '';
+              } catch (mammothError) {
+                console.error('[Sync Extract] Fallback Mammoth DOCX conversion failed:', mammothError);
               }
             }
           }
@@ -496,96 +582,47 @@ export class CandidateService {
           console.error('Error extracting text during resume update:', err);
         }
       }
-    } else if (resumeText) {
-      // Generate premium PDF directly from edited HTML using LibreOffice
-      const tempHtmlName = `temp-${id}-${Date.now()}.html`;
-      const tempHtmlPath = join(process.cwd(), 'uploads', tempHtmlName);
 
-      // Add clean styles to ensure beautiful styling when converting html to pdf
-      const styledHtml = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="utf-8">
-          <style>
-            @page {
-              size: A4;
-              margin: 1.2in 1in 1.2in 1in;
-            }
-            body {
-              font-family: Arial, Helvetica, sans-serif;
-              line-height: 1.35;
-              color: #2b2b2b;
-              font-size: 11pt;
-            }
-            p { margin-top: 0; margin-bottom: 6px; }
-            h1, h2, h3, h4, h5, h6 { 
-              margin-top: 14px; 
-              margin-bottom: 6px; 
-              color: #111111;
-              font-weight: bold;
-            }
-            h1 { font-size: 20pt; text-align: center; margin-bottom: 12px; }
-            h2 { font-size: 14pt; border-bottom: 1.5px solid #4a5568; padding-bottom: 3px; margin-top: 18px; }
-            h3 { font-size: 12pt; }
-            table { 
-              width: 100%; 
-              border-collapse: collapse; 
-              margin-top: 4px; 
-              margin-bottom: 8px; 
-              page-break-inside: avoid;
-            }
-            td { 
-              padding: 2px 4px; 
-              vertical-align: top; 
-            }
-            ul, ol { margin-top: 4px; margin-bottom: 6px; padding-left: 20px; }
-            li { margin-bottom: 3px; }
-          </style>
-        </head>
-        <body>
-          ${resumeText}
-        </body>
-        </html>
-      `;
-
-      fs.writeFileSync(tempHtmlPath, styledHtml);
-
+      // Cleanup local temp multer upload file since it is now persisted in storage service
       try {
-        const outputDir = join(process.cwd(), 'uploads');
-        const pdfFileName = `resume-${id}-${Date.now()}.pdf`;
-        const tempPdfPath = join(outputDir, tempHtmlName.replace(/\.html$/i, '.pdf'));
-
-        const command = `libreoffice --headless --convert-to pdf --outdir "${outputDir}" "${tempHtmlPath}"`;
-        execSync(command);
-
-        if (fs.existsSync(tempHtmlPath)) {
-          fs.unlinkSync(tempHtmlPath);
-        }
-
-        if (fs.existsSync(tempPdfPath)) {
-          const finalPdfPath = join(outputDir, pdfFileName);
-          fs.renameSync(tempPdfPath, finalPdfPath);
-          resumeFilename = pdfFileName;
-
-          // Delete old resume file if it exists
-          if (candidate.resume) {
-            const oldFilePath = join(process.cwd(), 'uploads', candidate.resume);
-            try {
-              if (fs.existsSync(oldFilePath)) {
-                fs.unlinkSync(oldFilePath);
-              }
-            } catch (err) {
-              console.error(`Error deleting old resume file: ${candidate.resume}`, err);
-            }
-          }
-          console.log(`[Backend PDF Gen] PDF generated successfully for candidate ID: ${id}`);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
         }
       } catch (err) {
-        console.error('Error generating PDF from resumeText on server:', err);
-        if (fs.existsSync(tempHtmlPath)) {
-          fs.unlinkSync(tempHtmlPath);
+        console.error(`Failed to cleanup temp upload file: ${filePath}`, err);
+      }
+    } else if (resumeText) {
+      // 1. Generate premium PDF directly from edited HTML using headless Puppeteer
+      try {
+        const pdfBuffer = await this.generatePdfFromHtml(resumeText);
+        
+        // 2. Delete old resume file if it exists
+        if (candidate.resume) {
+          await this.storageService.deleteFile(candidate.resume);
         }
+
+        // 3. Save new PDF file using StorageService (S3 / Local storage fallback)
+        const pdfFileName = `resume-${id}-${Date.now()}.pdf`;
+        resumeFilename = await this.storageService.saveFile(pdfFileName, pdfBuffer, 'application/pdf');
+        
+        console.log(`[Puppeteer PDF Gen] PDF generated and stored successfully for candidate ID: ${id}`);
+
+        // 4. Generate DOCX backup using html-to-docx for completeness
+        try {
+          const docxBuffer = await this.generateDocxFromHtml(resumeText);
+          const docxFileName = `resume-${id}-${Date.now()}.docx`;
+          const docxUrl = await this.storageService.saveFile(
+            docxFileName,
+            docxBuffer,
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+          );
+          console.log(`[html-to-docx DOCX Gen] DOCX generated and stored successfully at: ${docxUrl}`);
+        } catch (docxErr) {
+          console.warn('[DOCX Gen] Failed to generate DOCX backup:', docxErr.message);
+        }
+      } catch (err) {
+        console.error('[Puppeteer PDF Gen] Error generating PDF from resumeText on server:', err);
+        throw new Error(`Failed to generate and save PDF resume: ${err.message}`);
       }
     }
 
@@ -594,7 +631,8 @@ export class CandidateService {
       where: { id },
       data: {
         resume: resumeFilename,
-        resumeText: extractedText,
+        resumeText: extractedText || undefined,
+        editedHtml: resumeText || undefined,
       },
       include: {
         skills: true,
