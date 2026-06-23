@@ -27,7 +27,11 @@ export default function PublicJoblisting() {
   const [searchLocation, setSearchLocation] = useState<string>('');
   const [searchType, setSearchType] = useState<string>('All');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [filteredjobs, setFilterdJobs] = useState<joblist[]>([]);
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const ITEMS_PER_PAGE = 8;
+
   const { isOpen, openModal, closeModal } = useModal();
   const [applyingJobId, setApplyingJobId] = useState<number | null>(null);
   const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -46,64 +50,40 @@ export default function PublicJoblisting() {
     }
   }, []);
 
+  // Reset pagination when search parameters change
   useEffect(() => {
-    const JobsData = async () => {
+    setCurrentPage(1);
+  }, [searchitem, searchLocation, searchType]);
+
+  // Fetch jobs dynamically based on backend pagination/filters
+  useEffect(() => {
+    const fetchJobs = async () => {
       try {
-        const response = await fetch(`${API_URL}/jobs`, {
+        const queryParams = new URLSearchParams();
+        queryParams.append("page", String(currentPage));
+        queryParams.append("limit", String(ITEMS_PER_PAGE));
+        if (searchitem?.trim()) queryParams.append("search", searchitem.trim());
+        if (searchLocation?.trim()) queryParams.append("location", searchLocation.trim());
+        if (searchType && searchType !== "All") queryParams.append("type", searchType);
+
+        const response = await fetch(`${API_URL}/jobs?${queryParams.toString()}`, {
           method: "GET",
           headers: { "Content-Type": "application/json" }
         });
-        if (!response.ok) throw new Error("Something went wrong while fetch");
-        const JobListData = await response.json();
-        setJobList(JobListData.data);
+        if (!response.ok) throw new Error("Something went wrong while fetching jobs");
+        const resData = await response.json();
+        setJobList(resData.data || []);
+        setTotalCount(resData.total || 0);
       } catch (error) {
         console.error("Error fetching jobs:", error);
       }
     };
-    JobsData();
-  }, [API_URL]);
+    fetchJobs();
+  }, [API_URL, currentPage, searchitem, searchLocation, searchType]);
 
-  useEffect(() => {
-    setFilterdJobs(jobList);
-  }, [jobList]);
-
-  // Combined filtering logic
-  const handleSearch = useCallback(() => {
-    let result = jobList;
-
-    // Filter by Job Title / Client / Skills
-    if (searchitem?.trim() !== "") {
-      const query = searchitem.toLowerCase();
-      result = result.filter((job) =>
-        job.title.toLowerCase().includes(query) ||
-        job.client.toLowerCase().includes(query) ||
-        job.skills.some((skill) => skill.toLowerCase().includes(query))
-      );
-    }
-
-    // Filter by Location
-    if (searchLocation?.trim() !== "") {
-      const locQuery = searchLocation.toLowerCase();
-      result = result.filter((job) =>
-        job.location.toLowerCase().includes(locQuery) ||
-        (job.cities && job.cities.some(city => city.toLowerCase().includes(locQuery)))
-      );
-    }
-
-    // Filter by Job Type
-    if (searchType !== "All") {
-      result = result.filter((job) =>
-        job.type.toLowerCase() === searchType.toLowerCase()
-      );
-    }
-
-    setFilterdJobs(result);
-  }, [jobList, searchitem, searchLocation, searchType]);
-
-  // Perform search automatically when searchType changes (dropdown/badges)
-  useEffect(() => {
-    handleSearch();
-  }, [searchType, jobList, handleSearch]);
+  const handleSearch = () => {
+    setCurrentPage(1);
+  };
 
   const handleApply = (id: number) => {
     setApplyingJobId(id);
@@ -140,8 +120,8 @@ export default function PublicJoblisting() {
   };
 
   // List of unique locations & types for autofill dropdowns
-  const uniqueLocations = Array.from(new Set(jobList.map(j => j.location).filter(Boolean)));
-  const uniqueTypes = Array.from(new Set(jobList.map(j => j.type).filter(Boolean)));
+  const uniqueLocations = ["REMOTE", "MUMBAI", "DELHI", "BANGALORE", "HYDERABAD", "CHENNAI", "PUNE"];
+  const uniqueTypes = ["FULL_TIME", "INTERN", "CONTRACT", "FREELANCING"];
 
   return (
     <div className="w-full bg-gray-50 dark:bg-gray-950 min-h-screen font-outfit transition-colors duration-300">
@@ -284,11 +264,11 @@ export default function PublicJoblisting() {
         </div>
 
         {/* Listings Display */}
-        {filteredjobs.length > 0 ? (
+        {jobList.length > 0 ? (
             viewMode === 'grid' ? (
               /* GRID VIEW */
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredjobs.map((job) => {
+                {jobList.map((job) => {
                   const { gradient, initial } = getAvatarStyle(job.client);
                   const isApplied = appliedJobs.includes(job.id);
                   return (
@@ -379,7 +359,7 @@ export default function PublicJoblisting() {
             ) : (
               /* LIST VIEW */
               <div className="space-y-4">
-                {filteredjobs.map((job) => {
+                {jobList.map((job) => {
                   const { gradient, initial } = getAvatarStyle(job.client);
                   const isApplied = appliedJobs.includes(job.id);
                   return (
@@ -488,8 +468,79 @@ export default function PublicJoblisting() {
                 Clear all filters
               </button>
             </div>
-          )
-        }
+          )}
+
+        {/* Premium Pagination Bar */}
+        {totalCount > 0 && (
+          <div className="flex flex-col sm:flex-row items-center justify-between border-t border-gray-200/40 dark:border-gray-800/60 bg-transparent pt-6 mt-12 gap-4">
+            <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 font-medium">
+              <span>Showing</span>
+              <span className="px-2 py-0.5 rounded-lg bg-gray-100 dark:bg-gray-800/80 text-gray-800 dark:text-gray-200 font-bold">
+                {(currentPage - 1) * ITEMS_PER_PAGE + 1} - {Math.min(currentPage * ITEMS_PER_PAGE, totalCount)}
+              </span>
+              <span>of</span>
+              <span className="px-2 py-0.5 rounded-lg bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-bold">
+                {totalCount}
+              </span>
+              <span>jobs</span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                className="px-3.5 py-2 rounded-xl text-xs font-semibold border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-55 dark:hover:bg-gray-750 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              >
+                Prev
+              </button>
+
+              {(() => {
+                const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
+                const pages: (number | string)[] = [];
+                if (totalPages <= 5) {
+                  for (let i = 1; i <= totalPages; i++) pages.push(i);
+                } else {
+                  pages.push(1);
+                  if (currentPage > 3) pages.push("... ");
+                  const start = Math.max(2, currentPage - 1);
+                  const end = Math.min(totalPages - 1, currentPage + 1);
+                  for (let i = start; i <= end; i++) pages.push(i);
+                  if (currentPage < totalPages - 2) pages.push(" ...");
+                  pages.push(totalPages);
+                }
+                return pages.map((page, idx) => {
+                  if (typeof page === "string") {
+                    return (
+                      <span key={`ellipse-${idx}`} className="text-gray-400 dark:text-gray-650 px-1.5 font-semibold text-xs select-none">
+                        ...
+                      </span>
+                    );
+                  }
+                  return (
+                    <button
+                      key={page}
+                      onClick={() => setCurrentPage(page)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${currentPage === page
+                        ? "bg-blue-600 border-blue-600 text-white shadow-xs"
+                        : "border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-900 hover:bg-gray-55 dark:hover:bg-gray-800"
+                        }`}
+                    >
+                      {page}
+                    </button>
+                  );
+                });
+              })()}
+
+              <button
+                onClick={() => setCurrentPage((prev) => Math.min(prev + 1, Math.ceil(totalCount / ITEMS_PER_PAGE)))}
+                disabled={currentPage === Math.ceil(totalCount / ITEMS_PER_PAGE)}
+                className="px-3.5 py-2 rounded-xl text-xs font-semibold border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-55 dark:hover:bg-gray-750 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </section>
 
       {/* Apply Job Modal */}

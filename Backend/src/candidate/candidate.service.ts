@@ -150,9 +150,6 @@ export class CandidateService {
     userId?: number,
     role?: string,
   ) {
-    const pageNum = page ? page : 1;
-    const limitNum = limit ? limit : 8;
-
     const where: any = {};
 
     // 1. Company User filter
@@ -207,12 +204,14 @@ export class CandidateService {
       ];
     }
 
-    const skip = (pageNum - 1) * limitNum;
+    const skip = page && limit ? (page - 1) * limit : undefined;
+    const take = limit ? limit : undefined;
+
     const [candidates, total] = await Promise.all([
       this.prisma.candidate.findMany({
         where,
         skip,
-        take: limitNum,
+        take,
         include: {
           skills: true,
           job: true,
@@ -227,9 +226,9 @@ export class CandidateService {
     return {
       data: candidates,
       total,
-      page: pageNum,
-      limit: limitNum,
-      totalPages: Math.ceil(total / limitNum),
+      page: page || 1,
+      limit: limit || total,
+      totalPages: limit ? Math.ceil(total / limit) : 1,
     };
   }
 

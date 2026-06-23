@@ -384,7 +384,7 @@ function CandidatesContent() {
                                   onClick={() => router.push(`${pathname}?candidateId=${user.id}&mode=edit`)}
                                   className="px-4 py-2 rounded-xl text-xs font-semibold border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all hover:scale-[1.01] active:scale-[0.99] shadow-xs"
                                 >
-                                  <SquarePen className="h-4 w-4"/>
+                                  <SquarePen className="h-4 w-4" />
                                 </button>
                                 <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2.5 px-2 py-1 rounded-lg bg-gray-900 dark:bg-gray-800 text-white text-[10px] font-semibold whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 translate-y-1 group-hover:translate-y-0 transition-all duration-150 z-50 shadow-md">
                                   edit resume
@@ -425,19 +425,7 @@ function CandidatesContent() {
 
         {/* Premium Pagination Bar */}
         {totalCount > 0 && (
-          <div className="flex flex-col sm:flex-row items-center justify-between border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 px-6 py-4 gap-4">
-            <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 font-medium">
-              <span>Showing</span>
-              <span className="px-2 py-0.5 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 font-bold">
-                {(currentPage - 1) * ITEMS_PER_PAGE + 1} - {Math.min(currentPage * ITEMS_PER_PAGE, totalCount)}
-              </span>
-              <span>of</span>
-              <span className="px-2 py-0.5 rounded-lg bg-blue-50 dark:bg-blue-955/30 text-blue-600 dark:text-blue-400 font-bold">
-                {totalCount}
-              </span>
-              <span>candidates</span>
-            </div>
-            
+          <div className="flex flex-col sm:flex-row justify-end items-center border-t border-gray-200/40 dark:border-gray-800/60 bg-white dark:bg-gray-900 pt-6 mt-6">
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
@@ -473,11 +461,10 @@ function CandidatesContent() {
                     <button
                       key={page}
                       onClick={() => setCurrentPage(page)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
-                        currentPage === page
-                          ? "bg-blue-600 border-blue-600 text-white shadow-xs"
-                          : "border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800"
-                      }`}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${currentPage === page
+                        ? "bg-blue-600 border-blue-600 text-white shadow-xs"
+                        : "border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800"
+                        }`}
                     >
                       {page}
                     </button>
@@ -501,11 +488,11 @@ function CandidatesContent() {
       {deleteConfirmId !== null && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           {/* Backdrop */}
-          <div 
+          <div
             className="absolute inset-0 bg-gray-950/60 dark:bg-black/80 backdrop-blur-xs transition-opacity duration-300"
             onClick={() => setDeleteConfirmId(null)}
           />
-          
+
           {/* Modal Container */}
           <div className="relative w-full max-w-sm transform overflow-hidden rounded-2xl bg-white dark:bg-gray-900 p-6 text-center align-middle shadow-2xl transition-all border border-gray-100 dark:border-gray-800 scale-100 opacity-100 duration-300">
             {/* Warning Circle Icon */}
@@ -517,7 +504,7 @@ function CandidatesContent() {
             <h3 className="text-base font-semibold text-gray-900 dark:text-white leading-6 mb-2">
               Are you sure?
             </h3>
-            
+
             {/* Message */}
             <p className="text-xs text-gray-500 dark:text-gray-400 mb-6">
               Do you really want to delete this candidate? This action is permanent and cannot be undone.
@@ -541,7 +528,7 @@ function CandidatesContent() {
                 }}
                 className="px-4 py-2 text-xs font-semibold rounded-xl text-white bg-rose-600 hover:bg-rose-700 active:bg-rose-800 shadow-xs transition-all hover:scale-[1.01] active:scale-[0.99]"
               >
-                Yes, Delete
+                Delete
               </button>
             </div>
           </div>

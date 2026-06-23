@@ -36,20 +36,58 @@ export class JobsService {
   }
 
   // get all jobs
-  async findAll() {
-    const jobs = await this.prisma.job.findMany({
-      include: {
-        createdBy: {
-          select: { id: true, name: true, role: true },
+  async findAll(
+    page?: number,
+    limit?: number,
+    search?: string,
+    location?: string,
+    type?: string,
+  ) {
+    const where: any = {};
+
+    if (search && search.trim()) {
+      const term = search.trim();
+      where.OR = [
+        { title: { contains: term, mode: 'insensitive' } },
+        { description: { contains: term, mode: 'insensitive' } },
+        { client: { contains: term, mode: 'insensitive' } },
+      ];
+    }
+
+    if (location && location.trim() && location.toLowerCase() !== 'all') {
+      where.location = { contains: location.trim(), mode: 'insensitive' };
+    }
+
+    if (type && type.toLowerCase() !== 'all') {
+      where.type = type;
+    }
+
+    const skip = page && limit ? (page - 1) * limit : undefined;
+    const take = limit ? limit : undefined;
+
+    const [jobs, total] = await Promise.all([
+      this.prisma.job.findMany({
+        where,
+        skip,
+        take,
+        include: {
+          createdBy: {
+            select: { id: true, name: true, role: true },
+          },
         },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.job.count({ where }),
+    ]);
 
     return {
       message: 'Jobs fetched successfully',
       statusCode: 200,
       data: jobs,
+      total,
+      page: page || 1,
+      limit: limit || total,
+      totalPages: limit ? Math.ceil(total / limit) : 1,
     };
   }
 

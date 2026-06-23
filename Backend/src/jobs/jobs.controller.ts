@@ -9,6 +9,7 @@ import {
   Request,
   SetMetadata,
   UseGuards,
+  Query,
 } from '@nestjs/common';
 import { JobsService } from './jobs.service';
 import { CreateJobDto } from 'src/Validations/job/create-job.dto';
@@ -33,8 +34,16 @@ export class JobsController {
 
   // get all jobs
   @Get()
-  findAll() {
-    return this.jobsService.findAll();
+  findAll(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('search') search?: string,
+    @Query('location') location?: string,
+    @Query('type') type?: string,
+  ) {
+    const pageNum = page ? parseInt(page, 10) : undefined;
+    const limitNum = limit ? parseInt(limit, 10) : undefined;
+    return this.jobsService.findAll(pageNum, limitNum, search, location, type);
   }
 
   // get single job
