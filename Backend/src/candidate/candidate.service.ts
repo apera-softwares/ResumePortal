@@ -141,13 +141,95 @@ export class CandidateService {
   }
 
   // get all candidate
-  async findAll() {
-    return await this.prisma.candidate.findMany({
-      include: {
-        skills: true,
-        job: true,
-      },
-    });
+  async findAll(
+    page?: number,
+    limit?: number,
+    search?: string,
+    skill?: string,
+    experience?: string,
+    userId?: number,
+    role?: string,
+  ) {
+    const where: any = {};
+
+    // 1. Company User filter
+    if (role && role !== 'ADMIN' && userId) {
+      where.job = {
+        createdById: userId,
+      };
+    }
+
+    // 2. Skill Filter
+    if (skill) {
+      where.skills = {
+        some: {
+          name: {
+            equals: skill,
+            mode: 'insensitive',
+          },
+        },
+      };
+    }
+
+    // 3. Experience Filter
+    if (experience) {
+      if (experience === '0-2') {
+        where.yearsOfExperience = { gte: 0, lte: 2 };
+      } else if (experience === '3-5') {
+        where.yearsOfExperience = { gte: 3, lte: 5 };
+      } else if (experience === '6-9') {
+        where.yearsOfExperience = { gte: 6, lte: 9 };
+      } else if (experience === '10+') {
+        where.yearsOfExperience = { gte: 10 };
+      }
+    }
+
+    // 4. Search Term Filter
+    if (search && search.trim()) {
+      const term = search.trim();
+      where.OR = [
+        { firstName: { contains: term, mode: 'insensitive' } },
+        { lastName: { contains: term, mode: 'insensitive' } },
+        { email: { contains: term, mode: 'insensitive' } },
+        { mobile: { contains: term, mode: 'insensitive' } },
+        { education: { contains: term, mode: 'insensitive' } },
+        { resumeText: { contains: term, mode: 'insensitive' } },
+        {
+          skills: {
+            some: {
+              name: { contains: term, mode: 'insensitive' },
+            },
+          },
+        },
+      ];
+    }
+
+    const skip = page && limit ? (page - 1) * limit : undefined;
+    const take = limit ? limit : undefined;
+
+    const [candidates, total] = await Promise.all([
+      this.prisma.candidate.findMany({
+        where,
+        skip,
+        take,
+        include: {
+          skills: true,
+          job: true,
+        },
+        orderBy: {
+          id: 'desc',
+        },
+      }),
+      this.prisma.candidate.count({ where }),
+    ]);
+
+    return {
+      data: candidates,
+      total,
+      page: page || 1,
+      limit: limit || total,
+      totalPages: limit ? Math.ceil(total / limit) : 1,
+    };
   }
 
   // Get candidate by ID
@@ -393,6 +475,262 @@ export class CandidateService {
         job: true,
       },
     });
+  }
+
+  /**
+   * Generates a high-quality PDF buffer from HTML content using Puppeteer headless browser.
+   */
+  async generatePdfFromHtml(htmlContent: string): Promise<Buffer> {
+    const puppeteer = require('puppeteer');
+    const browser = await puppeteer.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+    });
+    try {
+      const page = await browser.newPage();
+      
+      const printFriendlyHtml = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <style>
+            @page {
+              size: A4;
+              margin: 15mm;
+            }
+            body {
+              font-family: Arial, Helvetica, sans-serif;
+              line-height: 1.4;
+              color: #2c3e50;
+              background-color: #ffffff;
+            }
+            p { margin: 0 0 8px 0; }
+            h1, h2, h3, h4, h5, h6 { 
+              color: #2c3e50; 
+              margin-top: 15px; 
+              margin-bottom: 8px;
+              font-weight: bold;
+            }
+            h1 { font-size: 24px; text-align: center; border-bottom: 2px solid #2c3e50; padding-bottom: 5px; }
+            h2 { font-size: 18px; border-bottom: 1.5px solid #bdc3c7; padding-bottom: 3px; }
+            table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+            td { padding: 4px; vertical-align: top; }
+            ul, ol { margin: 5px 0; padding-left: 20px; }
+            li { margin-bottom: 4px; }
+          </style>
+        </head>
+        <body>
+          ${htmlContent}
+        </body>
+        </html>
+      `;
+
+      await page.setContent(printFriendlyHtml, { waitUntil: 'networkidle0' });
+      const pdfBuffer = await page.pdf({
+        format: 'A4',
+        printBackground: true,
+      });
+      return Buffer.from(pdfBuffer);
+    } finally {
+      await browser.close();
+    }
+  }
+
+  /**
+   * Generates a DOCX document buffer from HTML content.
+   */
+  async generateDocxFromHtml(htmlContent: string): Promise<Buffer> {
+    const puppeteer = require('puppeteer');
+    const htmlToDocx = require('html-to-docx');
+    
+    let cleanSemanticHtml = '';
+    const browser = await puppeteer.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+    });
+
+    try {
+      const page = await browser.newPage();
+      await page.setContent(htmlContent || '<div></div>', { waitUntil: 'networkidle0' });
+
+      // Reconstruct document in visual reading order (top-to-bottom, left-to-right)
+      cleanSemanticHtml = await page.evaluate(() => {
+        // Find all text elements (p, div, span, etc.)
+        const elements = Array.from(document.querySelectorAll('p, div, span, h1, h2, h3, h4, h5, h6, li'));
+        
+        // Filter out elements that don't have direct text, or are layout containers
+        const textNodes = elements.filter(el => {
+          const hasChildElement = Array.from(el.children).some(child => 
+            ['P', 'DIV', 'SPAN', 'H1', 'H2', 'H3', 'LI'].includes(child.tagName)
+          );
+          const hasText = el.textContent && el.textContent.trim().length > 0;
+          const isBase64 = el.innerHTML.includes('data:image');
+          return hasText && !hasChildElement && !isBase64;
+        });
+
+        // Get bounding boxes of all text elements
+        const positionedItems = textNodes.map(el => {
+          const rect = el.getBoundingClientRect();
+          return {
+            text: el.textContent ? el.textContent.trim() : '',
+            top: rect.top + window.scrollY,
+            left: rect.left + window.scrollX,
+            width: rect.width,
+            fontSize: window.getComputedStyle(el).fontSize,
+            fontWeight: window.getComputedStyle(el).fontWeight,
+          };
+        });
+
+        // Split items into Left Column (Sidebar) and Right Column (Main)
+        // Divider: 300px (to align sidebar boundary nicely)
+        const leftItems = positionedItems.filter(item => item.left < 300);
+        const rightItems = positionedItems.filter(item => item.left >= 300);
+
+        // Group left column items into lines
+        const leftLines: { top: number; items: typeof leftItems }[] = [];
+        leftItems.forEach(item => {
+          let foundLine = leftLines.find(line => Math.abs(line.top - item.top) < 6);
+          if (foundLine) {
+            foundLine.items.push(item);
+          } else {
+            leftLines.push({ top: item.top, items: [item] });
+          }
+        });
+        leftLines.sort((a, b) => a.top - b.top);
+        leftLines.forEach(line => line.items.sort((a, b) => a.left - b.left));
+
+        // Group right column items into lines
+        const rightLines: { top: number; items: typeof rightItems }[] = [];
+        rightItems.forEach(item => {
+          let foundLine = rightLines.find(line => Math.abs(line.top - item.top) < 6);
+          if (foundLine) {
+            foundLine.items.push(item);
+          } else {
+            rightLines.push({ top: item.top, items: [item] });
+          }
+        });
+        rightLines.sort((a, b) => a.top - b.top);
+        rightLines.forEach(line => line.items.sort((a, b) => a.left - b.left));
+
+        // Helper function to merge text elements on the same line and resolve pdf kerning word-splitting bugs
+        const mergeLineItems = (items: typeof positionedItems) => {
+          if (items.length === 0) return '';
+          let merged = items[0].text;
+          for (let i = 1; i < items.length; i++) {
+            const prev = items[i - 1];
+            const curr = items[i];
+            const gap = curr.left - (prev.left + prev.width);
+            
+            // If the visual horizontal gap is larger than 4px, join with space.
+            // Otherwise, merge characters directly to heal split words.
+            if (gap > 4) {
+              merged += ' ' + curr.text;
+            } else {
+              merged += curr.text;
+            }
+          }
+          return merged;
+        };
+
+        // Build Left Column HTML (White text, dark background)
+        let leftHtml = '';
+        leftLines.forEach(line => {
+          const mergedText = mergeLineItems(line.items);
+          if (!mergedText) return;
+
+          const firstItem = line.items[0];
+          const isBold = firstItem.fontWeight === 'bold' || parseInt(firstItem.fontWeight) >= 600;
+          const fontSizePx = parseFloat(firstItem.fontSize);
+
+          if (fontSizePx >= 18) {
+            leftHtml += `<h1 style="font-size: 18pt; font-weight: bold; color: #ffffff; margin-bottom: 8pt; margin-top: 10pt; font-family: Arial;">${mergedText}</h1>\n`;
+          } else if (isBold && (fontSizePx >= 13 || (mergedText.length < 30 && !mergedText.endsWith('.')))) {
+            leftHtml += `<h2 style="font-size: 12pt; font-weight: bold; color: #ffffff; border-bottom: 1px solid #ffffff; margin-top: 16pt; margin-bottom: 8pt; padding-bottom: 2pt; font-family: Arial; text-transform: uppercase;">${mergedText}</h2>\n`;
+          } else {
+            leftHtml += `<p style="font-size: 9.5pt; color: #eeeeee; line-height: 1.35; margin-bottom: 6pt; font-family: Arial;">${mergedText}</p>\n`;
+          }
+        });
+
+        // Build Right Column HTML (Dark text, white background)
+        let rightHtml = '';
+        rightLines.forEach(line => {
+          const mergedText = mergeLineItems(line.items);
+          if (!mergedText) return;
+
+          const firstItem = line.items[0];
+          const isBold = firstItem.fontWeight === 'bold' || parseInt(firstItem.fontWeight) >= 600;
+          const fontSizePx = parseFloat(firstItem.fontSize);
+
+          if (isBold && (fontSizePx >= 13 || (mergedText.length < 50 && !mergedText.endsWith('.')))) {
+            rightHtml += `<h2 style="font-size: 13pt; font-weight: bold; color: #2b0f54; border-bottom: 1px solid #e2e8f0; margin-top: 16pt; margin-bottom: 8pt; padding-bottom: 2pt; font-family: Arial; text-transform: uppercase;">${mergedText}</h2>\n`;
+          } else if (mergedText.startsWith('•') || mergedText.startsWith('-') || mergedText.startsWith('*')) {
+            const cleanLi = mergedText.replace(/^[•\-\*]\s*/, '');
+            rightHtml += `<ul style="margin-bottom: 4pt; padding-left: 20pt; font-family: Arial;"><li style="font-size: 11pt; line-height: 1.35; color: #333333;">${cleanLi}</li></ul>\n`;
+          } else {
+            rightHtml += `<p style="font-size: 11pt; line-height: 1.35; margin-bottom: 6pt; color: #333333; font-family: Arial;">${mergedText}</p>\n`;
+          }
+        });
+
+        // Assemble columns inside a full-height Word table (Wider sidebar layout: 35% / 65%)
+        return `
+          <table style="width: 100%; border: none; border-collapse: collapse;">
+            <tr>
+              <td width="35%" style="background-color: #2b0f54; color: #ffffff; padding: 36pt 18pt; vertical-align: top;">
+                ${leftHtml}
+              </td>
+              <td width="65%" style="background-color: #ffffff; color: #333333; padding: 36pt 24pt; vertical-align: top;">
+                ${rightHtml}
+              </td>
+            </tr>
+          </table>
+        `;
+      });
+    } catch (err) {
+      console.error('[Premium DOCX Gen] Puppeteer preprocessing failed, falling back to regex clean:', err);
+      let fallback = htmlContent || '';
+      fallback = fallback.replace(/<img[^>]+src="data:image\/[^>]+>/gi, '');
+      fallback = fallback.replace(/<img[^>]+alt="background image"[^>]*>/gi, '');
+      fallback = fallback.replace(/position:\s*(absolute|relative);?/gi, '');
+      fallback = fallback.replace(/top:\s*\d+(px|pt|em|%)?;?/gi, '');
+      fallback = fallback.replace(/left:\s*\d+(px|pt|em|%)?;?/gi, '');
+      fallback = fallback.replace(/white-space:\s*nowrap;?/gi, '');
+      cleanSemanticHtml = fallback;
+    } finally {
+      await browser.close();
+    }
+
+    const styledHtml = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+          }
+        </style>
+      </head>
+      <body>
+        ${cleanSemanticHtml}
+      </body>
+      </html>
+    `;
+
+    const docxBuffer = await htmlToDocx(styledHtml, null, {
+      table: { row: { cantSplit: true } },
+      footer: false,
+      pageNumber: false,
+      margins: {
+        top: 0,
+        bottom: 0,
+        left: 0,
+        right: 0,
+      },
+    });
+    return Buffer.from(docxBuffer);
   }
 
   async updateResumeFile(id: number, file?: Express.Multer.File, resumeText?: string): Promise<any> {

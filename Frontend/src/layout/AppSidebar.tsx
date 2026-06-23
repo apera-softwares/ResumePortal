@@ -30,43 +30,15 @@ const AdminRoute: NavItem[] = [
   },
   {
     icon: <UserCircleIcon />,
-    name: "Create Jobs",
+    name: "Jobs",
     path: "/jobcreation",
   },
   {
     icon: <TimeIcon/>,
-    name: "Add Skills",
+    name: "Skills",
     path: "/addskills",
   },
 ];
-
-/*
-const UserRoute: NavItem[] = [
-
-    {
-    icon: <ListIcon />,
-    name: "Candidates",
-    path: "/candidates",
-  },
-
-];
-
-
-const HrRoute: NavItem[] = [
-    {
-    icon: <ListIcon />,
-    name: "Candidates",
-    path: "/candidates",
-  },
-  {
-    icon: <UserCircleIcon />,
-    name: "Create Jobs",
-    path: "/jobcreation",
-  },
-
-];
-*/
-
 
 
 const AppSidebar: React.FC = () => {
@@ -87,7 +59,6 @@ const AppSidebar: React.FC = () => {
     setName(localStoragename || "")
   },[])
   
-  // Prevent rendering until component is mounted on client
   if (!mounted) {
     return null;
   }
@@ -101,13 +72,8 @@ const AppSidebar: React.FC = () => {
       routes = AdminRoute;
       break;
     default:
-      routes = []; // or a default route
+      routes = [];
   }
-
-
-
-
-
 
   return (
     <aside

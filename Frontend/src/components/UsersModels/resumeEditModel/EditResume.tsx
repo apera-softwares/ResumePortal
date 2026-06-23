@@ -30,7 +30,6 @@ function jsonToHtml(jsonStr: string): string {
   }
 }
 
-// Import CanvasResumeEditor dynamically with SSR disabled to prevent hydration mismatch errors
 const CanvasResumeEditor = dynamic(() => import("./CanvasResumeEditor"), {
   ssr: false,
   loading: () => (
@@ -72,9 +71,26 @@ function buildIframeDocument(html: string, editable = false): string {
         min-height: 100%;
         margin: 0;
         background: #9ca3af;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
       }
       body {
-        overflow: auto;
+        overflow-y: auto;
+        overflow-x: hidden;
+        width: 100%;
+        padding: 20px 0;
+        box-sizing: border-box;
+      }
+      /* Centering page wrappers of pdftohtml output */
+      div[id$="-div"], div[id^="page"], .a4-page, [style*="width:892px"], [style*="width: 892px"] {
+        margin-left: auto !important;
+        margin-right: auto !important;
+        margin-top: 10px !important;
+        margin-bottom: 25px !important;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.15) !important;
+        position: relative !important;
+        background: #ffffff;
       }
       ${editable ? `
       [contenteditable="true"] {
@@ -314,15 +330,16 @@ interface EditResumeProps {
   onSave?: (updatedCandidate: Candidate & Record<string, unknown>) => void;
   isInline?: boolean;
   onClose?: () => void;
+  initialMode?: "preview" | "edit" | "original";
 }
 
-export default function EditResume({ candidate, onSave, isInline = false, onClose }: EditResumeProps) {
+export default function EditResume({ candidate, onSave, isInline = false, onClose, initialMode }: EditResumeProps) {
   const [isOpen, setIsOpen] = useState(isInline);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingFile, setIsUploadingFile] = useState(false);
   const [rawHtml, setRawHtml] = useState<string>("");
   const [previewHtml, setPreviewHtml] = useState<string>("");
-  const [viewMode, setViewMode] = useState<"preview" | "edit">("preview");
+  const [viewMode, setViewMode] = useState<"preview" | "edit" | "original">(initialMode || "preview");
   const [styleHeader, setStyleHeader] = useState<string>("");
   const [zoom, setZoom] = useState<number>(1.0);
   const [editorKey, setEditorKey] = useState<number>(0);
@@ -334,6 +351,13 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
   const API_URL =
     process.env.NEXT_PUBLIC_API_URL ||
     (typeof window !== "undefined" ? `http://${window.location.hostname}:3001` : "http://localhost:3001");
+
+  // Sync viewMode with initialMode when routing parameters change
+  useEffect(() => {
+    if (initialMode) {
+      setViewMode(initialMode);
+    }
+  }, [initialMode]);
 
   // Fetch initial content from backend on open (Load ONCE only)
   useEffect(() => {
@@ -355,7 +379,9 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
           setStyleHeader("");
           setPreviewHtml(sourceHtml);
           setRawHtml(sourceHtml);
-          setViewMode("preview");
+          if (!initialMode) {
+            setViewMode("preview");
+          }
           
           // Mark as loaded so subsequent state updates do not overwrite TipTap editor
           isLoadedRef.current = true;
@@ -366,7 +392,7 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
     };
 
     loadContent();
-  }, [isOpen, candidate.id, API_URL]);
+  }, [isOpen, candidate.id, API_URL, initialMode]);
 
 
   const handleEditorChange = (html: string) => {
@@ -374,6 +400,55 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
   };
 
   const renderResumeSurface = () => {
+    if (viewMode === "original") {
+      if (candidate.resume) {
+        const fileUrl = `${API_URL}/uploads/${candidate.resume}`;
+        const isPdf = candidate.resume.toLowerCase().endsWith(".pdf");
+        if (isPdf) {
+          return (
+            <div className="h-full overflow-hidden rounded-2xl border border-gray-200 bg-gray-100 shadow-inner dark:border-gray-800 dark:bg-gray-950">
+              <iframe
+                src={fileUrl}
+                title={`${candidate.firstName} ${candidate.lastName} original PDF`}
+                className="h-full w-full bg-gray-400 border-none"
+              />
+            </div>
+          );
+        } else {
+          return (
+            <div className="h-full flex items-center justify-center bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-8">
+              <div className="text-center max-w-md">
+                <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                </svg>
+                <h3 className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">Original Document</h3>
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                  This document ({candidate.resume.split("-").pop() || "resume"}) cannot be embedded directly in the browser because it is not a PDF.
+                </p>
+                <div className="mt-6">
+                  <a
+                    href={fileUrl}
+                    download
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center px-4 py-2 border border-transparent shadow-xs text-sm font-medium rounded-xl text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  >
+                    Download original document
+                  </a>
+                </div>
+              </div>
+            </div>
+          );
+        }
+      } else {
+        return (
+          <div className="h-full flex items-center justify-center bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-8">
+            <p className="text-sm text-gray-500 dark:text-gray-400">No original resume file found.</p>
+          </div>
+        );
+      }
+    }
+
     if (viewMode === "preview") {
       return (
         <div className="h-full overflow-hidden rounded-2xl border border-gray-200 bg-gray-100 shadow-inner dark:border-gray-800 dark:bg-gray-950">
@@ -474,38 +549,56 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
     return doc.output("blob");
   };
 
-  const handleExportPdf = () => {
+  const handleExportPdf = async () => {
     if (!rawHtml) return;
+    const exportToast = toast.loading("Exporting premium PDF...");
     try {
-      const cleanHtml = getCleanHtml(rawHtml);
-      const blob = generateSimplePdfBlob(cleanHtml, `${candidate.firstName} ${candidate.lastName}`);
+      const response = await fetch(`${API_URL}/candidates/export-pdf`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ html: rawHtml }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to export PDF from server.");
+      }
+
+      const blob = await response.blob();
       saveAs(blob, `${candidate.firstName}_${candidate.lastName}_resume.pdf`);
+      toast.dismiss(exportToast);
       toast.success("PDF exported successfully!");
     } catch (err) {
       console.error(err);
+      toast.dismiss(exportToast);
       toast.error("Failed to export PDF.");
     }
   };
 
-  const handleExportWord = () => {
+  const handleExportWord = async () => {
     if (!rawHtml) return;
+    const exportToast = toast.loading("Exporting premium Word document...");
     try {
-      const cleanHtml = getCleanHtml(rawHtml);
-      const header = "<html xmlns:o='urn:schemas-microsoft-com:office:office' " +
-        "xmlns:w='urn:schemas-microsoft-com:office:word' " +
-        "xmlns='http://www.w3.org/TR/REC-html40'>" +
-        "<head><title>Resume</title><meta charset='utf-8'></head><body>";
-      const footer = "</body></html>";
-      const sourceHTML = header + cleanHtml + footer;
-      
-      const blob = new Blob(['\ufeff' + sourceHTML], {
-        type: 'application/msword'
+      const response = await fetch(`${API_URL}/candidates/export-docx`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ html: rawHtml }),
       });
-      
-      saveAs(blob, `${candidate.firstName}_${candidate.lastName}_resume.doc`);
+
+      if (!response.ok) {
+        throw new Error("Failed to export Word document from server.");
+      }
+
+      const blob = await response.blob();
+      saveAs(blob, `${candidate.firstName}_${candidate.lastName}_resume.docx`);
+      toast.dismiss(exportToast);
       toast.success("Word document exported successfully!");
     } catch (err) {
       console.error(err);
+      toast.dismiss(exportToast);
       toast.error("Failed to export Word document.");
     }
   };
@@ -635,6 +728,17 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
           <div className="flex flex-wrap items-center gap-2">
             <div className="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-800">
               <button
+                onClick={() => setViewMode("original")}
+                disabled={isSaving || isUploadingFile}
+                className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all disabled:opacity-50 ${
+                  viewMode === "original"
+                    ? "bg-white text-blue-600 shadow-xs dark:bg-gray-900 dark:text-blue-400"
+                    : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                }`}
+              >
+                Original Resume
+              </button>
+              <button
                 onClick={() => setViewMode("preview")}
                 disabled={isSaving || isUploadingFile}
                 className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all disabled:opacity-50 ${
@@ -748,7 +852,7 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                 </svg>
               )}
-              {isSaving ? "Saving..." : "Save to Server"}
+              {isSaving ? "Saving..." : "Save"}
             </button>
           </div>
         </div>
@@ -785,6 +889,17 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
 
             <div className="flex flex-wrap items-center gap-2 pr-12 sm:pr-16">
               <div className="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-800">
+                <button
+                  onClick={() => setViewMode("original")}
+                  disabled={isSaving || isUploadingFile}
+                  className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all disabled:opacity-50 ${
+                    viewMode === "original"
+                      ? "bg-white text-blue-600 shadow-xs dark:bg-gray-900 dark:text-blue-400"
+                      : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                  }`}
+                >
+                  Original Resume
+                </button>
                 <button
                   onClick={() => setViewMode("preview")}
                   disabled={isSaving || isUploadingFile}
@@ -900,7 +1015,7 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                   </svg>
                 )}
-                {isSaving ? "Saving..." : "Save to Server"}
+                {isSaving ? "Saving..." : "Save"}
               </button>
             </div>
           </div>
