@@ -18,7 +18,7 @@ export default function GuestPage() {
       const isDark = savedTheme === "dark";
       setIsDarkMode(isDark);
       if (isDark) {
-        document.documentElement.classList.add("dark");
+        document.documentElement.classList.add("dark");routes
       } else {
         document.documentElement.classList.remove("dark");
       }

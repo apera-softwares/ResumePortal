@@ -46,8 +46,27 @@ export class CandidateController {
 
   // get all candiddates
   @Get()
-  async getAll(){
-    return await this.candidateService.findAll()
+  async getAll(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('search') search?: string,
+    @Query('skill') skill?: string,
+    @Query('experience') experience?: string,
+    @Query('userId') userId?: string,
+    @Query('role') role?: string,
+  ){
+    const pageNum = page ? parseInt(page, 10) : undefined;
+    const limitNum = limit ? parseInt(limit, 10) : undefined;
+    const userIdNum = userId ? parseInt(userId, 10) : undefined;
+    return await this.candidateService.findAll(
+      pageNum,
+      limitNum,
+      search,
+      skill,
+      experience,
+      userIdNum,
+      role,
+    );
   }
 
   // get candidate applications by email

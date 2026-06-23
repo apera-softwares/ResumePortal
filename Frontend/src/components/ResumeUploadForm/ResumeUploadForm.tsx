@@ -392,7 +392,7 @@ export default function ResumeUploadForm({closeModal, jobId, onApplySuccess} : {
                 </div>
 
                 <div className="col-span-2 lg:col-span-1">
-                  <Label>Years of Experience</Label>
+                  <Label>Yrs Of Exp</Label>
                   <Input
                     type="number"
                     name="yearsOfExperience"
@@ -403,7 +403,7 @@ export default function ResumeUploadForm({closeModal, jobId, onApplySuccess} : {
                 </div>
 
                 <div className="col-span-2 lg:col-span-1">
-                  <Label>Notice Period (in days)</Label>
+                  <Label>Notice Period</Label>
                   <Input
                     type="number"
                     name="noticePeriod"

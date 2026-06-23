@@ -141,13 +141,96 @@ export class CandidateService {
   }
 
   // get all candidate
-  async findAll() {
-    return await this.prisma.candidate.findMany({
-      include: {
-        skills: true,
-        job: true,
-      },
-    });
+  async findAll(
+    page?: number,
+    limit?: number,
+    search?: string,
+    skill?: string,
+    experience?: string,
+    userId?: number,
+    role?: string,
+  ) {
+    const pageNum = page ? page : 1;
+    const limitNum = limit ? limit : 8;
+
+    const where: any = {};
+
+    // 1. Company User filter
+    if (role && role !== 'ADMIN' && userId) {
+      where.job = {
+        createdById: userId,
+      };
+    }
+
+    // 2. Skill Filter
+    if (skill) {
+      where.skills = {
+        some: {
+          name: {
+            equals: skill,
+            mode: 'insensitive',
+          },
+        },
+      };
+    }
+
+    // 3. Experience Filter
+    if (experience) {
+      if (experience === '0-2') {
+        where.yearsOfExperience = { gte: 0, lte: 2 };
+      } else if (experience === '3-5') {
+        where.yearsOfExperience = { gte: 3, lte: 5 };
+      } else if (experience === '6-9') {
+        where.yearsOfExperience = { gte: 6, lte: 9 };
+      } else if (experience === '10+') {
+        where.yearsOfExperience = { gte: 10 };
+      }
+    }
+
+    // 4. Search Term Filter
+    if (search && search.trim()) {
+      const term = search.trim();
+      where.OR = [
+        { firstName: { contains: term, mode: 'insensitive' } },
+        { lastName: { contains: term, mode: 'insensitive' } },
+        { email: { contains: term, mode: 'insensitive' } },
+        { mobile: { contains: term, mode: 'insensitive' } },
+        { education: { contains: term, mode: 'insensitive' } },
+        { resumeText: { contains: term, mode: 'insensitive' } },
+        {
+          skills: {
+            some: {
+              name: { contains: term, mode: 'insensitive' },
+            },
+          },
+        },
+      ];
+    }
+
+    const skip = (pageNum - 1) * limitNum;
+    const [candidates, total] = await Promise.all([
+      this.prisma.candidate.findMany({
+        where,
+        skip,
+        take: limitNum,
+        include: {
+          skills: true,
+          job: true,
+        },
+        orderBy: {
+          id: 'desc',
+        },
+      }),
+      this.prisma.candidate.count({ where }),
+    ]);
+
+    return {
+      data: candidates,
+      total,
+      page: pageNum,
+      limit: limitNum,
+      totalPages: Math.ceil(total / limitNum),
+    };
   }
 
   // Get candidate by ID
