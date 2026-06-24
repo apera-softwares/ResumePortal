@@ -20,6 +20,7 @@ interface Candidate {
   resume: string;
   resumeText?: string;
   cleanedResume?: string;
+  isPublic?: boolean;
   skills: { name: string }[];
   job?: {
     id: number;
@@ -30,7 +31,7 @@ interface Candidate {
 }
 
 function CandidatesContent() {
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || (typeof window !== "undefined" ? `http://${window.location.hostname}:3001` : "http://localhost:3001");
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || (typeof window !== "undefined" ? `http://${window.location.hostname}:3003` : "http://localhost:3003");
   const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();
@@ -299,6 +300,7 @@ function CandidatesContent() {
                   <TableCell isHeader className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-start">Yrs of Exp</TableCell>
                   <TableCell isHeader className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-start">Skills</TableCell>
                   {/* <TableCell isHeader className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-start">Status</TableCell> */}
+                  <TableCell isHeader className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-center">Visibility</TableCell>
                   <TableCell isHeader className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-center">Resume</TableCell>
                   {role === "CLIENT" ? null : (
                     <TableCell isHeader className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-center">Actions</TableCell>
@@ -360,6 +362,21 @@ function CandidatesContent() {
                               <span className="text-gray-400">-</span>
                             )}
                           </div>
+                        </TableCell>
+
+                        {/* Visibility (Public vs Private) */}
+                        <TableCell className="px-6 py-4 text-center">
+                          {user.isPublic ? (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-bold rounded-lg bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/50">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                              Public
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-bold rounded-lg bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 border border-gray-100 dark:border-gray-700">
+                              <span className="w-1.5 h-1.5 rounded-full bg-gray-400" />
+                              Private
+                            </span>
+                          )}
                         </TableCell>
 
                         {/* Resume View */}
@@ -496,7 +513,7 @@ function CandidatesContent() {
           {/* Modal Container */}
           <div className="relative w-full max-w-sm transform overflow-hidden rounded-2xl bg-white dark:bg-gray-900 p-6 text-center align-middle shadow-2xl transition-all border border-gray-100 dark:border-gray-800 scale-100 opacity-100 duration-300">
             {/* Warning Circle Icon */}
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-rose-50 dark:bg-rose-955/20 text-rose-600 dark:text-rose-400 mb-4">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-rose-50 dark:bg-rose-950/20 text-rose-600 dark:text-rose-400 mb-4">
               <Trash className="h-6 w-6" />
             </div>
 
