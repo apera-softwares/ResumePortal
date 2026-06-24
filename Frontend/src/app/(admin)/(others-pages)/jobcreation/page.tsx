@@ -335,17 +335,20 @@
                   {/* Job Type */}
                   <div>
                     <label className="block mb-1 text-gray-700 dark:text-gray-300 font-medium">Job Type</label>
-                    <Select
+                    <select
                       name="type"
-                      onChange={(selected: any) =>
-                        setFormData(prev => ({ ...prev, type: selected.value }))
-                      }
-                      options={jobTypes.map((type) => ({
-                        value: type,
-                        label: type,
-                      }))}
-                      styles={selectStyles}
-                    />
+                      value={formData.type}
+                      onChange={handleChnage}
+                      className="w-full border border-gray-300 dark:border-gray-700 rounded-lg p-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                      required
+                    >
+                      <option value="" className="text-gray-500">Select Job Type</option>
+                      {jobTypes.map((type) => (
+                        <option key={type} value={type}>
+                          {type}
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
                   {/* Submit */}
