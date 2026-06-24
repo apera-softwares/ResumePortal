@@ -686,7 +686,7 @@ export default function CanvasResumeEditor({
                     setShowTableMenu(false);
                   }}
                   disabled={!editor.isActive("table")}
-                  className="flex items-center gap-2 px-3 py-2 text-xs text-left text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-955/20 rounded-lg font-semibold disabled:opacity-40"
+                  className="flex items-center gap-2 px-3 py-2 text-xs text-left text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-lg font-semibold disabled:opacity-40"
                 >
                   <Trash2 className="w-3.5 h-3.5" /> Delete Row
                 </button>
@@ -696,7 +696,7 @@ export default function CanvasResumeEditor({
                     setShowTableMenu(false);
                   }}
                   disabled={!editor.isActive("table")}
-                  className="flex items-center gap-2 px-3 py-2 text-xs text-left text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-955/20 rounded-lg font-semibold disabled:opacity-40"
+                  className="flex items-center gap-2 px-3 py-2 text-xs text-left text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-lg font-semibold disabled:opacity-40"
                 >
                   <Trash2 className="w-3.5 h-3.5" /> Delete Column
                 </button>
@@ -706,7 +706,7 @@ export default function CanvasResumeEditor({
                     setShowTableMenu(false);
                   }}
                   disabled={!editor.isActive("table")}
-                  className="flex items-center gap-2 px-3 py-2 text-xs text-left text-red-650 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-955/20 rounded-lg font-semibold disabled:opacity-40"
+                  className="flex items-center gap-2 px-3 py-2 text-xs text-left text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-lg font-semibold disabled:opacity-40"
                 >
                   <Trash2 className="w-3.5 h-3.5" /> Delete Table
                 </button>

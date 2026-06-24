@@ -323,6 +323,7 @@ interface Candidate {
   resumeText?: string;
   cleanedResume?: string;
   editedHtml?: string;
+  isPublic?: boolean;
 }
 
 interface EditResumeProps {
@@ -331,9 +332,10 @@ interface EditResumeProps {
   isInline?: boolean;
   onClose?: () => void;
   initialMode?: "preview" | "edit" | "original";
+  isPublicPage?: boolean;
 }
 
-export default function EditResume({ candidate, onSave, isInline = false, onClose, initialMode }: EditResumeProps) {
+export default function EditResume({ candidate, onSave, isInline = false, onClose, initialMode, isPublicPage = false }: EditResumeProps) {
   const [isOpen, setIsOpen] = useState(isInline);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingFile, setIsUploadingFile] = useState(false);
@@ -344,13 +346,16 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
   const [zoom, setZoom] = useState<number>(1.0);
   const [editorKey, setEditorKey] = useState<number>(0);
   
+  const [isPublic, setIsPublic] = useState<boolean>(candidate.isPublic || false);
+  const [isTogglingPublic, setIsTogglingPublic] = useState(false);
+  
   const isLoadedRef = useRef(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const API_URL =
     process.env.NEXT_PUBLIC_API_URL ||
-    (typeof window !== "undefined" ? `http://${window.location.hostname}:3001` : "http://localhost:3001");
+    (typeof window !== "undefined" ? `http://${window.location.hostname}:3003` : "http://localhost:3003");
 
   // Sync viewMode with initialMode when routing parameters change
   useEffect(() => {
@@ -379,6 +384,7 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
           setStyleHeader("");
           setPreviewHtml(sourceHtml);
           setRawHtml(sourceHtml);
+          setIsPublic(data.isPublic || false);
           if (!initialMode) {
             setViewMode("preview");
           }
@@ -393,6 +399,36 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
 
     loadContent();
   }, [isOpen, candidate.id, API_URL, initialMode]);
+
+  const togglePublicStatus = async () => {
+    setIsTogglingPublic(true);
+    try {
+      const token = localStorage.getItem("token");
+      const nextPublicVal = !isPublic;
+      const response = await fetch(`${API_URL}/candidates/${candidate.id}/public`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ isPublic: nextPublicVal }),
+      });
+      if (response.ok) {
+        setIsPublic(nextPublicVal);
+        toast.success(nextPublicVal ? "Candidate is now public!" : "Candidate is now private.");
+        if (onSave) {
+          onSave({ ...candidate, isPublic: nextPublicVal });
+        }
+      } else {
+        toast.error("Failed to update public status.");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("An error occurred updating public status.");
+    } finally {
+      setIsTogglingPublic(false);
+    }
+  };
 
 
   const handleEditorChange = (html: string) => {
@@ -426,15 +462,21 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
                   This document ({candidate.resume.split("-").pop() || "resume"}) cannot be embedded directly in the browser because it is not a PDF.
                 </p>
                 <div className="mt-6">
-                  <a
-                    href={fileUrl}
-                    download
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center px-4 py-2 border border-transparent shadow-xs text-sm font-medium rounded-xl text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                  >
-                    Download original document
-                  </a>
+                  {isPublicPage ? (
+                    <span className="inline-flex items-center px-4 py-2 border border-gray-200 dark:border-gray-700 text-sm font-medium rounded-xl text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-gray-900 cursor-not-allowed">
+                      Download Disabled
+                    </span>
+                  ) : (
+                    <a
+                      href={fileUrl}
+                      download
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center px-4 py-2 border border-transparent shadow-xs text-sm font-medium rounded-xl text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                    >
+                      Download original document
+                    </a>
+                  )}
                 </div>
               </div>
             </div>
@@ -726,6 +768,34 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            {!isPublicPage && (
+              <button
+                onClick={togglePublicStatus}
+                disabled={isTogglingPublic || isSaving || isUploadingFile}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-md transition-all border ${
+                  isPublic
+                    ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-900/30"
+                    : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50 dark:bg-gray-900 dark:text-gray-300 dark:border-gray-700 dark:hover:bg-gray-800"
+                } disabled:opacity-50`}
+              >
+                {isPublic ? (
+                  <>
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 002 2h2m-4-3h1.5a2.5 2.5 0 012.5 2.5V14a2 2 0 002 2h1.5m-6-3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span>Public</span>
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                    <span>Mark as Public</span>
+                  </>
+                )}
+              </button>
+            )}
+
             <div className="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-800">
               <button
                 onClick={() => setViewMode("original")}
@@ -749,23 +819,25 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
               >
                 Exact Preview
               </button>
-              <button
-                onClick={() => setViewMode("edit")}
-                disabled={isSaving || isUploadingFile}
-                className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all disabled:opacity-50 ${
-                  viewMode === "edit"
-                    ? "bg-white text-blue-600 shadow-xs dark:bg-gray-900 dark:text-blue-400"
-                    : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                }`}
-              >
-                Edit
-              </button>
+              {!isPublicPage && (
+                <button
+                  onClick={() => setViewMode("edit")}
+                  disabled={isSaving || isUploadingFile}
+                  className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all disabled:opacity-50 ${
+                    viewMode === "edit"
+                      ? "bg-white text-blue-600 shadow-xs dark:bg-gray-900 dark:text-blue-400"
+                      : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                  }`}
+                >
+                  Edit
+                </button>
+              )}
             </div>
 
             <button
               onClick={handleCopy}
               disabled={isSaving || isUploadingFile}
-              className="px-3 py-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-955/40 rounded-lg transition-all disabled:opacity-50"
+              className="px-3 py-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded-lg transition-all disabled:opacity-50"
             >
               Copy Text
             </button>
@@ -778,47 +850,51 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
               Open Original
             </button>
 
-            {/* Premium Update File Button */}
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isSaving || isUploadingFile}
-              className="px-3 py-1.5 text-xs font-bold text-violet-600 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-955/40 rounded-lg transition-all disabled:opacity-50 flex items-center gap-1.5"
-            >
-              {isUploadingFile ? (
-                <svg className="animate-spin h-3.5 w-3.5" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                </svg>
-              ) : (
-                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.2">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                </svg>
-              )}
-              {isUploadingFile ? "Uploading..." : "Update File"}
-            </button>
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleFileChange}
-              accept=".pdf,.docx,.doc"
-              className="hidden"
-            />
+            {!isPublicPage && (
+              <>
+                {/* Premium Update File Button */}
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isSaving || isUploadingFile}
+                  className="px-3 py-1.5 text-xs font-bold text-violet-600 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-955/40 rounded-lg transition-all disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  {isUploadingFile ? (
+                    <svg className="animate-spin h-3.5 w-3.5" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                  ) : (
+                    <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                    </svg>
+                  )}
+                  {isUploadingFile ? "Uploading..." : "Update File"}
+                </button>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileChange}
+                  accept=".pdf,.docx,.doc"
+                  className="hidden"
+                />
 
-            <button
-              onClick={handleExportWord}
-              disabled={isSaving || isUploadingFile}
-              className="px-3 py-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-955/40 rounded-lg transition-all disabled:opacity-50"
-            >
-              Export Word
-            </button>
+                <button
+                  onClick={handleExportWord}
+                  disabled={isSaving || isUploadingFile}
+                  className="px-3 py-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 rounded-lg transition-all disabled:opacity-50"
+                >
+                  Export Word
+                </button>
 
-            <button
-              onClick={handleExportPdf}
-              disabled={isSaving || isUploadingFile}
-              className="px-3 py-1.5 text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-955/40 rounded-lg transition-all disabled:opacity-50"
-            >
-              Export PDF
-            </button>
+                <button
+                  onClick={handleExportPdf}
+                  disabled={isSaving || isUploadingFile}
+                  className="px-3 py-1.5 text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition-all disabled:opacity-50"
+                >
+                  Export PDF
+                </button>
+              </>
+            )}
           </div>
         </div>
 
@@ -833,27 +909,38 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
           </div>
 
           <div className="flex justify-end gap-3">
-            <button
-              onClick={onClose}
-              disabled={isSaving || isUploadingFile}
-              className="px-5 py-2.5 text-sm font-semibold bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-200 rounded-xl transition-all disabled:opacity-50"
-            >
-              Cancel
-            </button>
+            {isPublicPage ? (
+              <button
+                onClick={onClose}
+                className="px-6 py-2.5 text-sm font-semibold bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-200 rounded-xl transition-all shadow-sm active:scale-95"
+              >
+                Close
+              </button>
+            ) : (
+              <>
+                <button
+                  onClick={onClose}
+                  disabled={isSaving || isUploadingFile}
+                  className="px-5 py-2.5 text-sm font-semibold bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-200 rounded-xl transition-all disabled:opacity-50"
+                >
+                  Cancel
+                </button>
 
-            <button
-              onClick={handleSave}
-              disabled={isSaving || isUploadingFile}
-              className="px-6 py-2.5 text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-all shadow-md active:scale-95 flex items-center gap-2"
-            >
-              {isSaving && (
-                <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                </svg>
-              )}
-              {isSaving ? "Saving..." : "Save"}
-            </button>
+                <button
+                  onClick={handleSave}
+                  disabled={isSaving || isUploadingFile}
+                  className="px-6 py-2.5 text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-all shadow-md active:scale-95 flex items-center gap-2"
+                >
+                  {isSaving && (
+                    <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                  )}
+                  {isSaving ? "Saving..." : "Save"}
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -888,6 +975,34 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
             </div>
 
             <div className="flex flex-wrap items-center gap-2 pr-12 sm:pr-16">
+              {!isPublicPage && (
+                <button
+                  onClick={togglePublicStatus}
+                  disabled={isTogglingPublic || isSaving || isUploadingFile}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-md transition-all border ${
+                    isPublic
+                      ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-900/30"
+                      : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50 dark:bg-gray-900 dark:text-gray-300 dark:border-gray-700 dark:hover:bg-gray-800"
+                  } disabled:opacity-50`}
+                >
+                  {isPublic ? (
+                    <>
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 002 2h2m-4-3h1.5a2.5 2.5 0 012.5 2.5V14a2 2 0 002 2h1.5m-6-3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span>Public</span>
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                      </svg>
+                      <span>Mark as Public</span>
+                    </>
+                  )}
+                </button>
+              )}
+
               <div className="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-800">
                 <button
                   onClick={() => setViewMode("original")}
@@ -911,23 +1026,25 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
                 >
                   Exact Preview
                 </button>
-                <button
-                  onClick={() => setViewMode("edit")}
-                  disabled={isSaving || isUploadingFile}
-                  className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all disabled:opacity-50 ${
-                    viewMode === "edit"
-                      ? "bg-white text-blue-600 shadow-xs dark:bg-gray-900 dark:text-blue-400"
-                      : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                  }`}
-                >
-                  Edit
-                </button>
+                {!isPublicPage && (
+                  <button
+                    onClick={() => setViewMode("edit")}
+                    disabled={isSaving || isUploadingFile}
+                    className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all disabled:opacity-50 ${
+                      viewMode === "edit"
+                        ? "bg-white text-blue-600 shadow-xs dark:bg-gray-900 dark:text-blue-400"
+                        : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                    }`}
+                  >
+                    Edit
+                  </button>
+                )}
               </div>
 
               <button
                 onClick={handleCopy}
                 disabled={isSaving || isUploadingFile}
-                className="px-3 py-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-955/40 rounded-lg transition-all disabled:opacity-50"
+                className="px-3 py-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded-lg transition-all disabled:opacity-50"
               >
                 Copy Text
               </button>
@@ -940,47 +1057,51 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
                 Open Original
               </button>
 
-              {/* Premium Update File Button */}
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isSaving || isUploadingFile}
-                className="px-3 py-1.5 text-xs font-bold text-violet-600 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-955/40 rounded-lg transition-all disabled:opacity-50 flex items-center gap-1.5"
-              >
-                {isUploadingFile ? (
-                  <svg className="animate-spin h-3.5 w-3.5" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                  </svg>
-                ) : (
-                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.2">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                  </svg>
-                )}
-                {isUploadingFile ? "Uploading..." : "Update File"}
-              </button>
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileChange}
-                accept=".pdf,.docx,.doc"
-                className="hidden"
-              />
+              {!isPublicPage && (
+                <>
+                  {/* Premium Update File Button */}
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isSaving || isUploadingFile}
+                    className="px-3 py-1.5 text-xs font-bold text-violet-600 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-955/40 rounded-lg transition-all disabled:opacity-50 flex items-center gap-1.5"
+                  >
+                    {isUploadingFile ? (
+                      <svg className="animate-spin h-3.5 w-3.5" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                    ) : (
+                      <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.2">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                      </svg>
+                    )}
+                    {isUploadingFile ? "Uploading..." : "Update File"}
+                  </button>
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileChange}
+                    accept=".pdf,.docx,.doc"
+                    className="hidden"
+                  />
 
-              <button
-                onClick={handleExportWord}
-                disabled={isSaving || isUploadingFile}
-                className="px-3 py-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-955/40 rounded-lg transition-all disabled:opacity-50"
-              >
-                Export Word
-              </button>
+                  <button
+                    onClick={handleExportWord}
+                    disabled={isSaving || isUploadingFile}
+                    className="px-3 py-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 rounded-lg transition-all disabled:opacity-50"
+                  >
+                    Export Word
+                  </button>
 
-              <button
-                onClick={handleExportPdf}
-                disabled={isSaving || isUploadingFile}
-                className="px-3 py-1.5 text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-955/40 rounded-lg transition-all disabled:opacity-50"
-              >
-                Export PDF
-              </button>
+                  <button
+                    onClick={handleExportPdf}
+                    disabled={isSaving || isUploadingFile}
+                    className="px-3 py-1.5 text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition-all disabled:opacity-50"
+                  >
+                    Export PDF
+                  </button>
+                </>
+              )}
             </div>
           </div>
 
@@ -996,27 +1117,38 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
             </div>
 
             <div className="flex justify-end gap-3">
-              <button
-                onClick={() => setIsOpen(false)}
-                disabled={isSaving || isUploadingFile}
-                className="px-5 py-2.5 text-sm font-semibold bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-200 rounded-xl transition-all disabled:opacity-50"
-              >
-                Cancel
-              </button>
+              {isPublicPage ? (
+                <button
+                  onClick={() => setIsOpen(false)}
+                  className="px-6 py-2.5 text-sm font-semibold bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-200 rounded-xl transition-all shadow-sm active:scale-95"
+                >
+                  Close
+                </button>
+              ) : (
+                <>
+                  <button
+                    onClick={() => setIsOpen(false)}
+                    disabled={isSaving || isUploadingFile}
+                    className="px-5 py-2.5 text-sm font-semibold bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-200 rounded-xl transition-all disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
 
-              <button
-                onClick={handleSave}
-                disabled={isSaving || isUploadingFile}
-                className="px-6 py-2.5 text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-all shadow-md active:scale-95 flex items-center gap-2"
-              >
-                {isSaving && (
-                  <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                  </svg>
-                )}
-                {isSaving ? "Saving..." : "Save"}
-              </button>
+                  <button
+                    onClick={handleSave}
+                    disabled={isSaving || isUploadingFile}
+                    className="px-6 py-2.5 text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-all shadow-md active:scale-95 flex items-center gap-2"
+                  >
+                    {isSaving && (
+                      <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                    )}
+                    {isSaving ? "Saving..." : "Save"}
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>

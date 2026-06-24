@@ -54,10 +54,12 @@ export class CandidateController {
     @Query('experience') experience?: string,
     @Query('userId') userId?: string,
     @Query('role') role?: string,
+    @Query('isPublic') isPublic?: string,
   ){
     const pageNum = page ? parseInt(page, 10) : undefined;
     const limitNum = limit ? parseInt(limit, 10) : undefined;
     const userIdNum = userId ? parseInt(userId, 10) : undefined;
+    const isPublicBool = isPublic === 'true' ? true : (isPublic === 'false' ? false : undefined);
     return await this.candidateService.findAll(
       pageNum,
       limitNum,
@@ -66,6 +68,7 @@ export class CandidateController {
       experience,
       userIdNum,
       role,
+      isPublicBool,
     );
   }
 
@@ -82,6 +85,15 @@ export class CandidateController {
     @Body('status') status: string,
   ) {
     return await this.candidateService.updateStatus(id, status);
+  }
+
+  // update candidate public status by id
+  @Put(':id/public')
+  async updatePublicStatus(
+    @Param('id', ParseIntPipe) id: number,
+    @Body('isPublic') isPublic: boolean,
+  ) {
+    return await this.candidateService.updatePublicStatus(id, isPublic);
   }
 
   // get candidate by id

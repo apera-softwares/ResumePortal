@@ -158,7 +158,7 @@ export default function UsersTable({ callApi }: { callApi: boolean }) {
     if (r === 'CANDIDATE') {
       return 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/30';
     }
-    return 'bg-amber-50 dark:bg-amber-955/30 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-900/30';
+    return 'bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-900/30';
   };
 
   return (
@@ -347,7 +347,7 @@ export default function UsersTable({ callApi }: { callApi: boolean }) {
                 name="role"
                 value={formData.role}
                 onChange={handleChange}
-                className="w-full py-2.5 bg-gray-50 dark:bg-gray-955 border border-gray-200 dark:border-gray-800 rounded-xl px-3 outline-none text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 transition-all"
+                className="w-full py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl px-3 outline-none text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 transition-all"
                 required
               >
                 <option value="">Select Role</option>
@@ -415,7 +415,7 @@ export default function UsersTable({ callApi }: { callApi: boolean }) {
           {/* Modal Container */}
           <div className="relative w-full max-w-sm transform overflow-hidden rounded-2xl bg-white dark:bg-gray-900 p-6 text-center align-middle shadow-2xl transition-all border border-gray-100 dark:border-gray-800 scale-100 opacity-100 duration-300">
             {/* Warning Circle Icon */}
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-rose-50 dark:bg-rose-955/20 text-rose-600 dark:text-rose-400 mb-4">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-rose-50 dark:bg-rose-950/20 text-rose-600 dark:text-rose-400 mb-4">
               <Trash className="h-6 w-6" />
             </div>
 

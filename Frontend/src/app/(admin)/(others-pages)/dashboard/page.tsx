@@ -205,32 +205,32 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       
       {/* Welcome & Intro Section */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 text-white rounded-3xl p-6 md:p-8 shadow-md relative overflow-hidden">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 text-white rounded-2xl p-5 md:p-6 shadow-sm relative overflow-hidden">
         <div className="absolute right-0 bottom-0 top-0 w-1/3 opacity-10 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-white via-transparent to-transparent pointer-events-none"></div>
-        <div className="space-y-2 z-10">
-          <span className="bg-white/20 text-white text-xs px-3 py-1 rounded-full font-semibold uppercase tracking-wider">
+        <div className="space-y-1.5 z-10">
+          <span className="bg-white/20 text-white text-[10px] px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider">
             {role} Workspace
           </span>
-          <h1 className="text-2xl md:text-3xl font-black">Welcome back, {userName}!</h1>
-          <p className="text-blue-100 text-sm md:text-base max-w-xl">
+          <h1 className="text-xl md:text-2xl font-extrabold">Welcome back, {userName}!</h1>
+          <p className="text-blue-100 text-xs md:text-sm max-w-lg">
             Here's the current overview of your talent pipeline, active jobs, and resume parsing records.
           </p>
         </div>
 
-        <div className="flex gap-3 mt-4 md:mt-0 z-10">
+        <div className="flex gap-2.5 mt-4 md:mt-0 z-10">
           <button
             onClick={openModal}
-            className="bg-white hover:bg-blue-50 text-blue-700 px-5 py-2.5 rounded-2xl text-sm font-bold shadow-xs hover:scale-[1.02] active:scale-[0.98] transition-all"
+            className="bg-white hover:bg-blue-50 text-blue-700 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold shadow-xs hover:scale-[1.01] active:scale-[0.99] transition-all"
           >
             Upload Resume
           </button>
 
           <button
             onClick={() => router.push('/jobcreation')}
-            className="bg-blue-900/30 hover:bg-blue-900/50 border border-white/20 text-white px-5 py-2.5 rounded-2xl text-sm font-bold hover:scale-[1.02] active:scale-[0.98] transition-all"
+            className="bg-blue-900/30 hover:bg-blue-900/50 border border-white/20 text-white px-4 py-2 rounded-xl text-xs sm:text-sm font-bold hover:scale-[1.01] active:scale-[0.99] transition-all"
           >
             Post a Job
           </button>
@@ -238,74 +238,74 @@ export default function DashboardPage() {
       </div>
 
       {/* Metrics Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         
         {/* Candidates Card */}
-        <div className="bg-white dark:bg-gray-800 border border-gray-150 dark:border-gray-700 rounded-3xl p-6 hover:shadow-lg transition-all duration-300 relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/5 rounded-full -mr-6 -mt-6 group-hover:scale-125 transition-transform duration-300"></div>
-          <div className="flex justify-between items-center mb-4">
-            <span className="text-sm font-bold text-gray-400 uppercase">Total Candidates</span>
-            <div className="w-10 h-10 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 rounded-xl flex items-center justify-center">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+        <div className="bg-white dark:bg-gray-800 border border-gray-150 dark:border-gray-700 rounded-2xl p-5 hover:shadow-md transition-all duration-300 relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-20 h-20 bg-blue-500/5 rounded-full -mr-5 -mt-5 group-hover:scale-125 transition-transform duration-300"></div>
+          <div className="flex justify-between items-center mb-3">
+            <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Total Candidates</span>
+            <div className="w-9 h-9 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 rounded-lg flex items-center justify-center">
+              <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.109A11.386 11.386 0 0110.089 21c-2.243 0-4.352-.64-6.136-1.75a3.333 3.333 0 01-1.08-1.08C2.116 16.987 3.9 16.21 5.924 16.21a9.03 9.03 0 013.376.65m0 0a11.386 11.386 0 011.089-6.628M9.3 16.21a9.03 9.03 0 01-3.376-.65m0 0l.092-.09A11.386 11.386 0 0110.089 9c1.9 0 3.693.468 5.277 1.298M9.03 16.21a9.03 9.03 0 003.376-.65m0 0A11.386 11.386 0 0015 9" />
               </svg>
             </div>
           </div>
-          <h2 className="text-3xl font-black text-gray-900 dark:text-white">
+          <h2 className="text-2xl font-extrabold text-gray-900 dark:text-white">
             {loading ? "..." : stats.candidatesCount}
           </h2>
-          <p className="text-xs text-gray-500 mt-2">Candidates added across portal</p>
+          <p className="text-[11px] text-gray-500 mt-1.5">Candidates added across portal</p>
         </div>
 
         {/* Jobs Card */}
-        <div className="bg-white dark:bg-gray-800 border border-gray-150 dark:border-gray-700 rounded-3xl p-6 hover:shadow-lg transition-all duration-300 relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-full -mr-6 -mt-6 group-hover:scale-125 transition-transform duration-300"></div>
-          <div className="flex justify-between items-center mb-4">
-            <span className="text-sm font-bold text-gray-400 uppercase">Active Jobs</span>
-            <div className="w-10 h-10 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 rounded-xl flex items-center justify-center">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+        <div className="bg-white dark:bg-gray-800 border border-gray-150 dark:border-gray-700 rounded-2xl p-5 hover:shadow-md transition-all duration-300 relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-20 h-20 bg-emerald-500/5 rounded-full -mr-5 -mt-5 group-hover:scale-125 transition-transform duration-300"></div>
+          <div className="flex justify-between items-center mb-3">
+            <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Active Jobs</span>
+            <div className="w-9 h-9 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 rounded-lg flex items-center justify-center">
+              <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 14.15v4.25c0 .596-.482 1.077-1.076 1.077H4.826c-.594 0-1.076-.481-1.076-1.077v-4.25m16.5 0a2.25 2.25 0 00-2.25-2.25h-12a2.25 2.25 0 00-2.25 2.25m16.5 0v3a2.25 2.25 0 01-2.25 2.25h-12a2.25 2.25 0 01-2.25-2.25v-3m16.5 0h-16.5" />
               </svg>
             </div>
           </div>
-          <h2 className="text-3xl font-black text-gray-900 dark:text-white">
+          <h2 className="text-2xl font-extrabold text-gray-900 dark:text-white">
             {loading ? "..." : stats.jobsCount}
           </h2>
-          <p className="text-xs text-gray-500 mt-2">Active vacancies to fulfill</p>
+          <p className="text-[11px] text-gray-500 mt-1.5">Active vacancies to fulfill</p>
         </div>
 
         {/* Skills Card */}
-        <div className="bg-white dark:bg-gray-800 border border-gray-150 dark:border-gray-700 rounded-3xl p-6 hover:shadow-lg transition-all duration-300 relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/5 rounded-full -mr-6 -mt-6 group-hover:scale-125 transition-transform duration-300"></div>
-          <div className="flex justify-between items-center mb-4">
-            <span className="text-sm font-bold text-gray-400 uppercase">Skills Database</span>
-            <div className="w-10 h-10 bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 rounded-xl flex items-center justify-center">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+        <div className="bg-white dark:bg-gray-800 border border-gray-150 dark:border-gray-700 rounded-2xl p-5 hover:shadow-md transition-all duration-300 relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-20 h-20 bg-amber-500/5 rounded-full -mr-5 -mt-5 group-hover:scale-125 transition-transform duration-300"></div>
+          <div className="flex justify-between items-center mb-3">
+            <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Skills Database</span>
+            <div className="w-9 h-9 bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 rounded-lg flex items-center justify-center">
+              <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M17.25 6.75L22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3l-4.5 16.5" />
               </svg>
             </div>
           </div>
-          <h2 className="text-3xl font-black text-gray-900 dark:text-white">
+          <h2 className="text-2xl font-extrabold text-gray-900 dark:text-white">
             {loading ? "..." : stats.skillsCount}
           </h2>
-          <p className="text-xs text-gray-500 mt-2">Configured search skills</p>
+          <p className="text-[11px] text-gray-500 mt-1.5">Configured search skills</p>
         </div>
 
         {/* Cleaned Resumes Card */}
-        <div className="bg-white dark:bg-gray-800 border border-gray-150 dark:border-gray-700 rounded-3xl p-6 hover:shadow-lg transition-all duration-300 relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-24 h-24 bg-purple-500/5 rounded-full -mr-6 -mt-6 group-hover:scale-125 transition-transform duration-300"></div>
-          <div className="flex justify-between items-center mb-4">
-            <span className="text-sm font-bold text-gray-400 uppercase">Cleaned Resumes</span>
-            <div className="w-10 h-10 bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 rounded-xl flex items-center justify-center">
+        <div className="bg-white dark:bg-gray-800 border border-gray-150 dark:border-gray-700 rounded-2xl p-5 hover:shadow-md transition-all duration-300 relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-20 h-20 bg-purple-500/5 rounded-full -mr-5 -mt-5 group-hover:scale-125 transition-transform duration-300"></div>
+          <div className="flex justify-between items-center mb-3">
+            <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Cleaned Resumes</span>
+            <div className="w-9 h-9 bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 rounded-lg flex items-center justify-center">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
               </svg>
             </div>
           </div>
-          <h2 className="text-3xl font-black text-gray-900 dark:text-white">
+          <h2 className="text-2xl font-extrabold text-gray-900 dark:text-white">
             {loading ? "..." : stats.cleanedResumesCount}
           </h2>
-          <p className="text-xs text-gray-500 mt-2">Cleaned of contact info</p>
+          <p className="text-[11px] text-gray-500 mt-1.5">Cleaned of contact info</p>
         </div>
 
       </div>
@@ -313,17 +313,17 @@ export default function DashboardPage() {
       {/* Graphical Insights */}
       {!loading && stats.jobsCount > 0 && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="bg-white dark:bg-gray-900/40 border border-gray-150 dark:border-gray-800/80 backdrop-blur-sm rounded-3xl p-6 lg:col-span-2 shadow-xs">
-            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Job Distribution by Location</h3>
-            <div className="h-64">
+          <div className="bg-white dark:bg-gray-900/40 border border-gray-150 dark:border-gray-800/80 backdrop-blur-sm rounded-2xl p-5 lg:col-span-2 shadow-xs">
+            <h3 className="text-base font-bold text-gray-900 dark:text-white mb-4">Job Distribution by Location</h3>
+            <div className="h-60">
               <Chart options={locationBarOptions} series={[{ data: locationChartData.data }]} type="bar" height="100%" />
             </div>
           </div>
 
-          <div className="bg-white dark:bg-gray-900/40 border border-gray-150 dark:border-gray-800/80 backdrop-blur-sm rounded-3xl p-6 shadow-xs">
-            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Active Vacancies by Type</h3>
-            <div className="h-64 flex items-center justify-center">
-              <Chart options={jobTypeDonutOptions} series={jobTypeChartData.series} type="donut" width="100%" height="250" />
+          <div className="bg-white dark:bg-gray-900/40 border border-gray-150 dark:border-gray-800/80 backdrop-blur-sm rounded-2xl p-5 shadow-xs">
+            <h3 className="text-base font-bold text-gray-900 dark:text-white mb-4">Active Vacancies by Type</h3>
+            <div className="h-60 flex items-center justify-center">
+              <Chart options={jobTypeDonutOptions} series={jobTypeChartData.series} type="donut" width="100%" height="230" />
             </div>
           </div>
         </div>
@@ -333,11 +333,11 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* Recent Candidates Table */}
-        <div className="bg-white dark:bg-gray-800 border border-gray-150 dark:border-gray-700 rounded-3xl p-6 lg:col-span-2 flex flex-col justify-between">
+        <div className="bg-white dark:bg-gray-800 border border-gray-150 dark:border-gray-700 rounded-2xl p-5 lg:col-span-2 flex flex-col justify-between">
           <div>
-            <div className="flex justify-between items-center mb-6">
+            <div className="flex justify-between items-center mb-5">
               <div>
-                <h3 className="text-lg font-bold text-gray-950 dark:text-white">Recent Candidates Pipeline</h3>
+                <h3 className="text-base font-bold text-gray-900 dark:text-white">Recent Candidates Pipeline</h3>
                 <p className="text-xs text-gray-500">Overview of the last candidate resumes uploaded</p>
               </div>
               <button
@@ -401,11 +401,11 @@ export default function DashboardPage() {
         </div>
 
         {/* Recent Active Jobs */}
-        <div className="bg-white dark:bg-gray-800 border border-gray-150 dark:border-gray-700 rounded-3xl p-6 flex flex-col justify-between">
+        <div className="bg-white dark:bg-gray-800 border border-gray-150 dark:border-gray-700 rounded-2xl p-5 flex flex-col justify-between">
           <div>
-            <div className="flex justify-between items-center mb-6">
+            <div className="flex justify-between items-center mb-5">
               <div>
-                <h3 className="text-lg font-bold text-gray-950 dark:text-white">Recent Job Openings</h3>
+                <h3 className="text-base font-bold text-gray-900 dark:text-white">Recent Job Openings</h3>
                 <p className="text-xs text-gray-500">Fresh requirements added recently</p>
               </div>
               <button

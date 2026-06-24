@@ -11,7 +11,7 @@ import toast from "react-hot-toast";
 export default function SignUpForm() {
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
-  const API_URL = process.env.NEXT_PUBLIC_API_URL;
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || (typeof window !== "undefined" ? `http://${window.location.hostname}:3003` : "http://localhost:3003");
 
   const [formData, setFormData] = useState({
     name: "",
@@ -226,7 +226,7 @@ export default function SignUpForm() {
               </div>
 
               <div className="pt-2">
-                <Button className="w-full rounded-xl" size="sm" disabled={isLoading}>
+                <Button className="w-full rounded-xl" size="sm" type="submit" disabled={isLoading}>
                   {isLoading ? "Creating Account..." : "Sign Up"}
                 </Button>
               </div>
