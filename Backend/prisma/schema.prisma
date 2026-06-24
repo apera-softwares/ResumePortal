@@ -52,6 +52,7 @@ model Candidate {
   resumeJson        String?
   editedHtml        String?
   parsedHtml        String?
+  isPublic          Boolean         @default(false)
   job               Job?            @relation(fields: [jobId], references: [id], onDelete: Cascade)
   ResumeVersion     ResumeVersion[]
   skills            Skill[]         @relation("CandidateSkills")

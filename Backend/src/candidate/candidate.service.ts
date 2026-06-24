@@ -149,8 +149,12 @@ export class CandidateService {
     experience?: string,
     userId?: number,
     role?: string,
+    isPublic?: boolean,
   ) {
     const where: any = {};
+    if (isPublic !== undefined) {
+      where.isPublic = isPublic;
+    }
 
     // 1. Company User filter
     if (role && role !== 'ADMIN' && userId) {
@@ -361,6 +365,23 @@ export class CandidateService {
     return await this.prisma.candidate.update({
       where: { id },
       data: { status },
+      include: {
+        skills: true,
+        job: true,
+      },
+    });
+  }
+
+  async updatePublicStatus(id: number, isPublic: boolean) {
+    const candidate = await this.prisma.candidate.findUnique({
+      where: { id },
+    });
+    if (!candidate) {
+      throw new NotFoundException(`Candidate with ID ${id} not found`);
+    }
+    return await this.prisma.candidate.update({
+      where: { id },
+      data: { isPublic },
       include: {
         skills: true,
         job: true,
