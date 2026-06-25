@@ -1,0 +1,49 @@
+name: 'Frontend CI/CD with Portainer'
+
+on: 
+  push: 
+    branches:
+      - 'release-frontend/**'
+
+jobs: 
+  deploy: 
+    runs-on: 'ubuntu-latest'
+    timeout-minutes: 20
+    steps:
+      - name: 'Checkout repository'
+        uses: 'actions/checkout@v4'
+ 
+      - name: 'Login to Forgejo Container Registry'
+        uses: 'docker/login-action@v3'
+        with:
+          registry: 'registry.aperasoftwares.com'
+          username: '${{ secrets.FORGEJO_USERNAME }}'
+          password: '${{ secrets.FORGEJO_TOKEN }}'
+
+      - name: 'Build and Push Docker Image'
+        uses: 'docker/build-push-action@v6'
+        with:
+          context: './Frontend'
+          push: true
+          no-cache: true
+          build-args: |
+            NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}
+          tags: 'registry.aperasoftwares.com/aperra-org/resumebuilder-frontend:latest'
+
+      - name: 'Portainer Deploy'
+        uses: 'cssnr/portainer-stack-deploy-action@v1'
+        timeout-minutes: 15
+        with:
+          name: 'resumebuilder-frontend'
+          type: 'file'
+          file: 'Frontend/docker-compose.yml'
+          url: '${{ secrets.PORTAINER_HOST }}'
+          token: '${{ secrets.PORTAINER_TOKEN }}'
+          ref: "" 
+          standalone: true
+          prune: true
+          pull: true
+          env_data: |
+            {
+               "PORT": "3000"
+            }
