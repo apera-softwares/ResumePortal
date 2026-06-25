@@ -1,0 +1,26 @@
+version: "3.8"
+# Deploy trigger: 2026-06-23T12:24:53Z
+services:
+  resumebuilder-backend:
+    image: registry.aperasoftwares.com/aperra-org/resumebuilder-backend:latest
+    container_name: resumebuilder-backend-latest
+    restart: unless-stopped
+    ports:
+      - "8094:8094"
+    environment:
+      DATABASE_URL: "${DATABASE_URL}"
+      PORT: "8094"
+      JWT_SECRET: "${JWT_SECRET}"
+    volumes:
+      - resumebuilder-uploads:/usr/src/app/uploads
+    networks:
+      - resumebuilder-network
+
+volumes:
+  resumebuilder-uploads:
+    name: resumebuilder-uploads
+
+networks:
+  resumebuilder-network:
+    name: resumebuilder-network
+    external: true

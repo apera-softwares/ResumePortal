@@ -355,7 +355,7 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
 
   const API_URL =
     process.env.NEXT_PUBLIC_API_URL ||
-    (typeof window !== "undefined" ? `http://${window.location.hostname}:3003` : "http://localhost:3003");
+    (typeof window !== "undefined" ? `http://${window.location.hostname}:8094` : "http://localhost:8094");
 
   // Sync viewMode with initialMode when routing parameters change
   useEffect(() => {

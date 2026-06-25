@@ -31,7 +31,7 @@ interface Candidate {
 }
 
 function CandidatesContent() {
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || (typeof window !== "undefined" ? `http://${window.location.hostname}:3003` : "http://localhost:3003");
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || (typeof window !== "undefined" ? `http://${window.location.hostname}:8094` : "http://localhost:8094");
   const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();

@@ -35,6 +35,7 @@
     "class-validator": "^0.14.2",
     "docx": "^9.7.1",
     "dotenv": "^17.2.3",
+    "libreoffice": "^0.4.5",
     "libreoffice-convert": "^1.8.1",
     "mammoth": "^1.12.0",
     "md5": "^2.3.0",
