@@ -1,0 +1,17 @@
+version: "3.8"
+services:
+  resumebuilder-frontend:
+    image: registry.aperasoftwares.com/aperra-org/resumebuilder-frontend:latest
+    container_name: resumebuilder-frontend-latest
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      PORT: "3000"
+    networks:
+      - resumebuilder-network
+
+networks:
+  resumebuilder-network:
+    name: resumebuilder-network
+    external: true
