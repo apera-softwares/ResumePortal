@@ -10,4 +10,3 @@ import { AuthModule } from 'src/guards/auth.module';
   providers: [SkillsService, PrismaService],
 })
 export class SkillsModule {}
-

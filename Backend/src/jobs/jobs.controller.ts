@@ -11,6 +11,7 @@ import {
   UseGuards,
   Query,
 } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { JobsService } from './jobs.service';
 import { CreateJobDto } from 'src/Validations/job/create-job.dto';
 import { UpdateJobDto } from 'src/Validations/job/update-job.dto';
@@ -18,22 +19,31 @@ import { Role } from '@prisma/client';
 import { AuthGuard } from 'src/guards/auth.guard';
 import { RoleGuard } from 'src/guards/role.guard';
 
+@ApiTags('Jobs')
 @Controller('jobs')
 export class JobsController {
   constructor(private readonly jobsService: JobsService) {}
 
-  // Only Admin and HR can create job
+  @Post('create')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Create a new job (Admin/HR only)' })
+  @ApiResponse({ status: 201, description: 'Job created successfully' })
   @UseGuards(AuthGuard)
   @SetMetadata('roles', [Role.ADMIN, Role.HR])
   @UseGuards(RoleGuard)
-  @Post('create')
   async createJob(@Body() dto: CreateJobDto, @Request() req) {
-    const userId = req.user.user; // comes from JWT payload
+    const userId = req.user.user;
     return this.jobsService.create(dto, userId);
   }
 
-  // get all jobs
   @Get()
+  @ApiOperation({ summary: 'Get all jobs with filtering and pagination' })
+  @ApiQuery({ name: 'page', required: false, type: String })
+  @ApiQuery({ name: 'limit', required: false, type: String })
+  @ApiQuery({ name: 'search', required: false, type: String })
+  @ApiQuery({ name: 'location', required: false, type: String })
+  @ApiQuery({ name: 'type', required: false, type: String })
+  @ApiResponse({ status: 200, description: 'List of jobs' })
   findAll(
     @Query('page') page?: string,
     @Query('limit') limit?: string,
@@ -46,27 +56,33 @@ export class JobsController {
     return this.jobsService.findAll(pageNum, limitNum, search, location, type);
   }
 
-  // get single job
   @Get(':id')
+  @ApiOperation({ summary: 'Get a single job by ID' })
+  @ApiResponse({ status: 200, description: 'Job retrieved successfully' })
+  @ApiResponse({ status: 404, description: 'Job not found' })
   async getJobById(@Param('id') id: string) {
-    return this.jobsService.getJobById(Number(id));
+    return this.jobsService.getJobById(id);
   }
 
-  // only admin and hr can edit the job using id
-@UseGuards(AuthGuard)
-  @SetMetadata('roles', [Role.ADMIN, Role.HR])
-  @UseGuards(RoleGuard)
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateJobDto: UpdateJobDto) {
-     return this.jobsService.update(Number(id), updateJobDto);
-  }
-
-  // only admin and hr delete job
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update a job by ID (Admin/HR only)' })
+  @ApiResponse({ status: 200, description: 'Job updated successfully' })
   @UseGuards(AuthGuard)
   @SetMetadata('roles', [Role.ADMIN, Role.HR])
   @UseGuards(RoleGuard)
+  update(@Param('id') id: string, @Body() updateJobDto: UpdateJobDto) {
+    return this.jobsService.update(id, updateJobDto);
+  }
+
   @Delete(':id')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Delete a job by ID (Admin/HR only)' })
+  @ApiResponse({ status: 200, description: 'Job deleted successfully' })
+  @UseGuards(AuthGuard)
+  @SetMetadata('roles', [Role.ADMIN, Role.HR])
+  @UseGuards(RoleGuard)
   async deleteJob(@Param('id') id: string) {
-    return this.jobsService.jobDeleteById(Number(id));
+    return this.jobsService.jobDeleteById(id);
   }
 }

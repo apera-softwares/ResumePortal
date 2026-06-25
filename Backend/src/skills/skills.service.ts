@@ -50,18 +50,14 @@ export class SkillsService {
   }
 
   // get skill by id
-  async getById(id: number) {
-    const findSkills = this.prisma.skill.findUnique({
-      where: { id },
-    });
-
-    if (!findSkills) throw new NotFoundException('skill not found');
-
-    return findSkills;
+  async getById(id: string) {
+    const skill = await this.prisma.skill.findUnique({ where: { id } });
+    if (!skill) throw new NotFoundException('Skill not found');
+    return skill;
   }
 
   // delete skills
-  async deleteSkill(id: number) {
+  async deleteSkill(id: string) {
     const existing = await this.prisma.skill.findUnique({ where: { id } });
     if (!existing) {
       throw new NotFoundException(`Skill with ID ${id} not found`);
