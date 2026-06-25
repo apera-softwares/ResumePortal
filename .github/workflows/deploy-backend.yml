@@ -44,6 +44,6 @@ jobs:
           env_data: |
             {
                "DATABASE_URL": "${{ secrets.DATABASE_URL }}",
-               "PORT": "3001",
+               "PORT": "8094",
                "JWT_SECRET": "${{ secrets.JWT_SECRET }}"
             }
