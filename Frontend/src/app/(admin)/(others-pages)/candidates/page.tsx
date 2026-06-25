@@ -9,7 +9,7 @@ import toast from "react-hot-toast";
 import { Squada_One } from "next/font/google";
 
 interface Candidate {
-  id: number;
+  id: string;
   firstName: string;
   lastName: string;
   email: string;
@@ -23,9 +23,9 @@ interface Candidate {
   isPublic?: boolean;
   skills: { name: string }[];
   job?: {
-    id: number;
+    id: string;
     title: string;
-    createdById: number;
+    createdById: string;
   };
   status?: string;
 }
@@ -60,7 +60,7 @@ function CandidatesContent() {
   const [currentPage, setCurrentPage] = useState(1);
   const [editingCandidate, setEditingCandidate] = useState<Candidate | null>(null);
   const [totalCount, setTotalCount] = useState(0);
-  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const ITEMS_PER_PAGE = 8;
 
@@ -86,7 +86,7 @@ function CandidatesContent() {
 
   useEffect(() => {
     if (candidateIdParam) {
-      const cached = candidatesData.find((c) => c.id === Number(candidateIdParam));
+      const cached = candidatesData.find((c) => c.id === candidateIdParam);
       if (cached) {
         setEditingCandidate(cached);
       } else {
@@ -155,7 +155,7 @@ function CandidatesContent() {
     fetchData();
   }, [API_URL, currentPage, searchTerm, expFilter, skillFilter, role, userId]);
 
-  const executeDelete = async (candidatesID: number) => {
+  const executeDelete = async (candidatesID: string) => {
     const url = `${API_URL}/candidates/${candidatesID}`;
     try {
       const res = await fetch(url, {

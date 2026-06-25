@@ -1,3 +1,3 @@
 export class CandidateCreatedEvent {
-  constructor(public readonly candidateId: number) {}
+  constructor(public readonly candidateId: string) {}
 }

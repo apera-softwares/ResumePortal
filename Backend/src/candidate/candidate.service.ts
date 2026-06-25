@@ -1,6 +1,8 @@
 // src/candidate/candidate.service.ts
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma.service';
+import { $Enums } from '@prisma/client';
+type CandidateStatus = $Enums.CandidateStatus;
 import { CandidateDto } from 'src/Validations/candidate/create-candidate.dto';
 import { join } from 'path';
 import { extname } from 'path';
@@ -60,14 +62,24 @@ export class CandidateService {
 
     if (existingCandidate) {
       // Delete old resume file if it exists and is different from the newly uploaded one
-      if (existingCandidate.resume && existingCandidate.resume !== file.filename) {
-        const oldFilePath = join(process.cwd(), 'uploads', existingCandidate.resume);
+      if (
+        existingCandidate.resume &&
+        existingCandidate.resume !== file.filename
+      ) {
+        const oldFilePath = join(
+          process.cwd(),
+          'uploads',
+          existingCandidate.resume,
+        );
         try {
           if (fs.existsSync(oldFilePath)) {
             fs.unlinkSync(oldFilePath);
           }
         } catch (err) {
-          console.error(`Error deleting old resume file: ${existingCandidate.resume}`, err);
+          console.error(
+            `Error deleting old resume file: ${existingCandidate.resume}`,
+            err,
+          );
         }
       }
 
@@ -90,18 +102,35 @@ export class CandidateService {
               create: { name },
             })),
           },
-          jobId: (candidateData as any).jobId ? Number((candidateData as any).jobId) : undefined,
+          ...((candidateData as any).jobId
+            ? {
+                appliedJobs: {
+                  connectOrCreate: {
+                    where: {
+                      candidateId_jobId: {
+                        candidateId: existingCandidate.id,
+                        jobId: String((candidateData as any).jobId),
+                      },
+                    },
+                    create: { jobId: String((candidateData as any).jobId) },
+                  },
+                },
+              }
+            : {}),
         },
         include: {
           skills: true,
-          job: true,
+          appliedJobs: { include: { job: true } },
         },
       });
 
       console.log('Updated Candidate: ', updatedCandidate);
 
       // Emit candidate.created event for asynchronous text extraction
-      this.eventEmitter.emit('candidate.created', new CandidateCreatedEvent(updatedCandidate.id));
+      this.eventEmitter.emit(
+        'candidate.created',
+        new CandidateCreatedEvent(updatedCandidate.id),
+      );
 
       return updatedCandidate;
     }
@@ -124,18 +153,27 @@ export class CandidateService {
             create: { name },
           })),
         },
-        jobId: (candidateData as any).jobId ? Number((candidateData as any).jobId) : undefined,
+        ...((candidateData as any).jobId
+          ? {
+              appliedJobs: {
+                create: { jobId: String((candidateData as any).jobId) },
+              },
+            }
+          : {}),
       },
       include: {
         skills: true,
-        job: true,
+        appliedJobs: { include: { job: true } },
       },
     });
 
     console.log('Created Candidate: ', createdCandidate);
 
     // Emit candidate.created event for asynchronous text extraction
-    this.eventEmitter.emit('candidate.created', new CandidateCreatedEvent(createdCandidate.id));
+    this.eventEmitter.emit(
+      'candidate.created',
+      new CandidateCreatedEvent(createdCandidate.id),
+    );
 
     return createdCandidate;
   }
@@ -147,7 +185,7 @@ export class CandidateService {
     search?: string,
     skill?: string,
     experience?: string,
-    userId?: number,
+    userId?: string,
     role?: string,
     isPublic?: boolean,
   ) {
@@ -158,8 +196,10 @@ export class CandidateService {
 
     // 1. Company User filter
     if (role && role !== 'ADMIN' && userId) {
-      where.job = {
-        createdById: userId,
+      where.appliedJobs = {
+        some: {
+          job: { createdById: userId },
+        },
       };
     }
 
@@ -218,7 +258,7 @@ export class CandidateService {
         take,
         include: {
           skills: true,
-          job: true,
+          appliedJobs: { include: { job: true } },
         },
         orderBy: {
           id: 'desc',
@@ -237,18 +277,18 @@ export class CandidateService {
   }
 
   // Get candidate by ID
-  async findOne(id: number) {
+  async findOne(id: string) {
     return await this.prisma.candidate.findUnique({
       where: { id },
       include: {
         skills: true,
-        job: true,
+        appliedJobs: { include: { job: true } },
       },
     });
   }
 
   // delete candidate by id
-  async remove(id: number) {
+  async remove(id: string) {
     const candidate = await this.prisma.candidate.findUnique({
       where: { id },
     });
@@ -269,7 +309,8 @@ export class CandidateService {
     const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
 
     // Regex for phone numbers (matches standard pattern with country code, area codes, spaces, dashes, parentheses)
-    const phoneRegex = /(\(?\+?\d{1,4}\)?[-.\s]*)?\(?\d{2,5}\)?[-.\s()]*\d{3,4}[-.\s()]*\d{2,4}/g;
+    const phoneRegex =
+      /(\(?\+?\d{1,4}\)?[-.\s]*)?\(?\d{2,5}\)?[-.\s()]*\d{3,4}[-.\s()]*\d{2,4}/g;
 
     let cleaned = text.replace(emailRegex, '');
     cleaned = cleaned.replace(phoneRegex, '');
@@ -277,7 +318,7 @@ export class CandidateService {
     return cleaned;
   }
 
-  async generateCleanedDoc(id: number): Promise<any> {
+  async generateCleanedDoc(id: string): Promise<any> {
     const candidate = await this.prisma.candidate.findUnique({
       where: { id },
     });
@@ -287,7 +328,9 @@ export class CandidateService {
     }
 
     if (!candidate.resumeText) {
-      throw new NotFoundException(`Candidate with ID ${id} does not have any resume text to clean`);
+      throw new NotFoundException(
+        `Candidate with ID ${id} does not have any resume text to clean`,
+      );
     }
 
     let plainText = candidate.resumeText;
@@ -347,7 +390,7 @@ export class CandidateService {
       where: { email },
       include: {
         skills: true,
-        job: true,
+        appliedJobs: { include: { job: true } },
       },
       orderBy: {
         createdAt: 'desc',
@@ -355,24 +398,30 @@ export class CandidateService {
     });
   }
 
-  async updateStatus(id: number, status: string) {
+  async updateStatus(id: string, status: CandidateStatus) {
     const candidate = await this.prisma.candidate.findUnique({
       where: { id },
     });
     if (!candidate) {
       throw new NotFoundException(`Candidate with ID ${id} not found`);
     }
-    return await this.prisma.candidate.update({
-      where: { id },
+
+    // Update status for all applications associated with this candidate
+    await this.prisma.appliedJob.updateMany({
+      where: { candidateId: id },
       data: { status },
+    });
+
+    return await this.prisma.candidate.findUnique({
+      where: { id },
       include: {
         skills: true,
-        job: true,
+        appliedJobs: { include: { job: true } },
       },
     });
   }
 
-  async updatePublicStatus(id: number, isPublic: boolean) {
+  async updatePublicStatus(id: string, isPublic: boolean) {
     const candidate = await this.prisma.candidate.findUnique({
       where: { id },
     });
@@ -384,12 +433,16 @@ export class CandidateService {
       data: { isPublic },
       include: {
         skills: true,
-        job: true,
+        appliedJobs: { include: { job: true } },
       },
     });
   }
 
-  async uploadCleanedResume(id: number, file: Express.Multer.File, resumeText?: string): Promise<any> {
+  async uploadCleanedResume(
+    id: string,
+    file: Express.Multer.File,
+    resumeText?: string,
+  ): Promise<any> {
     if (!file) {
       throw new NotFoundException('No file uploaded');
     }
@@ -402,7 +455,9 @@ export class CandidateService {
       if (fs.existsSync(tempPath)) {
         fs.unlinkSync(tempPath);
       }
-      throw new Error('Invalid file type. Only PDF and Word documents are allowed.');
+      throw new Error(
+        'Invalid file type. Only PDF and Word documents are allowed.',
+      );
     }
 
     const candidate = await this.prisma.candidate.findUnique({
@@ -419,13 +474,20 @@ export class CandidateService {
 
     // Delete old cleaned resume file if it exists
     if (candidate.cleanedResume) {
-      const oldFilePath = join(process.cwd(), 'uploads', candidate.cleanedResume);
+      const oldFilePath = join(
+        process.cwd(),
+        'uploads',
+        candidate.cleanedResume,
+      );
       try {
         if (fs.existsSync(oldFilePath)) {
           fs.unlinkSync(oldFilePath);
         }
       } catch (err) {
-        console.error(`Error deleting old cleaned resume file: ${candidate.cleanedResume}`, err);
+        console.error(
+          `Error deleting old cleaned resume file: ${candidate.cleanedResume}`,
+          err,
+        );
       }
     }
 
@@ -449,10 +511,15 @@ export class CandidateService {
               const rawHtml = fs.readFileSync(htmlFilePath, 'utf8');
               extractedText = cleanPdftohtmlOutline(rawHtml);
               fs.unlinkSync(htmlFilePath);
-              console.log(`[Cleaned Upload] pdftohtml conversion succeeded for candidate ID: ${id}`);
+              console.log(
+                `[Cleaned Upload] pdftohtml conversion succeeded for candidate ID: ${id}`,
+              );
             }
           } catch (execError) {
-            console.error('[Cleaned Upload] pdftohtml conversion failed:', execError.message);
+            console.error(
+              '[Cleaned Upload] pdftohtml conversion failed:',
+              execError.message,
+            );
           }
         } else if (fileExtension === '.docx' || fileExtension === '.doc') {
           const outputDir = join(process.cwd(), 'uploads');
@@ -467,21 +534,32 @@ export class CandidateService {
             if (fs.existsSync(htmlFilePath)) {
               extractedText = fs.readFileSync(htmlFilePath, 'utf8');
               fs.unlinkSync(htmlFilePath);
-              console.log(`[Cleaned Upload] LibreOffice Word-to-HTML conversion succeeded for candidate ID: ${id}`);
+              console.log(
+                `[Cleaned Upload] LibreOffice Word-to-HTML conversion succeeded for candidate ID: ${id}`,
+              );
             }
           } catch (libreOfficeError) {
-            console.warn('[Cleaned Upload] LibreOffice conversion failed, falling back to Mammoth:', libreOfficeError.message);
+            console.warn(
+              '[Cleaned Upload] LibreOffice conversion failed, falling back to Mammoth:',
+              libreOfficeError.message,
+            );
             try {
               const result = await mammoth.convertToHtml({ buffer });
               extractedText = result.value || '';
             } catch (mammothError) {
-              console.error('[Cleaned Upload] Fallback Mammoth DOCX conversion failed:', mammothError);
+              console.error(
+                '[Cleaned Upload] Fallback Mammoth DOCX conversion failed:',
+                mammothError,
+              );
             }
           }
         }
       }
     } catch (error) {
-      console.error('Error extracting text from uploaded cleaned resume:', error);
+      console.error(
+        'Error extracting text from uploaded cleaned resume:',
+        error,
+      );
     }
 
     // Update candidate record
@@ -493,7 +571,7 @@ export class CandidateService {
       },
       include: {
         skills: true,
-        job: true,
+        appliedJobs: { include: { job: true } },
       },
     });
   }
@@ -505,11 +583,15 @@ export class CandidateService {
     const puppeteer = require('puppeteer');
     const browser = await puppeteer.launch({
       headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+      ],
     });
     try {
       const page = await browser.newPage();
-      
+
       const printFriendlyHtml = `
         <!DOCTYPE html>
         <html>
@@ -564,26 +646,36 @@ export class CandidateService {
   async generateDocxFromHtml(htmlContent: string): Promise<Buffer> {
     const puppeteer = require('puppeteer');
     const htmlToDocx = require('html-to-docx');
-    
+
     let cleanSemanticHtml = '';
     const browser = await puppeteer.launch({
       headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+      ],
     });
 
     try {
       const page = await browser.newPage();
-      await page.setContent(htmlContent || '<div></div>', { waitUntil: 'networkidle0' });
+      await page.setContent(htmlContent || '<div></div>', {
+        waitUntil: 'networkidle0',
+      });
 
       // Reconstruct document in visual reading order (top-to-bottom, left-to-right)
       cleanSemanticHtml = await page.evaluate(() => {
         // Find all text elements (p, div, span, etc.)
-        const elements = Array.from(document.querySelectorAll('p, div, span, h1, h2, h3, h4, h5, h6, li'));
-        
+        const elements = Array.from(
+          document.querySelectorAll('p, div, span, h1, h2, h3, h4, h5, h6, li'),
+        );
+
         // Filter out elements that don't have direct text, or are layout containers
-        const textNodes = elements.filter(el => {
-          const hasChildElement = Array.from(el.children).some(child => 
-            ['P', 'DIV', 'SPAN', 'H1', 'H2', 'H3', 'LI'].includes(child.tagName)
+        const textNodes = elements.filter((el) => {
+          const hasChildElement = Array.from(el.children).some((child) =>
+            ['P', 'DIV', 'SPAN', 'H1', 'H2', 'H3', 'LI'].includes(
+              child.tagName,
+            ),
           );
           const hasText = el.textContent && el.textContent.trim().length > 0;
           const isBase64 = el.innerHTML.includes('data:image');
@@ -591,7 +683,7 @@ export class CandidateService {
         });
 
         // Get bounding boxes of all text elements
-        const positionedItems = textNodes.map(el => {
+        const positionedItems = textNodes.map((el) => {
           const rect = el.getBoundingClientRect();
           return {
             text: el.textContent ? el.textContent.trim() : '',
@@ -605,13 +697,15 @@ export class CandidateService {
 
         // Split items into Left Column (Sidebar) and Right Column (Main)
         // Divider: 300px (to align sidebar boundary nicely)
-        const leftItems = positionedItems.filter(item => item.left < 300);
-        const rightItems = positionedItems.filter(item => item.left >= 300);
+        const leftItems = positionedItems.filter((item) => item.left < 300);
+        const rightItems = positionedItems.filter((item) => item.left >= 300);
 
         // Group left column items into lines
         const leftLines: { top: number; items: typeof leftItems }[] = [];
-        leftItems.forEach(item => {
-          let foundLine = leftLines.find(line => Math.abs(line.top - item.top) < 6);
+        leftItems.forEach((item) => {
+          const foundLine = leftLines.find(
+            (line) => Math.abs(line.top - item.top) < 6,
+          );
           if (foundLine) {
             foundLine.items.push(item);
           } else {
@@ -619,12 +713,14 @@ export class CandidateService {
           }
         });
         leftLines.sort((a, b) => a.top - b.top);
-        leftLines.forEach(line => line.items.sort((a, b) => a.left - b.left));
+        leftLines.forEach((line) => line.items.sort((a, b) => a.left - b.left));
 
         // Group right column items into lines
         const rightLines: { top: number; items: typeof rightItems }[] = [];
-        rightItems.forEach(item => {
-          let foundLine = rightLines.find(line => Math.abs(line.top - item.top) < 6);
+        rightItems.forEach((item) => {
+          const foundLine = rightLines.find(
+            (line) => Math.abs(line.top - item.top) < 6,
+          );
           if (foundLine) {
             foundLine.items.push(item);
           } else {
@@ -632,7 +728,9 @@ export class CandidateService {
           }
         });
         rightLines.sort((a, b) => a.top - b.top);
-        rightLines.forEach(line => line.items.sort((a, b) => a.left - b.left));
+        rightLines.forEach((line) =>
+          line.items.sort((a, b) => a.left - b.left),
+        );
 
         // Helper function to merge text elements on the same line and resolve pdf kerning word-splitting bugs
         const mergeLineItems = (items: typeof positionedItems) => {
@@ -642,7 +740,7 @@ export class CandidateService {
             const prev = items[i - 1];
             const curr = items[i];
             const gap = curr.left - (prev.left + prev.width);
-            
+
             // If the visual horizontal gap is larger than 4px, join with space.
             // Otherwise, merge characters directly to heal split words.
             if (gap > 4) {
@@ -656,17 +754,23 @@ export class CandidateService {
 
         // Build Left Column HTML (White text, dark background)
         let leftHtml = '';
-        leftLines.forEach(line => {
+        leftLines.forEach((line) => {
           const mergedText = mergeLineItems(line.items);
           if (!mergedText) return;
 
           const firstItem = line.items[0];
-          const isBold = firstItem.fontWeight === 'bold' || parseInt(firstItem.fontWeight) >= 600;
+          const isBold =
+            firstItem.fontWeight === 'bold' ||
+            parseInt(firstItem.fontWeight) >= 600;
           const fontSizePx = parseFloat(firstItem.fontSize);
 
           if (fontSizePx >= 18) {
             leftHtml += `<h1 style="font-size: 18pt; font-weight: bold; color: #ffffff; margin-bottom: 8pt; margin-top: 10pt; font-family: Arial;">${mergedText}</h1>\n`;
-          } else if (isBold && (fontSizePx >= 13 || (mergedText.length < 30 && !mergedText.endsWith('.')))) {
+          } else if (
+            isBold &&
+            (fontSizePx >= 13 ||
+              (mergedText.length < 30 && !mergedText.endsWith('.')))
+          ) {
             leftHtml += `<h2 style="font-size: 12pt; font-weight: bold; color: #ffffff; border-bottom: 1px solid #ffffff; margin-top: 16pt; margin-bottom: 8pt; padding-bottom: 2pt; font-family: Arial; text-transform: uppercase;">${mergedText}</h2>\n`;
           } else {
             leftHtml += `<p style="font-size: 9.5pt; color: #eeeeee; line-height: 1.35; margin-bottom: 6pt; font-family: Arial;">${mergedText}</p>\n`;
@@ -675,17 +779,27 @@ export class CandidateService {
 
         // Build Right Column HTML (Dark text, white background)
         let rightHtml = '';
-        rightLines.forEach(line => {
+        rightLines.forEach((line) => {
           const mergedText = mergeLineItems(line.items);
           if (!mergedText) return;
 
           const firstItem = line.items[0];
-          const isBold = firstItem.fontWeight === 'bold' || parseInt(firstItem.fontWeight) >= 600;
+          const isBold =
+            firstItem.fontWeight === 'bold' ||
+            parseInt(firstItem.fontWeight) >= 600;
           const fontSizePx = parseFloat(firstItem.fontSize);
 
-          if (isBold && (fontSizePx >= 13 || (mergedText.length < 50 && !mergedText.endsWith('.')))) {
+          if (
+            isBold &&
+            (fontSizePx >= 13 ||
+              (mergedText.length < 50 && !mergedText.endsWith('.')))
+          ) {
             rightHtml += `<h2 style="font-size: 13pt; font-weight: bold; color: #2b0f54; border-bottom: 1px solid #e2e8f0; margin-top: 16pt; margin-bottom: 8pt; padding-bottom: 2pt; font-family: Arial; text-transform: uppercase;">${mergedText}</h2>\n`;
-          } else if (mergedText.startsWith('•') || mergedText.startsWith('-') || mergedText.startsWith('*')) {
+          } else if (
+            mergedText.startsWith('•') ||
+            mergedText.startsWith('-') ||
+            mergedText.startsWith('*')
+          ) {
             const cleanLi = mergedText.replace(/^[•\-\*]\s*/, '');
             rightHtml += `<ul style="margin-bottom: 4pt; padding-left: 20pt; font-family: Arial;"><li style="font-size: 11pt; line-height: 1.35; color: #333333;">${cleanLi}</li></ul>\n`;
           } else {
@@ -708,10 +822,16 @@ export class CandidateService {
         `;
       });
     } catch (err) {
-      console.error('[Premium DOCX Gen] Puppeteer preprocessing failed, falling back to regex clean:', err);
+      console.error(
+        '[Premium DOCX Gen] Puppeteer preprocessing failed, falling back to regex clean:',
+        err,
+      );
       let fallback = htmlContent || '';
       fallback = fallback.replace(/<img[^>]+src="data:image\/[^>]+>/gi, '');
-      fallback = fallback.replace(/<img[^>]+alt="background image"[^>]*>/gi, '');
+      fallback = fallback.replace(
+        /<img[^>]+alt="background image"[^>]*>/gi,
+        '',
+      );
       fallback = fallback.replace(/position:\s*(absolute|relative);?/gi, '');
       fallback = fallback.replace(/top:\s*\d+(px|pt|em|%)?;?/gi, '');
       fallback = fallback.replace(/left:\s*\d+(px|pt|em|%)?;?/gi, '');
@@ -754,7 +874,11 @@ export class CandidateService {
     return Buffer.from(docxBuffer);
   }
 
-  async updateResumeFile(id: number, file?: Express.Multer.File, resumeText?: string): Promise<any> {
+  async updateResumeFile(
+    id: string,
+    file?: Express.Multer.File,
+    resumeText?: string,
+  ): Promise<any> {
     const candidate = await this.prisma.candidate.findUnique({
       where: { id },
     });
@@ -785,7 +909,9 @@ export class CandidateService {
         if (fs.existsSync(tempPath)) {
           fs.unlinkSync(tempPath);
         }
-        throw new Error('Invalid file type. Only PDF and Word documents are allowed.');
+        throw new Error(
+          'Invalid file type. Only PDF and Word documents are allowed.',
+        );
       }
 
       // Delete old resume file if it exists
@@ -796,7 +922,10 @@ export class CandidateService {
             fs.unlinkSync(oldFilePath);
           }
         } catch (err) {
-          console.error(`Error deleting old resume file: ${candidate.resume}`, err);
+          console.error(
+            `Error deleting old resume file: ${candidate.resume}`,
+            err,
+          );
         }
       }
 
@@ -821,14 +950,22 @@ export class CandidateService {
                   const rawHtml = fs.readFileSync(htmlFilePath, 'utf8');
                   extractedText = cleanPdftohtmlOutline(rawHtml);
                   fs.unlinkSync(htmlFilePath);
-                  console.log(`[Sync Extract] pdftohtml conversion succeeded for candidate ID: ${id}`);
+                  console.log(
+                    `[Sync Extract] pdftohtml conversion succeeded for candidate ID: ${id}`,
+                  );
                 }
               } catch (execError) {
-                console.error('[Sync Extract] pdftohtml conversion failed:', execError.message);
+                console.error(
+                  '[Sync Extract] pdftohtml conversion failed:',
+                  execError.message,
+                );
               }
             } else if (fileExtension === '.docx' || fileExtension === '.doc') {
               const outputDir = join(process.cwd(), 'uploads');
-              const htmlFileName = file.filename.replace(/\.(docx|doc)$/i, '.html');
+              const htmlFileName = file.filename.replace(
+                /\.(docx|doc)$/i,
+                '.html',
+              );
               const htmlFilePath = join(outputDir, htmlFileName);
 
               try {
@@ -838,15 +975,23 @@ export class CandidateService {
                 if (fs.existsSync(htmlFilePath)) {
                   extractedText = fs.readFileSync(htmlFilePath, 'utf8');
                   fs.unlinkSync(htmlFilePath);
-                  console.log(`[Sync Extract] LibreOffice Word-to-HTML conversion succeeded for candidate ID: ${id}`);
+                  console.log(
+                    `[Sync Extract] LibreOffice Word-to-HTML conversion succeeded for candidate ID: ${id}`,
+                  );
                 }
               } catch (libreOfficeError) {
-                console.warn('[Sync Extract] LibreOffice conversion failed, falling back to Mammoth:', libreOfficeError.message);
+                console.warn(
+                  '[Sync Extract] LibreOffice conversion failed, falling back to Mammoth:',
+                  libreOfficeError.message,
+                );
                 try {
                   const result = await mammoth.convertToHtml({ buffer });
                   extractedText = result.value || '';
                 } catch (mammothError) {
-                  console.error('[Sync Extract] Fallback Mammoth DOCX conversion failed:', mammothError);
+                  console.error(
+                    '[Sync Extract] Fallback Mammoth DOCX conversion failed:',
+                    mammothError,
+                  );
                 }
               }
             }
@@ -913,7 +1058,10 @@ export class CandidateService {
       try {
         const outputDir = join(process.cwd(), 'uploads');
         const pdfFileName = `resume-${id}-${Date.now()}.pdf`;
-        const tempPdfPath = join(outputDir, tempHtmlName.replace(/\.html$/i, '.pdf'));
+        const tempPdfPath = join(
+          outputDir,
+          tempHtmlName.replace(/\.html$/i, '.pdf'),
+        );
 
         const command = `libreoffice --headless --convert-to pdf --outdir "${outputDir}" "${tempHtmlPath}"`;
         execSync(command);
@@ -929,16 +1077,25 @@ export class CandidateService {
 
           // Delete old resume file if it exists
           if (candidate.resume) {
-            const oldFilePath = join(process.cwd(), 'uploads', candidate.resume);
+            const oldFilePath = join(
+              process.cwd(),
+              'uploads',
+              candidate.resume,
+            );
             try {
               if (fs.existsSync(oldFilePath)) {
                 fs.unlinkSync(oldFilePath);
               }
             } catch (err) {
-              console.error(`Error deleting old resume file: ${candidate.resume}`, err);
+              console.error(
+                `Error deleting old resume file: ${candidate.resume}`,
+                err,
+              );
             }
           }
-          console.log(`[Backend PDF Gen] PDF generated successfully for candidate ID: ${id}`);
+          console.log(
+            `[Backend PDF Gen] PDF generated successfully for candidate ID: ${id}`,
+          );
         }
       } catch (err) {
         console.error('Error generating PDF from resumeText on server:', err);
@@ -957,7 +1114,7 @@ export class CandidateService {
       },
       include: {
         skills: true,
-        job: true,
+        appliedJobs: { include: { job: true } },
       },
     });
 
@@ -968,9 +1125,17 @@ export class CandidateService {
 function cleanPdftohtmlOutline(html: string): string {
   if (!html) return html;
   // Strip <hr/> and the Document Outline section
-  let cleaned = html.replace(/<hr\s*\/?>\s*<a\s+name="outline">[\s\S]*?(<\/body>|<\/html>|$)/i, "$1");
-  cleaned = cleaned.replace(/<a\s+name="outline">[\s\S]*?(<\/body>|<\/html>|$)/i, "$1");
-  cleaned = cleaned.replace(/<h1>Document Outline<\/h1>[\s\S]*?(<\/body>|<\/html>|$)/i, "$1");
+  let cleaned = html.replace(
+    /<hr\s*\/?>\s*<a\s+name="outline">[\s\S]*?(<\/body>|<\/html>|$)/i,
+    '$1',
+  );
+  cleaned = cleaned.replace(
+    /<a\s+name="outline">[\s\S]*?(<\/body>|<\/html>|$)/i,
+    '$1',
+  );
+  cleaned = cleaned.replace(
+    /<h1>Document Outline<\/h1>[\s\S]*?(<\/body>|<\/html>|$)/i,
+    '$1',
+  );
   return cleaned;
 }
-

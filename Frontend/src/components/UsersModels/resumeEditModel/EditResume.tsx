@@ -316,7 +316,7 @@ function ExactHtmlResumeEditor({ html, title, onChange }: ExactHtmlResumeEditorP
 }
 
 interface Candidate {
-  id: number;
+  id: string;
   firstName: string;
   lastName: string;
   resume: string;
@@ -345,10 +345,10 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
   const [styleHeader, setStyleHeader] = useState<string>("");
   const [zoom, setZoom] = useState<number>(1.0);
   const [editorKey, setEditorKey] = useState<number>(0);
-  
+
   const [isPublic, setIsPublic] = useState<boolean>(candidate.isPublic || false);
   const [isTogglingPublic, setIsTogglingPublic] = useState(false);
-  
+
   const isLoadedRef = useRef(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -380,7 +380,7 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
         if (response.ok) {
           const data = await response.json();
           const sourceHtml = data.editedHtml || data.resumeText || "";
-          
+
           setStyleHeader("");
           setPreviewHtml(sourceHtml);
           setRawHtml(sourceHtml);
@@ -388,7 +388,7 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
           if (!initialMode) {
             setViewMode("preview");
           }
-          
+
           // Mark as loaded so subsequent state updates do not overwrite TipTap editor
           isLoadedRef.current = true;
         }
@@ -570,15 +570,15 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
     const tempDiv = document.createElement("div");
     tempDiv.innerHTML = htmlContent;
     const plainText = tempDiv.textContent || tempDiv.innerText || "";
-    
+
     doc.setFont("Helvetica");
     doc.setFontSize(14);
     doc.text(title, 40, 40);
-    
+
     doc.setFontSize(10);
     const splitText = doc.splitTextToSize(plainText, 515);
     let y = 70;
-    
+
     splitText.forEach((line: string) => {
       if (y > 780) {
         doc.addPage();
@@ -670,7 +670,7 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
       }
 
       const updatedCandidate = await response.json();
-      
+
       onSave?.(updatedCandidate);
 
       const parsedContent = updatedCandidate.resumeText || "";
@@ -726,7 +726,7 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
       }
 
       const updatedCandidate = await response.json();
-      
+
       onSave?.({ ...updatedCandidate, resumeText: rawHtml });
       setPreviewHtml(fullHtml);
       setViewMode("preview");
@@ -772,11 +772,10 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
               <button
                 onClick={togglePublicStatus}
                 disabled={isTogglingPublic || isSaving || isUploadingFile}
-                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-md transition-all border ${
-                  isPublic
-                    ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-900/30"
-                    : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50 dark:bg-gray-900 dark:text-gray-300 dark:border-gray-700 dark:hover:bg-gray-800"
-                } disabled:opacity-50`}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-md transition-all border ${isPublic
+                  ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-900/30"
+                  : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50 dark:bg-gray-900 dark:text-gray-300 dark:border-gray-700 dark:hover:bg-gray-800"
+                  } disabled:opacity-50`}
               >
                 {isPublic ? (
                   <>
@@ -800,22 +799,20 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
               <button
                 onClick={() => setViewMode("original")}
                 disabled={isSaving || isUploadingFile}
-                className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all disabled:opacity-50 ${
-                  viewMode === "original"
-                    ? "bg-white text-blue-600 shadow-xs dark:bg-gray-900 dark:text-blue-400"
-                    : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                }`}
+                className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all disabled:opacity-50 ${viewMode === "original"
+                  ? "bg-white text-blue-600 shadow-xs dark:bg-gray-900 dark:text-blue-400"
+                  : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                  }`}
               >
                 Original Resume
               </button>
               <button
                 onClick={() => setViewMode("preview")}
                 disabled={isSaving || isUploadingFile}
-                className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all disabled:opacity-50 ${
-                  viewMode === "preview"
-                    ? "bg-white text-blue-600 shadow-xs dark:bg-gray-900 dark:text-blue-400"
-                    : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                }`}
+                className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all disabled:opacity-50 ${viewMode === "preview"
+                  ? "bg-white text-blue-600 shadow-xs dark:bg-gray-900 dark:text-blue-400"
+                  : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                  }`}
               >
                 Exact Preview
               </button>
@@ -823,18 +820,17 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
                 <button
                   onClick={() => setViewMode("edit")}
                   disabled={isSaving || isUploadingFile}
-                  className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all disabled:opacity-50 ${
-                    viewMode === "edit"
-                      ? "bg-white text-blue-600 shadow-xs dark:bg-gray-900 dark:text-blue-400"
-                      : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                  }`}
+                  className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all disabled:opacity-50 ${viewMode === "edit"
+                    ? "bg-white text-blue-600 shadow-xs dark:bg-gray-900 dark:text-blue-400"
+                    : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                    }`}
                 >
                   Edit
                 </button>
               )}
             </div>
 
-            <button
+            {/* <button
               onClick={handleCopy}
               disabled={isSaving || isUploadingFile}
               className="px-3 py-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded-lg transition-all disabled:opacity-50"
@@ -848,7 +844,7 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
               className="px-3 py-1.5 text-xs font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-all disabled:opacity-50"
             >
               Open Original
-            </button>
+            </button> */}
 
             {!isPublicPage && (
               <>
@@ -956,9 +952,9 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
         View Resume
       </button>
 
-      <Modal 
-        isOpen={isOpen} 
-        onClose={() => !isSaving && !isUploadingFile && setIsOpen(false)} 
+      <Modal
+        isOpen={isOpen}
+        onClose={() => !isSaving && !isUploadingFile && setIsOpen(false)}
         isFullscreen={true}
         className="bg-white dark:bg-gray-900"
       >
@@ -979,11 +975,10 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
                 <button
                   onClick={togglePublicStatus}
                   disabled={isTogglingPublic || isSaving || isUploadingFile}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-md transition-all border ${
-                    isPublic
-                      ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-900/30"
-                      : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50 dark:bg-gray-900 dark:text-gray-300 dark:border-gray-700 dark:hover:bg-gray-800"
-                  } disabled:opacity-50`}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-md transition-all border ${isPublic
+                    ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-900/30"
+                    : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50 dark:bg-gray-900 dark:text-gray-300 dark:border-gray-700 dark:hover:bg-gray-800"
+                    } disabled:opacity-50`}
                 >
                   {isPublic ? (
                     <>
@@ -1007,22 +1002,20 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
                 <button
                   onClick={() => setViewMode("original")}
                   disabled={isSaving || isUploadingFile}
-                  className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all disabled:opacity-50 ${
-                    viewMode === "original"
-                      ? "bg-white text-blue-600 shadow-xs dark:bg-gray-900 dark:text-blue-400"
-                      : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                  }`}
+                  className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all disabled:opacity-50 ${viewMode === "original"
+                    ? "bg-white text-blue-600 shadow-xs dark:bg-gray-900 dark:text-blue-400"
+                    : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                    }`}
                 >
                   Original Resume
                 </button>
                 <button
                   onClick={() => setViewMode("preview")}
                   disabled={isSaving || isUploadingFile}
-                  className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all disabled:opacity-50 ${
-                    viewMode === "preview"
-                      ? "bg-white text-blue-600 shadow-xs dark:bg-gray-900 dark:text-blue-400"
-                      : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                  }`}
+                  className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all disabled:opacity-50 ${viewMode === "preview"
+                    ? "bg-white text-blue-600 shadow-xs dark:bg-gray-900 dark:text-blue-400"
+                    : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                    }`}
                 >
                   Exact Preview
                 </button>
@@ -1030,18 +1023,17 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
                   <button
                     onClick={() => setViewMode("edit")}
                     disabled={isSaving || isUploadingFile}
-                    className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all disabled:opacity-50 ${
-                      viewMode === "edit"
-                        ? "bg-white text-blue-600 shadow-xs dark:bg-gray-900 dark:text-blue-400"
-                        : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                    }`}
+                    className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all disabled:opacity-50 ${viewMode === "edit"
+                      ? "bg-white text-blue-600 shadow-xs dark:bg-gray-900 dark:text-blue-400"
+                      : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                      }`}
                   >
                     Edit
                   </button>
                 )}
               </div>
 
-              <button
+              {/* <button
                 onClick={handleCopy}
                 disabled={isSaving || isUploadingFile}
                 className="px-3 py-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded-lg transition-all disabled:opacity-50"
@@ -1055,7 +1047,7 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
                 className="px-3 py-1.5 text-xs font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-all disabled:opacity-50"
               >
                 Open Original
-              </button>
+              </button> */}
 
               {!isPublicPage && (
                 <>

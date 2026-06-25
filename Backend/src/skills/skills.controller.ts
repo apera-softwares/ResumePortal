@@ -11,6 +11,7 @@ import {
   ParseIntPipe,
   ForbiddenException,
 } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { SkillsService } from './skills.service';
 import { CreateSkillDto } from 'src/Validations/skills/create-skill.dto';
 
@@ -19,15 +20,19 @@ import { RoleGuard } from 'src/guards/role.guard';
 import { Role } from '@prisma/client';
 import { UseGuards } from '@nestjs/common';
 
+@ApiTags('Skills')
 @Controller('skills')
 export class SkillsController {
   constructor(private readonly skillsService: SkillsService) {}
 
-  // create skills
+  @Post('create')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Create a new skill (Admin only)' })
+  @ApiResponse({ status: 201, description: 'Skill created successfully' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Admins only' })
   @UseGuards(AuthGuard)
   @SetMetadata('roles', [Role.ADMIN])
   @UseGuards(RoleGuard)
-  @Post('create')
   async createSkill(@Body() dto: CreateSkillDto, @Req() req: any) {
     const userRole = req.user.role;
 
@@ -38,24 +43,28 @@ export class SkillsController {
     return this.skillsService.createSkill({ ...dto });
   }
 
-  // findAll
   @Get()
+  @ApiOperation({ summary: 'Get all skills' })
+  @ApiResponse({ status: 200, description: 'List of all skills' })
   async getAll() {
     return await this.skillsService.findAll();
   }
 
-  // get skill by id
   @Get(':id')
-  async getByID(@Param('id', ParseIntPipe) id: number) {
+  @ApiOperation({ summary: 'Get a skill by ID' })
+  @ApiResponse({ status: 200, description: 'Skill details' })
+  async getByID(@Param('id') id: string) {
     return await this.skillsService.getById(id);
   }
 
-  // delete skill by id
+  @Delete(':id')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Delete a skill by ID (Admin only)' })
+  @ApiResponse({ status: 200, description: 'Skill deleted successfully' })
   @UseGuards(AuthGuard)
   @SetMetadata('roles', [Role.ADMIN])
   @UseGuards(RoleGuard)
-  @Delete(':id')
-  async delete(@Param('id', ParseIntPipe) id: number) {
+  async delete(@Param('id') id: string) {
     return await this.skillsService.deleteSkill(id);
   }
 }

@@ -9,7 +9,7 @@ import React, { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 
 interface Candidate {
-  id: number;
+  id: string;
   firstName: string;
   lastName: string;
   email: string;
@@ -23,7 +23,7 @@ interface Candidate {
   isPublic?: boolean;
   skills: { name: string }[];
   job?: {
-    id: number;
+    id: string;
     title: string;
     location: string;
     salary: number;
@@ -101,7 +101,7 @@ function PublicCandidatesContent() {
 
   useEffect(() => {
     if (candidateIdParam) {
-      const cached = candidatesData.find((c) => c.id === Number(candidateIdParam));
+      const cached = candidatesData.find((c) => c.id === candidateIdParam);
       if (cached) {
         setViewingCandidate(cached);
       } else {

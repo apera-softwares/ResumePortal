@@ -6,7 +6,7 @@ import { Modal } from "../ui/modal";
 import ResumeUploadForm from "../ResumeUploadForm/ResumeUploadForm";
 
 interface joblist {
-  id: number;
+  id: string;
   title: string;
   client: string;
   description: string;
@@ -22,7 +22,7 @@ interface joblist {
 
 export default function PublicJoblisting() {
   const [jobList, setJobList] = useState<joblist[]>([]);
-  const [appliedJobs, setAppliedJobs] = useState<number[]>([]);
+  const [appliedJobs, setAppliedJobs] = useState<string[]>([]);
   const [searchitem, setSearchitem] = useState<string>('');
   const [searchLocation, setSearchLocation] = useState<string>('');
   const [searchType, setSearchType] = useState<string>('All');
@@ -33,7 +33,7 @@ export default function PublicJoblisting() {
   const ITEMS_PER_PAGE = 8;
 
   const { isOpen, openModal, closeModal } = useModal();
-  const [applyingJobId, setApplyingJobId] = useState<number | null>(null);
+  const [applyingJobId, setApplyingJobId] = useState<string | null>(null);
   const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
   // Load applied jobs from localStorage on mount
@@ -85,12 +85,12 @@ export default function PublicJoblisting() {
     setCurrentPage(1);
   };
 
-  const handleApply = (id: number) => {
+  const handleApply = (id: string) => {
     setApplyingJobId(id);
     openModal();
   };
 
-  const handleApplySuccess = (jobId: number) => {
+  const handleApplySuccess = (jobId: string) => {
     setAppliedJobs((prev) => [...prev, jobId]);
   };
 

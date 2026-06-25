@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import React, { useState } from "react";
 import toast from "react-hot-toast";
+import axios from "axios";
 
 export default function SignUpForm() {
   const [showPassword, setShowPassword] = useState(false);
@@ -98,8 +99,18 @@ export default function SignUpForm() {
         throw new Error(errData.message || "Registration failed");
       }
 
-      toast.success("Account created successfully! Please log in.");
-      router.push("/login");
+      // Send OTP after successful signup
+      await axios.post(`${API_URL}/otp/send`, { email: formData.email }).catch((err) => {
+        console.error("Failed to send OTP", err);
+      });
+
+      toast.success("Account created! Please verify your email.");
+      
+      // Store temp email and redirect
+      if (typeof window !== "undefined") {
+        localStorage.setItem("tempEmail", formData.email);
+      }
+      router.push(`/verify-otp?email=${encodeURIComponent(formData.email)}`);
     } catch (error: any) {
       console.error("Signup error:", error);
       toast.error(error.message || "Failed to create account.");

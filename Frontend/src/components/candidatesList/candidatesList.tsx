@@ -116,7 +116,7 @@ export default function CadidatesList() {
                     <button className="px-[1vw] py-[.8vh] rounded-2xl text-xs  bg-red-500 text-white">
                       Delete
                     </button>
-                    <EditResume candidate={{ id: 0, firstName: "", lastName: "", resume: "" }} />
+                    <EditResume candidate={{ id: "", firstName: "", lastName: "", resume: "" }} />
                   </TableCell>
                 </TableRow>
               ))}

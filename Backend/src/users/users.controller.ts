@@ -12,6 +12,7 @@ import {
   DefaultValuePipe,
   ParseIntPipe,
 } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { Role } from '@prisma/client';
 import { RoleGuard } from 'src/guards/role.guard';
@@ -20,37 +21,46 @@ import { UsersCreateDto } from 'src/Validations/users/users-create.dto';
 import { LoginDto } from 'src/Validations/users/login.dto';
 import { UsersUpdateDto } from 'src/Validations/users/users-update.dto';
 
+@ApiTags('Users')
 @Controller('users')
 export class UsersController {
   constructor(private usersService: UsersService) {}
 
-  // create user
-  //@UseGuards(AuthGuard)
- // @SetMetadata('roles', [Role.ADMIN, Role.HR])
-  //@UseGuards(RoleGuard)
   @Post('create')
+  @ApiOperation({ summary: 'Create a new user' })
+  @ApiResponse({ status: 201, description: 'User created successfully' })
+  @ApiResponse({ status: 400, description: 'Bad Request' })
   async create(@Body() createDto: UsersCreateDto) {
     return this.usersService.createUser(createDto);
   }
 
-  // create login route
   @Post('login')
+  @ApiOperation({ summary: 'Login a user' })
+  @ApiResponse({ status: 200, description: 'Login successful' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   async login(@Body() loginDto: LoginDto) {
     return this.usersService.loginUser(loginDto);
   }
 
-  // create signup route for candidate
   @Post('signup')
+  @ApiOperation({ summary: 'Sign up a new candidate' })
+  @ApiResponse({ status: 201, description: 'Candidate signed up successfully' })
+  @ApiResponse({ status: 400, description: 'Bad Request' })
   async signup(@Body() signupDto: UsersCreateDto) {
     signupDto.role = Role.CANDIDATE;
     return this.usersService.createUser(signupDto);
   }
 
-  // get all data
+  @Get()
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get all users' })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({ name: 'search', required: false, type: String })
+  @ApiResponse({ status: 200, description: 'Users retrieved successfully' })
   @UseGuards(AuthGuard)
   @SetMetadata('roles', [Role.ADMIN, Role.HR, Role.CLIENT])
   @UseGuards(RoleGuard)
-  @Get()
   async getAllUsers(
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
@@ -59,29 +69,36 @@ export class UsersController {
     return this.usersService.getAllUsers(page, limit, search);
   }
 
-  // get data by id
-
-  @UseGuards(AuthGuard)
-  @SetMetadata('roles', [Role.ADMIN, Role.HR, Role.CLIENT])
-  @UseGuards(RoleGuard)
   @Get(':id')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get a user by ID' })
+  @ApiResponse({ status: 200, description: 'User retrieved successfully' })
+  @UseGuards(AuthGuard)
+  @SetMetadata('roles', [Role.ADMIN, Role.HR, Role.CLIENT])
+  @UseGuards(RoleGuard)
   getById(@Param('id') id: string) {
-    return this.usersService.getUserById(Number(id));
+    return this.usersService.getUserById(id);
   }
 
-  @UseGuards(AuthGuard)
-  @SetMetadata('roles', [Role.ADMIN, Role.HR, Role.CLIENT])
-  @UseGuards(RoleGuard)
   @Put(':id')
-  updateUser(@Param('id') id: string, @Body() usersUpdateDto: UsersUpdateDto) {
-    return this.usersService.updateById(Number(id), usersUpdateDto);
-  }
-
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update a user by ID' })
+  @ApiResponse({ status: 200, description: 'User updated successfully' })
   @UseGuards(AuthGuard)
   @SetMetadata('roles', [Role.ADMIN, Role.HR, Role.CLIENT])
   @UseGuards(RoleGuard)
+  updateUser(@Param('id') id: string, @Body() usersUpdateDto: UsersUpdateDto) {
+    return this.usersService.updateById(id, usersUpdateDto);
+  }
+
   @Delete(':id')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Delete a user by ID' })
+  @ApiResponse({ status: 200, description: 'User deleted successfully' })
+  @UseGuards(AuthGuard)
+  @SetMetadata('roles', [Role.ADMIN, Role.HR, Role.CLIENT])
+  @UseGuards(RoleGuard)
   delete(@Param('id') id: string) {
-    return this.usersService.deleteById(Number(id));
+    return this.usersService.deleteById(id);
   }
 }

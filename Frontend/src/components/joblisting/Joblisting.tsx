@@ -12,7 +12,7 @@ import {
 import { Trash } from "lucide-react";
 
 interface Job {
-  id: number;
+  id: string;
   company?: string;
   title: string;
   description: string;
@@ -50,13 +50,13 @@ export default function Joblisting({
   const API_URL = process.env.NEXT_PUBLIC_API_URL;
   const [localJobs, setLocalJobs] = useState<Job[]>(jData || []);
   const [isGridView, setIsGridView] = useState<boolean>(false);
-  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   useEffect(() => {
     setLocalJobs(jData || []);
   }, [jData]);
 
-  const executeDelete = async (jobid: number) => {
+  const executeDelete = async (jobid: string) => {
     const token = localStorage.getItem("token");
     const idUrl = `${API_URL}/jobs/${jobid}`;
     try {
@@ -82,7 +82,7 @@ export default function Joblisting({
     }
   };
 
-  const handleDelete = (jobid: number) => {
+  const handleDelete = (jobid: string) => {
     setDeleteConfirmId(jobid);
   };
 

@@ -14,7 +14,9 @@ export class CandidateCreatedListener {
   @OnEvent('candidate.created')
   async handleCandidateCreatedEvent(event: CandidateCreatedEvent) {
     const { candidateId } = event;
-    console.log(`[Event Handler] Starting text extraction for candidate ID: ${candidateId}`);
+    console.log(
+      `[Event Handler] Starting text extraction for candidate ID: ${candidateId}`,
+    );
 
     try {
       const candidate = await this.prisma.candidate.findUnique({
@@ -22,7 +24,9 @@ export class CandidateCreatedListener {
       });
 
       if (!candidate || !candidate.resume) {
-        console.warn(`[Event Handler] Candidate or resume file not found for ID: ${candidateId}`);
+        console.warn(
+          `[Event Handler] Candidate or resume file not found for ID: ${candidateId}`,
+        );
         return;
       }
 
@@ -48,14 +52,22 @@ export class CandidateCreatedListener {
             if (fs.existsSync(htmlFilePath)) {
               resumeText = fs.readFileSync(htmlFilePath, 'utf8');
               fs.unlinkSync(htmlFilePath);
-              console.log(`[Event Handler] pdftohtml conversion succeeded for candidate ID: ${candidateId}`);
+              console.log(
+                `[Event Handler] pdftohtml conversion succeeded for candidate ID: ${candidateId}`,
+              );
             }
           } catch (execError) {
-            console.error('[Event Handler] pdftohtml conversion failed:', execError.message);
+            console.error(
+              '[Event Handler] pdftohtml conversion failed:',
+              execError.message,
+            );
           }
         } else if (fileExtension === '.docx' || fileExtension === '.doc') {
           const outputDir = join(process.cwd(), 'uploads');
-          const htmlFileName = uniqueFileName.replace(/\.(docx|doc)$/i, '.html');
+          const htmlFileName = uniqueFileName.replace(
+            /\.(docx|doc)$/i,
+            '.html',
+          );
           const htmlFilePath = join(outputDir, htmlFileName);
 
           try {
@@ -66,15 +78,23 @@ export class CandidateCreatedListener {
             if (fs.existsSync(htmlFilePath)) {
               resumeText = fs.readFileSync(htmlFilePath, 'utf8');
               fs.unlinkSync(htmlFilePath);
-              console.log(`[Event Handler] LibreOffice Word-to-HTML conversion succeeded for candidate ID: ${candidateId}`);
+              console.log(
+                `[Event Handler] LibreOffice Word-to-HTML conversion succeeded for candidate ID: ${candidateId}`,
+              );
             }
           } catch (libreOfficeError) {
-            console.warn('[Event Handler] LibreOffice conversion failed, falling back to Mammoth:', libreOfficeError.message);
+            console.warn(
+              '[Event Handler] LibreOffice conversion failed, falling back to Mammoth:',
+              libreOfficeError.message,
+            );
             try {
               const result = await mammoth.convertToHtml({ buffer });
               resumeText = result.value || '';
             } catch (mammothError) {
-              console.error('[Event Handler] Fallback Mammoth DOCX conversion failed:', mammothError);
+              console.error(
+                '[Event Handler] Fallback Mammoth DOCX conversion failed:',
+                mammothError,
+              );
             }
           }
         }
@@ -85,12 +105,19 @@ export class CandidateCreatedListener {
           data: { resumeText },
         });
 
-        console.log(`[Event Handler] Text extraction completed successfully for candidate ID: ${candidateId}`);
+        console.log(
+          `[Event Handler] Text extraction completed successfully for candidate ID: ${candidateId}`,
+        );
       } else {
-        console.error(`[Event Handler] Resume file does not exist on disk: ${filePath}`);
+        console.error(
+          `[Event Handler] Resume file does not exist on disk: ${filePath}`,
+        );
       }
     } catch (error) {
-      console.error(`[Event Handler] Error during candidate event handling:`, error);
+      console.error(
+        `[Event Handler] Error during candidate event handling:`,
+        error,
+      );
     }
   }
 }
