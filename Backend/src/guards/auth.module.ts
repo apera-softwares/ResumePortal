@@ -9,10 +9,10 @@ import { RoleGuard } from 'src/guards/role.guard';
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        secret: config.get<string>('JWT_SECRET'), 
-        signOptions: { expiresIn: '1m' },
+        secret: config.get<string>('JWT_SECRET'),
+        signOptions: { expiresIn: '7d' },
       }),
-      global: true, 
+      global: true,
     }),
   ],
   providers: [AuthGuard, RoleGuard],
