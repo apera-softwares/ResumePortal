@@ -333,7 +333,7 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
 
   const API_URL =
     process.env.NEXT_PUBLIC_API_URL ||
-    (typeof window !== "undefined" ? `http://${window.location.hostname}:3001` : "http://localhost:3001");
+    (typeof window !== "undefined" ? `http://${window.location.hostname}:8094` : "http://localhost:8094");
 
   // Fetch initial content from backend on open (Load ONCE only)
   useEffect(() => {

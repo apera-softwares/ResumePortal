@@ -27,7 +27,7 @@ interface Candidate {
 }
 
 export default function Candidates() {
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || (typeof window !== "undefined" ? `http://${window.location.hostname}:3001` : "http://localhost:3001");
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || (typeof window !== "undefined" ? `http://${window.location.hostname}:8094` : "http://localhost:8094");
   const [role, setRole] = useState<string | null>(null);
   const [userId, setUserId] = useState<number | null>(null);
   const [candidatesData, setCandidatesData] = useState<Candidate[]>([]);

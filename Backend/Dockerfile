@@ -69,9 +69,9 @@ RUN mkdir -p uploads
 # Define default environment variables
 ENV DATABASE_URL=""
 ENV JWT_SECRET=""
-ENV PORT=3001
+ENV PORT=8094
 
-EXPOSE 3001
+EXPOSE 8094
 
 # Run the NestJS application in production mode
 CMD [ "npm", "run", "start:prod" ]

@@ -6,10 +6,10 @@ services:
     container_name: resumebuilder-backend-latest
     restart: unless-stopped
     ports:
-      - "3001:3001"
+      - "8094:8094"
     environment:
       DATABASE_URL: "${DATABASE_URL}"
-      PORT: "3001"
+      PORT: "8094"
       JWT_SECRET: "${JWT_SECRET}"
     volumes:
       - resumebuilder-uploads:/usr/src/app/uploads
