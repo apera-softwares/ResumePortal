@@ -8,6 +8,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import React, { useState } from "react";
 import toast from "react-hot-toast";
+import axios from "axios";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || (typeof window !== "undefined" ? `http://${window.location.hostname}:3003` : "http://localhost:3003");
 
@@ -16,7 +17,7 @@ export default function LogInForm() {
   const [isChecked, setIsChecked] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
-  
+
   const [errors, setErrors] = useState({
     email: "",
     password: "",
@@ -80,13 +81,17 @@ export default function LogInForm() {
         throw new Error(data.message || "Invalid credentials. Please try again.");
       }
 
-      toast.success("Logged in successfully!");
-      localStorage.setItem("token", data.data.token);
-      localStorage.setItem("role", data.data.role);
-      localStorage.setItem("name", data.data.name);
-      localStorage.setItem("userId", String(data.data.id));
+      toast.success("Login successful! Redirecting to dashboard...");
+
+      if (typeof window !== "undefined") {
+        localStorage.setItem("isAuthenticated", "true");
+        localStorage.setItem("token", data.data.token);
+        localStorage.setItem("role", data.data.role);
+        localStorage.setItem("name", data.data.name);
+        localStorage.setItem("userId", String(data.data.id));
+      }
+
       router.push("/dashboard");
-      return data;
     } catch (error: any) {
       console.error("Error during login:", error);
       toast.error(error.message || "Failed to log in. Please check your network.");

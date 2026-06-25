@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 
 
-export default function ResumeUploadForm({closeModal, jobId, onApplySuccess} : {closeModal: () => void; jobId?: number | null; onApplySuccess?: (jobId: number) => void} ) {
+export default function ResumeUploadForm({closeModal, jobId, onApplySuccess} : {closeModal: () => void; jobId?: string | null; onApplySuccess?: (jobId: string) => void} ) {
    const API_URL = process.env.NEXT_PUBLIC_API_URL || (typeof window !== "undefined" ? `http://${window.location.hostname}:3003` : "http://localhost:3003");
   const [candidData, setcanditData] = useState<any[]>([]);
      const [selectedOption, setSelectedOption] = useState<any[]>([]);
@@ -130,6 +130,11 @@ export default function ResumeUploadForm({closeModal, jobId, onApplySuccess} : {
     
     if (jobId) {
       bodyData.append("jobId", String(jobId));
+    }
+    
+    const userId = localStorage.getItem("userId");
+    if (userId) {
+      bodyData.append("userId", userId);
     }
      console.log("bodyData",bodyData)
     try {

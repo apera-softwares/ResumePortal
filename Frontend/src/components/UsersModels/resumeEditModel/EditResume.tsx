@@ -316,7 +316,7 @@ function ExactHtmlResumeEditor({ html, title, onChange }: ExactHtmlResumeEditorP
 }
 
 interface Candidate {
-  id: number;
+  id: string;
   firstName: string;
   lastName: string;
   resume: string;
@@ -834,21 +834,7 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
               )}
             </div>
 
-            <button
-              onClick={handleCopy}
-              disabled={isSaving || isUploadingFile}
-              className="px-3 py-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded-lg transition-all disabled:opacity-50"
-            >
-              Copy Text
-            </button>
 
-            <button
-              onClick={handleOpenPdf}
-              disabled={isSaving || isUploadingFile}
-              className="px-3 py-1.5 text-xs font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-all disabled:opacity-50"
-            >
-              Open Original
-            </button>
 
             {!isPublicPage && (
               <>
@@ -1041,21 +1027,7 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
                 )}
               </div>
 
-              <button
-                onClick={handleCopy}
-                disabled={isSaving || isUploadingFile}
-                className="px-3 py-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded-lg transition-all disabled:opacity-50"
-              >
-                Copy Text
-              </button>
 
-              <button
-                onClick={handleOpenPdf}
-                disabled={isSaving || isUploadingFile}
-                className="px-3 py-1.5 text-xs font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-all disabled:opacity-50"
-              >
-                Open Original
-              </button>
 
               {!isPublicPage && (
                 <>

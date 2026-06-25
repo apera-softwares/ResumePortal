@@ -19,7 +19,7 @@
   // ];
 
   interface Job {
-    id: number;
+    id: string;
     company: string;
     title: string;
     description: string;

@@ -6,7 +6,7 @@ import toast from 'react-hot-toast'
 const addskills = () => {
   const API_URL = process.env.NEXT_PUBLIC_API_URL;
   const [skill, setSkill] = useState('');
-  const [skills, setSkills] = useState<{ id: number; name: string }[]>([]);
+  const [skills, setSkills] = useState<{ id: string; name: string }[]>([]);
   const [filteredSkills, setFilteredSkills] = useState(skills);
 
   useEffect(() => {
@@ -67,7 +67,7 @@ const addskills = () => {
     }
   }
 
-  const executeDelete = async (skillID: number) => {
+  const executeDelete = async (skillID: string) => {
     const token = localStorage.getItem("token");
     const url = `${API_URL}/skills/${skillID}`;
     try {
@@ -88,7 +88,7 @@ const addskills = () => {
     }
   };
 
-  const handleDelete = (skillID: number) => {
+  const handleDelete = (skillID: string) => {
     toast((t) => (
       <div className="flex flex-col gap-3 p-1">
         <p className="text-sm font-medium text-gray-900">

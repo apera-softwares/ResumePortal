@@ -9,7 +9,7 @@ import toast from "react-hot-toast";
 import { Trash, SquarePen } from "lucide-react";
 
 interface User {
-  id: number;
+  id: string;
   name: string;
   email: string;
   role: string;
@@ -42,7 +42,7 @@ export default function UsersTable({ callApi }: { callApi: boolean }) {
   const ITEMS_PER_PAGE = 8;
 
   // Delete modal state
-  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const fetchData = async () => {
     const token = localStorage.getItem("token");
@@ -68,7 +68,7 @@ export default function UsersTable({ callApi }: { callApi: boolean }) {
     }
   };
 
-  const executeDelete = async (userId: number) => {
+  const executeDelete = async (userId: string) => {
     const token = localStorage.getItem("token");
     const idUrl = `${API_URL}/users/${userId}`;
     try {
