@@ -7,34 +7,90 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum Role {
+  ADMIN
+  HR
+  CLIENT
+  CANDIDATE
+}
+
+enum JobType {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  INTERN
+  FREELANCING
+}
+
+enum JobStatus {
+  DRAFT
+  OPEN
+  CLOSED
+  ARCHIVED
+}
+
+enum CandidateStatus {
+  APPLIED
+  SCREENING
+  SHORTLISTED
+  INTERVIEWING
+  OFFERED
+  HIRED
+  REJECTED
+}
+
 model User {
-  id       Int    @id @default(autoincrement())
-  name     String
-  email    String @unique
-  password String
-  role     Role
-  jobs     Job[]
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      Role
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  jobs       Job[]
+  candidates Candidate[]
+}
+
+model Client {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  website     String?
+  logoUrl     String?
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  jobs        Job[]
+}
+
+model Location {
+  id   String @id @default(uuid())
+  name String @unique
+  jobs Job[]
 }
 
 model Job {
-  id             Int         @id @default(autoincrement())
+  id             String          @id @default(uuid())
   title          String
   description    String
-  client         String?
-  skills         String[]
   salary         Float
   internalSalary Float?
-  location       Location
+  locationId     String?
   type           JobType
-  createdById    Int
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
-  candidates     Candidate[]
-  createdBy      User        @relation(fields: [createdById], references: [id])
+  status         JobStatus       @default(OPEN)
+  clientId       String?
+  createdById    String
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  appliedJobs    AppliedJob[]
+  client         Client?         @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  createdBy      User            @relation(fields: [createdById], references: [id])
+  location       Location?       @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  skills         Skill[]         @relation("JobSkills")
 }
 
 model Candidate {
-  id                Int             @id @default(autoincrement())
+  id                String          @id @default(uuid())
   firstName         String
   lastName          String
   email             String          @unique
@@ -47,26 +103,41 @@ model Candidate {
   updatedAt         DateTime        @updatedAt
   resumeText        String?
   cleanedResume     String?
-  jobId             Int?
-  status            String          @default("Applied")
   resumeJson        String?
   editedHtml        String?
   parsedHtml        String?
   isPublic          Boolean         @default(false)
-  job               Job?            @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  userId            String?
+  user              User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
+  appliedJobs       AppliedJob[]
   ResumeVersion     ResumeVersion[]
   skills            Skill[]         @relation("CandidateSkills")
 }
 
+model AppliedJob {
+  id          String          @id @default(uuid())
+  candidateId String
+  jobId       String
+  status      CandidateStatus @default(APPLIED)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  candidate   Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  job         Job       @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@unique([candidateId, jobId])
+}
+
 model Skill {
-  id         Int         @id @default(autoincrement())
+  id         String      @id @default(uuid())
   name       String      @unique
   candidates Candidate[] @relation("CandidateSkills")
+  jobs       Job[]       @relation("JobSkills")
 }
 
 model ResumeVersion {
-  id          Int       @id @default(autoincrement())
-  candidateId Int
+  id          String    @id @default(uuid())
+  candidateId String
   htmlContent String
   jsonContent String?
   version     Int
@@ -74,27 +145,10 @@ model ResumeVersion {
   Candidate   Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
 }
 
-enum Location {
-  REMOTE
-  MUMBAI
-  DELHI
-  BANGALORE
-  HYDERABAD
-  CHENNAI
-  PUNE
-}
-
-enum JobType {
-  FULL_TIME
-  PART_TIME
-  CONTRACT
-  INTERN
-  FREELANCING
-}
-
-enum Role {
-  ADMIN
-  HR
-  CLIENT
-  CANDIDATE
+model OtpVerification {
+  id        String   @id @default(uuid())
+  email     String
+  otp       String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
 }
