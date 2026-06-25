@@ -73,5 +73,5 @@ ENV PORT=8094
 
 EXPOSE 8094
 
-# Run the NestJS application in production mode
-CMD [ "npm", "run", "start:prod" ]
+# Run prisma migrations and start the NestJS application in production mode
+CMD sh -c "npx prisma migrate deploy && npm run start:prod"
