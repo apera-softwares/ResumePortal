@@ -11,8 +11,8 @@ export class MailService {
       port: Number(process.env.SMTP_PORT) || 587,
       secure: false, // true for 465, false for other ports
       auth: {
-        user: "trushant@aperasoftwares.com",
-        pass: "sodh ymik wknf hmdo",
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASSWORD,
       },
     });
   }
