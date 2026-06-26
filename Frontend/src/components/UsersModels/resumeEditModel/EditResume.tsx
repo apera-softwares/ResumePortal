@@ -331,7 +331,7 @@ interface EditResumeProps {
   onSave?: (updatedCandidate: Candidate & Record<string, unknown>) => void;
   isInline?: boolean;
   onClose?: () => void;
-  initialMode?: "preview" | "edit" | "original";
+  initialMode?: "preview" | "edit" | "review" | "original";
   isPublicPage?: boolean;
 }
 
@@ -341,7 +341,10 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
   const [isUploadingFile, setIsUploadingFile] = useState(false);
   const [rawHtml, setRawHtml] = useState<string>("");
   const [previewHtml, setPreviewHtml] = useState<string>("");
-  const [viewMode, setViewMode] = useState<"preview" | "edit" | "original">(initialMode || "preview");
+  const [originalParsedHtml, setOriginalParsedHtml] = useState<string>("");
+  const [viewMode, setViewMode] = useState<"preview" | "edit" | "review">(
+    initialMode === "edit" ? "edit" : (initialMode === "original" || initialMode === "review" ? "review" : "preview")
+  );
   const [styleHeader, setStyleHeader] = useState<string>("");
   const [zoom, setZoom] = useState<number>(1.0);
   const [editorKey, setEditorKey] = useState<number>(0);
@@ -355,12 +358,14 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
 
   const API_URL =
     process.env.NEXT_PUBLIC_API_URL ||
-    (typeof window !== "undefined" ? `http://${window.location.hostname}:8094` : "http://localhost:8094");
+    (typeof window !== "undefined" ? `http://${window.location.hostname}:3003` : "http://localhost:3003");
 
   // Sync viewMode with initialMode when routing parameters change
   useEffect(() => {
     if (initialMode) {
-      setViewMode(initialMode);
+      setViewMode(
+        initialMode === "edit" ? "edit" : (initialMode === "original" || initialMode === "review" ? "review" : "preview")
+      );
     }
   }, [initialMode]);
 
@@ -384,9 +389,10 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
           setStyleHeader("");
           setPreviewHtml(sourceHtml);
           setRawHtml(sourceHtml);
+          setOriginalParsedHtml(data.resumeText || "");
           setIsPublic(data.isPublic || false);
           if (!initialMode) {
-            setViewMode("preview");
+            setViewMode(isPublicPage ? "preview" : "edit");
           }
 
           // Mark as loaded so subsequent state updates do not overwrite TipTap editor
@@ -436,59 +442,12 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
   };
 
   const renderResumeSurface = () => {
-    if (viewMode === "original") {
-      if (candidate.resume) {
-        const fileUrl = `${API_URL}/uploads/${candidate.resume}`;
-        const isPdf = candidate.resume.toLowerCase().endsWith(".pdf");
-        if (isPdf) {
-          return (
-            <div className="h-full overflow-hidden rounded-2xl border border-gray-200 bg-gray-100 shadow-inner dark:border-gray-800 dark:bg-gray-950">
-              <iframe
-                src={fileUrl}
-                title={`${candidate.firstName} ${candidate.lastName} original PDF`}
-                className="h-full w-full bg-gray-400 border-none"
-              />
-            </div>
-          );
-        } else {
-          return (
-            <div className="h-full flex items-center justify-center bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-8">
-              <div className="text-center max-w-md">
-                <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                </svg>
-                <h3 className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">Original Document</h3>
-                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                  This document ({candidate.resume.split("-").pop() || "resume"}) cannot be embedded directly in the browser because it is not a PDF.
-                </p>
-                <div className="mt-6">
-                  {isPublicPage ? (
-                    <span className="inline-flex items-center px-4 py-2 border border-gray-200 dark:border-gray-700 text-sm font-medium rounded-xl text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-gray-900 cursor-not-allowed">
-                      Download Disabled
-                    </span>
-                  ) : (
-                    <a
-                      href={fileUrl}
-                      download
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center px-4 py-2 border border-transparent shadow-xs text-sm font-medium rounded-xl text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                    >
-                      Download original document
-                    </a>
-                  )}
-                </div>
-              </div>
-            </div>
-          );
-        }
-      } else {
-        return (
-          <div className="h-full flex items-center justify-center bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-8">
-            <p className="text-sm text-gray-500 dark:text-gray-400">No original resume file found.</p>
-          </div>
-        );
-      }
+    if (viewMode === "review") {
+      return (
+        <div className="h-full overflow-hidden rounded-2xl border border-gray-200 bg-gray-100 shadow-inner dark:border-gray-800 dark:bg-gray-950">
+          {renderOriginalResumeContent()}
+        </div>
+      );
     }
 
     if (viewMode === "preview") {
@@ -508,6 +467,7 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
     if (rawHtml) {
       return (
         <ExactHtmlResumeEditor
+          key={`${candidate.id}-${editorKey}`}
           html={rawHtml}
           title={`${candidate.firstName} ${candidate.lastName} resume editor`}
           onChange={handleEditorChange}
@@ -524,6 +484,55 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
         zoom={zoom}
         onZoomChange={setZoom}
       />
+    );
+  };
+
+  const renderOriginalResumeContent = () => {
+    if (originalParsedHtml) {
+      return (
+        <iframe
+          srcDoc={buildIframeDocument(originalParsedHtml)}
+          className="w-full h-full border-none bg-gray-400"
+          title="Original Resume HTML"
+          sandbox="allow-same-origin"
+        />
+      );
+    }
+
+    const resumeUrl = candidate.resume ? `${API_URL}/uploads/${candidate.resume}` : null;
+    const isPdf = candidate.resume?.toLowerCase().endsWith(".pdf");
+
+    if (isPdf && resumeUrl) {
+      return (
+        <iframe
+          src={`${resumeUrl}#toolbar=0&navpanes=0`}
+          className="w-full h-full border-none bg-gray-400"
+          title="Original Resume PDF"
+        />
+      );
+    }
+
+    if (!isPdf && !originalParsedHtml) {
+      return (
+        <div className="w-full h-full flex items-center justify-center p-8 bg-gray-50 dark:bg-gray-900">
+          <div className="flex flex-col items-center gap-3">
+            <svg className="animate-spin h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+            </svg>
+            <span className="text-sm font-semibold text-gray-500">Loading original resume...</span>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="w-full h-full flex flex-col items-center justify-center gap-3 p-8 bg-gray-50 dark:bg-gray-900 text-gray-500 dark:text-gray-400">
+        <svg className="w-12 h-12 text-gray-300 dark:text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+        <span className="text-sm font-semibold">No original resume file or text available.</span>
+      </div>
     );
   };
 
@@ -592,7 +601,8 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
   };
 
   const handleExportPdf = async () => {
-    if (!rawHtml) return;
+    const htmlToExport = viewMode === "review" ? (originalParsedHtml || rawHtml) : (previewHtml || rawHtml);
+    if (!htmlToExport) return;
     const exportToast = toast.loading("Exporting premium PDF...");
     try {
       const response = await fetch(`${API_URL}/candidates/export-pdf`, {
@@ -600,7 +610,7 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ html: rawHtml }),
+        body: JSON.stringify({ html: htmlToExport }),
       });
 
       if (!response.ok) {
@@ -671,6 +681,7 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
 
       const updatedCandidate = await response.json();
 
+      setIsPublic(updatedCandidate.isPublic || false);
       onSave?.(updatedCandidate);
 
       const parsedContent = updatedCandidate.resumeText || "";
@@ -680,6 +691,7 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
 
         setPreviewHtml(parsedContent);
         setRawHtml(parsedContent);
+        setOriginalParsedHtml(parsedContent);
         setViewMode("preview");
         setEditorKey(prev => prev + 1); // Reset CanvasResumeEditor state and force remount with new parsed HTML
         toast.success("Resume updated and parsed successfully!", { id: uploadToast });
@@ -759,16 +771,18 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
             </button>
             <div>
               <h4 className="text-xl font-bold text-gray-900 dark:text-white">
-                Resume Visual Editor
+                {initialMode === "edit" ? "Resume Visual Editor" : "View Resume"}
               </h4>
               <p className="text-xs text-gray-500 mt-1">
-                Edit and format resume layout for {candidate.firstName} {candidate.lastName}
+                {initialMode === "edit" 
+                  ? `Edit and format resume layout for ${candidate.firstName} ${candidate.lastName}` 
+                  : `View resume layout for ${candidate.firstName} ${candidate.lastName}`}
               </p>
             </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            {!isPublicPage && (
+            {!isPublicPage && initialMode === "edit" && (
               <button
                 onClick={togglePublicStatus}
                 disabled={isTogglingPublic || isSaving || isUploadingFile}
@@ -795,58 +809,46 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
               </button>
             )}
 
-            <div className="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-800">
-              <button
-                onClick={() => setViewMode("original")}
-                disabled={isSaving || isUploadingFile}
-                className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all disabled:opacity-50 ${viewMode === "original"
-                  ? "bg-white text-blue-600 shadow-xs dark:bg-gray-900 dark:text-blue-400"
-                  : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                  }`}
-              >
-                Original Resume
-              </button>
-              <button
-                onClick={() => setViewMode("preview")}
-                disabled={isSaving || isUploadingFile}
-                className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all disabled:opacity-50 ${viewMode === "preview"
-                  ? "bg-white text-blue-600 shadow-xs dark:bg-gray-900 dark:text-blue-400"
-                  : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                  }`}
-              >
-                Exact Preview
-              </button>
-              {!isPublicPage && (
+            {initialMode === "edit" && (
+              <div className="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-800">
                 <button
-                  onClick={() => setViewMode("edit")}
+                  onClick={() => setViewMode("review")}
                   disabled={isSaving || isUploadingFile}
-                  className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all disabled:opacity-50 ${viewMode === "edit"
+                  className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all disabled:opacity-50 ${viewMode === "review"
                     ? "bg-white text-blue-600 shadow-xs dark:bg-gray-900 dark:text-blue-400"
                     : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
                     }`}
                 >
-                  Edit
+                  Preview
                 </button>
-              )}
-            </div>
+                {isPublicPage && (
+                  <button
+                    onClick={() => setViewMode("preview")}
+                    disabled={isSaving || isUploadingFile}
+                    className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all disabled:opacity-50 ${viewMode === "preview"
+                      ? "bg-white text-blue-600 shadow-xs dark:bg-gray-900 dark:text-blue-400"
+                      : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                      }`}
+                  >
+                    View
+                  </button>
+                )}
+                {!isPublicPage && (
+                  <button
+                    onClick={() => setViewMode("edit")}
+                    disabled={isSaving || isUploadingFile}
+                    className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all disabled:opacity-50 ${viewMode === "edit"
+                      ? "bg-white text-blue-600 shadow-xs dark:bg-gray-900 dark:text-blue-400"
+                      : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                      }`}
+                  >
+                    Edit
+                  </button>
+                )}
+              </div>
+            )}
 
-            {/* <button
-              onClick={handleCopy}
-              disabled={isSaving || isUploadingFile}
-              className="px-3 py-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded-lg transition-all disabled:opacity-50"
-            >
-              Copy Text
-            </button>
-
-            <button
-              onClick={handleOpenPdf}
-              disabled={isSaving || isUploadingFile}
-              className="px-3 py-1.5 text-xs font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-all disabled:opacity-50"
-            >
-              Open Original
-            </button> */}
-
-            {!isPublicPage && (
+            {!isPublicPage && initialMode === "edit" && (
               <>
                 {/* Premium Update File Button */}
                 <button
@@ -881,15 +883,17 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
                 >
                   Export Word
                 </button>
-
-                <button
-                  onClick={handleExportPdf}
-                  disabled={isSaving || isUploadingFile}
-                  className="px-3 py-1.5 text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition-all disabled:opacity-50"
-                >
-                  Export PDF
-                </button>
               </>
+            )}
+
+            {initialMode === "edit" && (
+              <button
+                onClick={handleExportPdf}
+                disabled={isSaving || isUploadingFile}
+                className="px-3 py-1.5 text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-955/40 rounded-lg transition-all disabled:opacity-50"
+              >
+                Export PDF
+              </button>
             )}
           </div>
         </div>
@@ -905,7 +909,7 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
           </div>
 
           <div className="flex justify-end gap-3">
-            {isPublicPage ? (
+            {isPublicPage || initialMode !== "edit" ? (
               <button
                 onClick={onClose}
                 className="px-6 py-2.5 text-sm font-semibold bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-200 rounded-xl transition-all shadow-sm active:scale-95"
@@ -963,15 +967,17 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
           <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 border-b border-gray-150 dark:border-gray-800 pb-4">
             <div>
               <h4 className="text-xl font-bold text-gray-900 dark:text-white">
-                Resume Visual Editor
+                {initialMode === "edit" ? "Resume Visual Editor" : "View Resume"}
               </h4>
               <p className="text-xs text-gray-500 mt-1">
-                Edit and format resume layout for {candidate.firstName} {candidate.lastName}
+                {initialMode === "edit" 
+                  ? `Edit and format resume layout for ${candidate.firstName} ${candidate.lastName}` 
+                  : `View resume layout for ${candidate.firstName} ${candidate.lastName}`}
               </p>
             </div>
 
             <div className="flex flex-wrap items-center gap-2 pr-12 sm:pr-16">
-              {!isPublicPage && (
+              {!isPublicPage && initialMode === "edit" && (
                 <button
                   onClick={togglePublicStatus}
                   disabled={isTogglingPublic || isSaving || isUploadingFile}
@@ -998,58 +1004,46 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
                 </button>
               )}
 
-              <div className="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-800">
-                <button
-                  onClick={() => setViewMode("original")}
-                  disabled={isSaving || isUploadingFile}
-                  className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all disabled:opacity-50 ${viewMode === "original"
-                    ? "bg-white text-blue-600 shadow-xs dark:bg-gray-900 dark:text-blue-400"
-                    : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                    }`}
-                >
-                  Original Resume
-                </button>
-                <button
-                  onClick={() => setViewMode("preview")}
-                  disabled={isSaving || isUploadingFile}
-                  className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all disabled:opacity-50 ${viewMode === "preview"
-                    ? "bg-white text-blue-600 shadow-xs dark:bg-gray-900 dark:text-blue-400"
-                    : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                    }`}
-                >
-                  Exact Preview
-                </button>
-                {!isPublicPage && (
+              {initialMode === "edit" && (
+                <div className="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-800">
                   <button
-                    onClick={() => setViewMode("edit")}
+                    onClick={() => setViewMode("review")}
                     disabled={isSaving || isUploadingFile}
-                    className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all disabled:opacity-50 ${viewMode === "edit"
+                    className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all disabled:opacity-50 ${viewMode === "review"
                       ? "bg-white text-blue-600 shadow-xs dark:bg-gray-900 dark:text-blue-400"
                       : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
                       }`}
                   >
-                    Edit
+                    Preview
                   </button>
-                )}
-              </div>
+                  {isPublicPage && (
+                    <button
+                      onClick={() => setViewMode("preview")}
+                      disabled={isSaving || isUploadingFile}
+                      className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all disabled:opacity-50 ${viewMode === "preview"
+                        ? "bg-white text-blue-600 shadow-xs dark:bg-gray-900 dark:text-blue-400"
+                        : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                        }`}
+                    >
+                      View
+                    </button>
+                  )}
+                  {!isPublicPage && (
+                    <button
+                      onClick={() => setViewMode("edit")}
+                      disabled={isSaving || isUploadingFile}
+                      className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all disabled:opacity-50 ${viewMode === "edit"
+                        ? "bg-white text-blue-600 shadow-xs dark:bg-gray-900 dark:text-blue-400"
+                        : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                        }`}
+                    >
+                      Edit
+                    </button>
+                  )}
+                </div>
+              )}
 
-              {/* <button
-                onClick={handleCopy}
-                disabled={isSaving || isUploadingFile}
-                className="px-3 py-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded-lg transition-all disabled:opacity-50"
-              >
-                Copy Text
-              </button>
-
-              <button
-                onClick={handleOpenPdf}
-                disabled={isSaving || isUploadingFile}
-                className="px-3 py-1.5 text-xs font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-all disabled:opacity-50"
-              >
-                Open Original
-              </button> */}
-
-              {!isPublicPage && (
+              {!isPublicPage && initialMode === "edit" && (
                 <>
                   {/* Premium Update File Button */}
                   <button
@@ -1080,19 +1074,21 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
                   <button
                     onClick={handleExportWord}
                     disabled={isSaving || isUploadingFile}
-                    className="px-3 py-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 rounded-lg transition-all disabled:opacity-50"
+                    className="px-3 py-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-955/40 rounded-lg transition-all disabled:opacity-50"
                   >
                     Export Word
                   </button>
-
-                  <button
-                    onClick={handleExportPdf}
-                    disabled={isSaving || isUploadingFile}
-                    className="px-3 py-1.5 text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition-all disabled:opacity-50"
-                  >
-                    Export PDF
-                  </button>
                 </>
+              )}
+
+              {initialMode === "edit" && (
+                <button
+                  onClick={handleExportPdf}
+                  disabled={isSaving || isUploadingFile}
+                  className="px-3 py-1.5 text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-955/40 rounded-lg transition-all disabled:opacity-50"
+                >
+                  Export PDF
+                </button>
               )}
             </div>
           </div>
@@ -1109,7 +1105,7 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
             </div>
 
             <div className="flex justify-end gap-3">
-              {isPublicPage ? (
+              {isPublicPage || initialMode !== "edit" ? (
                 <button
                   onClick={() => setIsOpen(false)}
                   className="px-6 py-2.5 text-sm font-semibold bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-200 rounded-xl transition-all shadow-sm active:scale-95"

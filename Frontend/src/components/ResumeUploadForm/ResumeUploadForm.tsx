@@ -6,31 +6,31 @@ import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 
 
-export default function ResumeUploadForm({closeModal, jobId, onApplySuccess} : {closeModal: () => void; jobId?: string | null; onApplySuccess?: (jobId: string) => void} ) {
-   const API_URL = process.env.NEXT_PUBLIC_API_URL || (typeof window !== "undefined" ? `http://${window.location.hostname}:3003` : "http://localhost:3003");
+export default function ResumeUploadForm({ closeModal, jobId, onApplySuccess }: { closeModal: () => void; jobId?: string | null; onApplySuccess?: (jobId: string) => void }) {
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || (typeof window !== "undefined" ? `http://${window.location.hostname}:3003` : "http://localhost:3003");
   const [candidData, setcanditData] = useState<any[]>([]);
-     const [selectedOption, setSelectedOption] = useState<any[]>([]);
-     const [isDark, setIsDark] = useState(false);
+  const [selectedOption, setSelectedOption] = useState<any[]>([]);
+  const [isDark, setIsDark] = useState(false);
 
-     useEffect(() => {
-       if (typeof window !== "undefined") {
-         setIsDark(document.documentElement.classList.contains("dark"));
-         
-         const observer = new MutationObserver(() => {
-           setIsDark(document.documentElement.classList.contains("dark"));
-         });
-         observer.observe(document.documentElement, {
-           attributes: true,
-           attributeFilter: ["class"],
-         });
-         return () => observer.disconnect();
-       }
-     }, []);
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setIsDark(document.documentElement.classList.contains("dark"));
 
-         const handleSkillsChange = (selected: any) => {
-      const values = selected ? selected.map((opt: any) => opt.value) : [];
-      setFormData((prev) => ({ ...prev, skills: values }));
-    };
+      const observer = new MutationObserver(() => {
+        setIsDark(document.documentElement.classList.contains("dark"));
+      });
+      observer.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ["class"],
+      });
+      return () => observer.disconnect();
+    }
+  }, []);
+
+  const handleSkillsChange = (selected: any) => {
+    const values = selected ? selected.map((opt: any) => opt.value) : [];
+    setFormData((prev) => ({ ...prev, skills: values }));
+  };
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -52,7 +52,7 @@ export default function ResumeUploadForm({closeModal, jobId, onApplySuccess} : {
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = e.target;
-    
+
     if (name === "mobile") {
       const numericValue = value.replace(/\D/g, "");
       if (numericValue.length > 10) return;
@@ -113,30 +113,30 @@ export default function ResumeUploadForm({closeModal, jobId, onApplySuccess} : {
   const handlSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!validate()) return;
-    
+
     const token = localStorage.getItem("token");
 
     const bodyData = new FormData();
-   Object.entries(formData).forEach(([key, value]) => {
-  if (value !== null) {
-    // If the field is "resume", backend expects it as "file"
-    if (key === "resume") {
-      bodyData.append("file", value );
-    } else {
-      bodyData.append(key, value as any);
-    }
-  }
-});
-    
+    Object.entries(formData).forEach(([key, value]) => {
+      if (value !== null) {
+        // If the field is "resume", backend expects it as "file"
+        if (key === "resume") {
+          bodyData.append("file", value);
+        } else {
+          bodyData.append(key, value as any);
+        }
+      }
+    });
+
     if (jobId) {
       bodyData.append("jobId", String(jobId));
     }
-    
+
     const userId = localStorage.getItem("userId");
     if (userId) {
       bodyData.append("userId", userId);
     }
-     console.log("bodyData",bodyData)
+    console.log("bodyData", bodyData)
     try {
       const response = await fetch(`${API_URL}/candidates/uploadMedia`, {
         method: "POST",
@@ -145,13 +145,13 @@ export default function ResumeUploadForm({closeModal, jobId, onApplySuccess} : {
         },
         body: bodyData,
       });
-           console.log(bodyData,"im bodydata ")
+      console.log(bodyData, "im bodydata ")
       if (!response.ok) throw new Error("Something went wrong");
 
       const createdCandidate = await response.json();
       setcanditData((prev) => [...(prev || []), createdCandidate]);
 
-     
+
       setFormData({
 
         firstName: "",
@@ -166,7 +166,7 @@ export default function ResumeUploadForm({closeModal, jobId, onApplySuccess} : {
       });
 
       toast.success("Resume uploaded successfully!");
-      
+
       // Save email and applied job ID to localStorage to track status and persist applied state
       if (formData.email) {
         localStorage.setItem("candidateEmail", formData.email);
@@ -189,23 +189,23 @@ export default function ResumeUploadForm({closeModal, jobId, onApplySuccess} : {
     }
   };
 
-      const [skills ,setSkills]=useState([])
-        useEffect(()=>{
-          const fetchSkills =async()=>{
-            try{
-              const res=await fetch(`${API_URL}/skills`,{
-                    method:"GET",
-                    headers:{"Content-Type": "application/json"}
-                  });
-                  if(!res.ok)throw new Error("somethig went wrong");
-                  const Data= await res.json();
-                  setSkills(Data);
-            }catch(error){
-              console.error("error while getting skills")
-            }
-          }
+  const [skills, setSkills] = useState([])
+  useEffect(() => {
+    const fetchSkills = async () => {
+      try {
+        const res = await fetch(`${API_URL}/skills`, {
+          method: "GET",
+          headers: { "Content-Type": "application/json" }
+        });
+        if (!res.ok) throw new Error("somethig went wrong");
+        const Data = await res.json();
+        setSkills(Data);
+      } catch (error) {
+        console.error("error while getting skills")
+      }
+    }
     fetchSkills()
-        },[])
+  }, [])
 
   const customSelectStyles = {
     control: (provided: any, state: any) => {
@@ -215,8 +215,8 @@ export default function ResumeUploadForm({closeModal, jobId, onApplySuccess} : {
         borderColor: state.isFocused
           ? '#3b82f6' // blue-500
           : isDark
-          ? '#374151' // gray-700
-          : '#e5e7eb', // gray-200
+            ? '#374151' // gray-700
+            : '#e5e7eb', // gray-200
         borderRadius: '0.75rem', // rounded-xl
         padding: '2px 4px',
         fontSize: '0.875rem', // text-sm
@@ -270,15 +270,15 @@ export default function ResumeUploadForm({closeModal, jobId, onApplySuccess} : {
         backgroundColor: state.isSelected
           ? '#3b82f6'
           : state.isFocused
-          ? isDark
-            ? '#1f2937' // gray-800
-            : '#f3f4f6' // gray-100
-          : 'transparent',
+            ? isDark
+              ? '#1f2937' // gray-800
+              : '#f3f4f6' // gray-100
+            : 'transparent',
         color: state.isSelected
           ? '#ffffff'
           : isDark
-          ? '#f9fafb' // gray-50
-          : '#111827', // gray-900
+            ? '#f9fafb' // gray-50
+            : '#111827', // gray-900
         padding: '8px 12px',
         borderRadius: '0.5rem',
         fontSize: '0.875rem',
@@ -340,100 +340,100 @@ export default function ResumeUploadForm({closeModal, jobId, onApplySuccess} : {
 
       <form className="flex flex-col justify-start" onSubmit={handlSubmit}>
         <div className="custom-scrollbar max-h-[60vh] md:max-h-[70vh] overflow-y-auto px-2 pb-3">
-            <div className="mt-7">
-              <h5 className="mb-5 text-lg font-medium text-gray-800 dark:text-white/90 lg:mb-6">
-                Candidate Information
-              </h5>
+          <div className="mt-7">
+            <h5 className="mb-5 text-lg font-medium text-gray-800 dark:text-white/90 lg:mb-6">
+              Candidate Information
+            </h5>
 
-              <div className="grid grid-cols-1 gap-x-6 gap-y-5 lg:grid-cols-2">
-                <div className="col-span-2 lg:col-span-1">
-                  <Label>First Name</Label>
-                  <Input
-                    type="text"
-                    name="firstName"
-                    placeholder="Enter first name"
-                    value={formData.firstName}
-                    onChange={handleChange}
-                  />
-                </div>
+            <div className="grid grid-cols-1 gap-x-6 gap-y-5 lg:grid-cols-2">
+              <div className="col-span-2 lg:col-span-1">
+                <Label>First Name</Label>
+                <Input
+                  type="text"
+                  name="firstName"
+                  placeholder="Enter first name"
+                  value={formData.firstName}
+                  onChange={handleChange}
+                />
+              </div>
 
-                <div className="col-span-2 lg:col-span-1">
-                  <Label>Last Name</Label>
-                  <Input
-                    type="text"
-                    name="lastName"
-                    placeholder="Enter last name"
-                    value={formData.lastName}
-                    onChange={handleChange}
-                  />
-                </div>
+              <div className="col-span-2 lg:col-span-1">
+                <Label>Last Name</Label>
+                <Input
+                  type="text"
+                  name="lastName"
+                  placeholder="Enter last name"
+                  value={formData.lastName}
+                  onChange={handleChange}
+                />
+              </div>
 
-                <div className="col-span-2 lg:col-span-1">
-                  <Label>Email</Label>
-                  <Input
-                    type="email"
-                    name="email"
-                    placeholder="Enter email"
-                    value={formData.email}
-                    onChange={handleChange}
-                  />
-                  {errors.email && (
-                    <p className="text-xs text-rose-500 mt-1.5 font-medium">{errors.email}</p>
-                  )}
-                </div>
+              <div className="col-span-2 lg:col-span-1">
+                <Label>Email</Label>
+                <Input
+                  type="email"
+                  name="email"
+                  placeholder="Enter email"
+                  value={formData.email}
+                  onChange={handleChange}
+                />
+                {errors.email && (
+                  <p className="text-xs text-rose-500 mt-1.5 font-medium">{errors.email}</p>
+                )}
+              </div>
 
-                <div className="col-span-2 lg:col-span-1">
-                  <Label>Mobile</Label>
-                  <Input
-                    type="text"
-                    name="mobile"
-                    placeholder="Enter mobile number"
-                    value={formData.mobile}
-                    onChange={handleChange}
-                  />
-                  {errors.mobile && (
-                    <p className="text-xs text-rose-500 mt-1.5 font-medium">{errors.mobile}</p>
-                  )}
-                </div>
+              <div className="col-span-2 lg:col-span-1">
+                <Label>Mobile</Label>
+                <Input
+                  type="text"
+                  name="mobile"
+                  placeholder="Enter mobile number"
+                  value={formData.mobile}
+                  onChange={handleChange}
+                />
+                {errors.mobile && (
+                  <p className="text-xs text-rose-500 mt-1.5 font-medium">{errors.mobile}</p>
+                )}
+              </div>
 
-                <div className="col-span-2 lg:col-span-1">
-                  <Label>Yrs Of Exp</Label>
-                  <Input
-                    type="number"
-                    name="yearsOfExperience"
-                    placeholder="e.g. 5"
-                    value={formData.yearsOfExperience}
-                    onChange={handleChange}
-                  />
-                </div>
+              <div className="col-span-2 lg:col-span-1">
+                <Label>Yrs Of Exp</Label>
+                <Input
+                  type="number"
+                  name="yearsOfExperience"
+                  placeholder="e.g. 5"
+                  value={formData.yearsOfExperience}
+                  onChange={handleChange}
+                />
+              </div>
 
-                <div className="col-span-2 lg:col-span-1">
-                  <Label>Notice Period</Label>
-                  <Input
-                    type="number"
-                    name="noticePeriod"
-                    placeholder="e.g. 30"
-                    value={formData.noticePeriod}
-                    onChange={handleChange}
-                  />
-                </div>
+              <div className="col-span-2 lg:col-span-1">
+                <Label>Notice Period</Label>
+                <Input
+                  type="number"
+                  name="noticePeriod"
+                  placeholder="e.g. 30"
+                  value={formData.noticePeriod}
+                  onChange={handleChange}
+                />
+              </div>
 
-                <div className="col-span-2">
-                  <Label>Education</Label>
-                  <Input
-                    type="text"
-                    name="education"
-                    placeholder="e.g. B.Tech in Computer Science"
-                    value={formData.education}
-                    onChange={handleChange}
-                  />
-                </div>
+              <div className="col-span-2">
+                <Label>Education</Label>
+                <Input
+                  type="text"
+                  name="education"
+                  placeholder="e.g. B.Tech in Computer Science"
+                  value={formData.education}
+                  onChange={handleChange}
+                />
+              </div>
 
-                <div className="col-span-2">
-                  <Label>Skills</Label>
-                 <Select
+              <div className="col-span-2">
+                <Label>Skills</Label>
+                <Select
                   name="skills"
-                  defaultValue={selectedOption|| undefined}
+                  defaultValue={selectedOption || undefined}
                   onChange={handleSkillsChange}
                   options={skills.map((skill: any) => ({
                     value: skill.name,
@@ -442,30 +442,30 @@ export default function ResumeUploadForm({closeModal, jobId, onApplySuccess} : {
                   isMulti
                   styles={customSelectStyles}
                 />
-                </div>
+              </div>
 
-                <div className="col-span-2">
-                  <Label>Upload Resume (PDF/DOC)</Label>
-                  <Input
-                    type="file"
-                    name="resume"
-                    accept=".pdf,.doc,.docx"
-                    onChange={handleFileChange}
-                  />
-                </div>
+              <div className="col-span-2">
+                <Label>Upload Resume (PDF/DOC)</Label>
+                <Input
+                  type="file"
+                  name="resume"
+                  accept=".pdf,.doc,.docx"
+                  onChange={handleFileChange}
+                />
               </div>
             </div>
           </div>
+        </div>
 
-          <div className="flex items-center gap-3 px-2 mt-6 lg:justify-end">
-            <button
-              type="submit"
-              className="px-6 py-2.5 text-sm font-semibold bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white rounded-xl shadow-md shadow-blue-500/10 hover:shadow-lg hover:shadow-blue-500/20 active:scale-[0.98] transition-all duration-200"
-            >
-              Save & Upload
-            </button>
-          </div>
-        </form>
+        <div className="flex items-center gap-3 px-2 mt-6 lg:justify-end">
+          <button
+            type="submit"
+            className="px-6 py-2.5 text-sm font-semibold bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white rounded-xl shadow-md shadow-blue-500/10 hover:shadow-lg hover:shadow-blue-500/20 active:scale-[0.98] transition-all duration-200"
+          >
+            Save & Upload
+          </button>
+        </div>
+      </form>
     </div>
   );
 }

@@ -2,6 +2,7 @@
 import { Outfit } from 'next/font/google';
 import './globals.css';
 import { Providers } from './providers';
+import Script from 'next/script';
 
 const outfit = Outfit({
   subsets: ["latin"],
@@ -16,6 +17,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={`${outfit.className}`} suppressHydrationWarning>
           <Providers>{children}</Providers>
+          <Script src="https://accounts.google.com/gsi/client" strategy="lazyOnload" />
       </body>
     </html>
   );
