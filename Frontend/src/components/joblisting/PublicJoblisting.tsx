@@ -39,7 +39,7 @@ export default function PublicJoblisting() {
   // Load applied jobs from localStorage on mount
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const storedApplied = localStorage.getItem("appliedJobIds");
+      const storedApplied = sessionStorage.getItem("appliedJobIds");
       if (storedApplied) {
         try {
           setAppliedJobs(JSON.parse(storedApplied));

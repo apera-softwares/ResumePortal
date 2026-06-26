@@ -6,7 +6,7 @@ import Button from "@/components/ui/button/Button";
 import { ChevronLeftIcon, EyeCloseIcon, EyeIcon } from "@/icons";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import axios from "axios";
 
@@ -58,6 +58,69 @@ export default function LogInForm() {
     return isValid;
   };
 
+  useEffect(() => {
+    const initializeGoogleSignIn = () => {
+      if (typeof window !== "undefined" && (window as any).google) {
+        const google = (window as any).google;
+        google.accounts.id.initialize({
+          client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "1234567890-example.apps.googleusercontent.com",
+          callback: handleGoogleCredentialResponse,
+        });
+        google.accounts.id.renderButton(
+          document.getElementById("google-signin-btn"),
+          { theme: "outline", size: "large", width: 382 }
+        );
+      }
+    };
+
+    const interval = setInterval(() => {
+      if ((window as any).google) {
+        initializeGoogleSignIn();
+        clearInterval(interval);
+      }
+    }, 500);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleGoogleCredentialResponse = async (response: any) => {
+    setIsLoading(true);
+    const idToken = response.credential;
+    const loginUrl = `${API_URL}/users/google-login`;
+
+    try {
+      const res = await fetch(loginUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ idToken }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message || "Google authentication failed. Please try again.");
+      }
+
+      toast.success("Google login successful! Redirecting to dashboard...");
+
+      if (typeof window !== "undefined") {
+        localStorage.setItem("role", data.data.role);
+        localStorage.setItem("name", data.data.name);
+        localStorage.setItem("email", data.data.email);
+        localStorage.setItem("userId", String(data.data.id));
+      }
+
+      router.push("/dashboard");
+    } catch (error: any) {
+      console.error("Error during Google OAuth login:", error);
+      toast.error(error.message || "Failed to log in with Google.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!validate()) return;
@@ -83,10 +146,9 @@ export default function LogInForm() {
       toast.success("Login successful! Redirecting to dashboard...");
 
       if (typeof window !== "undefined") {
-        localStorage.setItem("isAuthenticated", "true");
-        localStorage.setItem("token", data.data.token);
         localStorage.setItem("role", data.data.role);
         localStorage.setItem("name", data.data.name);
+        localStorage.setItem("email", data.data.email);
         localStorage.setItem("userId", String(data.data.id));
       }
 
@@ -185,6 +247,14 @@ export default function LogInForm() {
                   <Button className="w-full rounded-xl" size="sm" type="submit" disabled={isLoading}>
                     {isLoading ? "Logging in..." : "Log in"}
                   </Button>
+                </div>
+                <div className="flex items-center my-4">
+                  <div className="flex-grow border-t border-gray-200 dark:border-gray-800"></div>
+                  <span className="flex-shrink mx-4 text-xs text-gray-400 dark:text-gray-500 font-medium uppercase tracking-wider">Or</span>
+                  <div className="flex-grow border-t border-gray-200 dark:border-gray-800"></div>
+                </div>
+                <div className="flex justify-center">
+                  <div id="google-signin-btn" className="w-full max-w-[382px] min-h-[44px]"></div>
                 </div>
                 <div className="text-center pt-2">
                   <p className="text-sm text-gray-500 dark:text-gray-400">

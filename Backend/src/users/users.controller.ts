@@ -11,6 +11,7 @@ import {
   Query,
   DefaultValuePipe,
   ParseIntPipe,
+  Res,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { UsersService } from './users.service';
@@ -20,6 +21,7 @@ import { AuthGuard } from 'src/guards/auth.guard';
 import { UsersCreateDto } from 'src/Validations/users/users-create.dto';
 import { LoginDto } from 'src/Validations/users/login.dto';
 import { UsersUpdateDto } from 'src/Validations/users/users-update.dto';
+import { GoogleLoginDto } from 'src/Validations/users/google-login.dto';
 
 @ApiTags('Users')
 @Controller('users')
@@ -38,8 +40,51 @@ export class UsersController {
   @ApiOperation({ summary: 'Login a user' })
   @ApiResponse({ status: 200, description: 'Login successful' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async login(@Body() loginDto: LoginDto) {
-    return this.usersService.loginUser(loginDto);
+  async login(
+    @Body() loginDto: LoginDto,
+    @Res({ passthrough: true }) response: any,
+  ) {
+    const result = await this.usersService.loginUser(loginDto);
+    response.cookie('token', result.data.token, {
+      httpOnly: true,
+      secure: false,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+    return result;
+  }
+
+  @Post('google-login')
+  @ApiOperation({ summary: 'Login or signup a user using Google OAuth' })
+  @ApiResponse({ status: 200, description: 'Login successful' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async googleLogin(
+    @Body() googleLoginDto: GoogleLoginDto,
+    @Res({ passthrough: true }) response: any,
+  ) {
+    const result = await this.usersService.googleLogin(googleLoginDto.idToken);
+    response.cookie('token', result.data.token, {
+      httpOnly: true,
+      secure: false,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+    return result;
+  }
+
+  @Post('logout')
+  @ApiOperation({ summary: 'Logout a user and clear the session cookie' })
+  @ApiResponse({ status: 200, description: 'Logout successful' })
+  async logout(@Res({ passthrough: true }) response: any) {
+    response.clearCookie('token', {
+      httpOnly: true,
+      secure: false,
+      sameSite: 'lax',
+      path: '/',
+    });
+    return { message: 'Logout successful', statusCode: 200 };
   }
 
   @Post('signup')

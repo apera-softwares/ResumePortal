@@ -32,7 +32,7 @@ export class JobsService {
       ...job,
       client: job.client?.name ?? null,
       location: job.location?.name ?? null,
-      skills: (job.skills as { name: string }[]).map((s) => s.name),
+      skills: (job.skills || []).map((s: any) => s.skill?.name || s.name || ''),
     };
   }
 
@@ -65,9 +65,13 @@ export class JobsService {
           ...(skills?.length
             ? {
                 skills: {
-                  connectOrCreate: skills.map((name) => ({
-                    where: { name },
-                    create: { name },
+                  create: skills.map((name) => ({
+                    skill: {
+                      connectOrCreate: {
+                        where: { name },
+                        create: { name },
+                      },
+                    },
                   })),
                 },
               }
@@ -75,7 +79,7 @@ export class JobsService {
         },
         include: {
           client: true,
-          skills: true,
+          skills: { include: { skill: true } },
           location: true,
         },
       });
@@ -132,7 +136,7 @@ export class JobsService {
         take,
         include: {
           client: true,
-          skills: true,
+          skills: { include: { skill: true } },
           location: true,
           createdBy: { select: { id: true, name: true, role: true } },
         },
@@ -159,7 +163,7 @@ export class JobsService {
       where: { id },
       include: {
         client: true,
-        skills: true,
+        skills: { include: { skill: true } },
         location: true,
         createdBy: true,
       },
@@ -195,10 +199,14 @@ export class JobsService {
         ...(skills
           ? {
               skills: {
-                set: [], // detach all existing
-                connectOrCreate: skills.map((name) => ({
-                  where: { name },
-                  create: { name },
+                deleteMany: {}, // detach all existing JobSkill records
+                create: skills.map((name) => ({
+                  skill: {
+                    connectOrCreate: {
+                      where: { name },
+                      create: { name },
+                    },
+                  },
                 })),
               },
             }
@@ -206,7 +214,7 @@ export class JobsService {
       },
       include: {
         client: true,
-        skills: true,
+        skills: { include: { skill: true } },
         location: true,
       },
     });
