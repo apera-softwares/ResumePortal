@@ -96,10 +96,14 @@ export class CandidateService {
           resume: file.filename,
           resumeText: '', // reset and parse asynchronously via event
           skills: {
-            set: [], // clear existing skills associations
-            connectOrCreate: skillsArray.map((name) => ({
-              where: { name },
-              create: { name },
+            deleteMany: {}, // clear existing skills associations
+            create: skillsArray.map((name) => ({
+              skill: {
+                connectOrCreate: {
+                  where: { name },
+                  create: { name },
+                },
+              },
             })),
           },
           ...((candidateData as any).jobId
@@ -119,7 +123,7 @@ export class CandidateService {
             : {}),
         },
         include: {
-          skills: true,
+          skills: { include: { skill: true } },
           appliedJobs: { include: { job: true } },
         },
       });
@@ -132,7 +136,7 @@ export class CandidateService {
         new CandidateCreatedEvent(updatedCandidate.id),
       );
 
-      return updatedCandidate;
+      return this.mapCandidate(updatedCandidate);
     }
 
     // Create a new candidate record in the database
@@ -148,9 +152,13 @@ export class CandidateService {
         resume: file.filename,
         resumeText: '', // initially empty, parsed in event handler
         skills: {
-          connectOrCreate: skillsArray.map((name) => ({
-            where: { name },
-            create: { name },
+          create: skillsArray.map((name) => ({
+            skill: {
+              connectOrCreate: {
+                where: { name },
+                create: { name },
+              },
+            },
           })),
         },
         ...((candidateData as any).jobId
@@ -162,7 +170,7 @@ export class CandidateService {
           : {}),
       },
       include: {
-        skills: true,
+        skills: { include: { skill: true } },
         appliedJobs: { include: { job: true } },
       },
     });
@@ -175,7 +183,7 @@ export class CandidateService {
       new CandidateCreatedEvent(createdCandidate.id),
     );
 
-    return createdCandidate;
+    return this.mapCandidate(createdCandidate);
   }
 
   // get all candidate
@@ -207,9 +215,11 @@ export class CandidateService {
     if (skill) {
       where.skills = {
         some: {
-          name: {
-            equals: skill,
-            mode: 'insensitive',
+          skill: {
+            name: {
+              equals: skill,
+              mode: 'insensitive',
+            },
           },
         },
       };
@@ -241,7 +251,9 @@ export class CandidateService {
         {
           skills: {
             some: {
-              name: { contains: term, mode: 'insensitive' },
+              skill: {
+                name: { contains: term, mode: 'insensitive' },
+              },
             },
           },
         },
@@ -257,7 +269,7 @@ export class CandidateService {
         skip,
         take,
         include: {
-          skills: true,
+          skills: { include: { skill: true } },
           appliedJobs: { include: { job: true } },
         },
         orderBy: {
@@ -268,7 +280,7 @@ export class CandidateService {
     ]);
 
     return {
-      data: candidates,
+      data: candidates.map((c) => this.mapCandidate(c)),
       total,
       page: page || 1,
       limit: limit || total,
@@ -278,13 +290,14 @@ export class CandidateService {
 
   // Get candidate by ID
   async findOne(id: string) {
-    return await this.prisma.candidate.findUnique({
+    const candidate = await this.prisma.candidate.findUnique({
       where: { id },
       include: {
-        skills: true,
+        skills: { include: { skill: true } },
         appliedJobs: { include: { job: true } },
       },
     });
+    return this.mapCandidate(candidate);
   }
 
   // delete candidate by id
@@ -300,6 +313,17 @@ export class CandidateService {
     return await this.prisma.candidate.delete({
       where: { id },
     });
+  }
+
+  private mapCandidate(candidate: any) {
+    if (!candidate) return null;
+    return {
+      ...candidate,
+      skills: (candidate.skills || []).map((cs: any) => ({
+        id: cs.skill?.id || cs.skillId,
+        name: cs.skill?.name || cs.name || '',
+      })),
+    };
   }
 
   private cleanContactDetails(text: string): string {
@@ -377,25 +401,26 @@ export class CandidateService {
         cleanedResume: fileName,
       },
       include: {
-        skills: true,
+        skills: { include: { skill: true } },
       },
     });
 
-    return updatedCandidate;
+    return this.mapCandidate(updatedCandidate);
   }
 
   async findByEmail(email: string) {
     if (!email) return [];
-    return await this.prisma.candidate.findMany({
+    const candidates = await this.prisma.candidate.findMany({
       where: { email },
       include: {
-        skills: true,
+        skills: { include: { skill: true } },
         appliedJobs: { include: { job: true } },
       },
       orderBy: {
         createdAt: 'desc',
       },
     });
+    return candidates.map((c) => this.mapCandidate(c));
   }
 
   async updateStatus(id: string, status: CandidateStatus) {
@@ -412,13 +437,14 @@ export class CandidateService {
       data: { status },
     });
 
-    return await this.prisma.candidate.findUnique({
+    const updated = await this.prisma.candidate.findUnique({
       where: { id },
       include: {
-        skills: true,
+        skills: { include: { skill: true } },
         appliedJobs: { include: { job: true } },
       },
     });
+    return this.mapCandidate(updated);
   }
 
   async updatePublicStatus(id: string, isPublic: boolean) {
@@ -428,14 +454,15 @@ export class CandidateService {
     if (!candidate) {
       throw new NotFoundException(`Candidate with ID ${id} not found`);
     }
-    return await this.prisma.candidate.update({
+    const updated = await this.prisma.candidate.update({
       where: { id },
       data: { isPublic },
       include: {
-        skills: true,
+        skills: { include: { skill: true } },
         appliedJobs: { include: { job: true } },
       },
     });
+    return this.mapCandidate(updated);
   }
 
   async uploadCleanedResume(
@@ -563,17 +590,18 @@ export class CandidateService {
     }
 
     // Update candidate record
-    return await this.prisma.candidate.update({
+    const updated = await this.prisma.candidate.update({
       where: { id },
       data: {
         cleanedResume: file.filename,
         resumeText: extractedText || resumeText || undefined,
       },
       include: {
-        skills: true,
+        skills: { include: { skill: true } },
         appliedJobs: { include: { job: true } },
       },
     });
+    return this.mapCandidate(updated);
   }
 
   /**
@@ -592,48 +620,174 @@ export class CandidateService {
     try {
       const page = await browser.newPage();
 
-      const printFriendlyHtml = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="utf-8">
-          <style>
-            @page {
-              size: A4;
-              margin: 15mm;
-            }
-            body {
-              font-family: Arial, Helvetica, sans-serif;
-              line-height: 1.4;
-              color: #2c3e50;
-              background-color: #ffffff;
-            }
-            p { margin: 0 0 8px 0; }
-            h1, h2, h3, h4, h5, h6 { 
-              color: #2c3e50; 
-              margin-top: 15px; 
-              margin-bottom: 8px;
-              font-weight: bold;
-            }
-            h1 { font-size: 24px; text-align: center; border-bottom: 2px solid #2c3e50; padding-bottom: 5px; }
-            h2 { font-size: 18px; border-bottom: 1.5px solid #bdc3c7; padding-bottom: 3px; }
-            table { width: 100%; border-collapse: collapse; margin: 10px 0; }
-            td { padding: 4px; vertical-align: top; }
-            ul, ol { margin: 5px 0; padding-left: 20px; }
-            li { margin-bottom: 4px; }
-          </style>
-        </head>
-        <body>
-          ${htmlContent}
-        </body>
-        </html>
-      `;
+      const isFullHtml = /<!DOCTYPE html|<html/i.test(htmlContent);
+      const isAbsolute = /position:\s*absolute/i.test(htmlContent);
 
-      await page.setContent(printFriendlyHtml, { waitUntil: 'networkidle0' });
-      const pdfBuffer = await page.pdf({
-        format: 'A4',
+      let finalHtml = htmlContent;
+      let pdfOptions: any = {
         printBackground: true,
-      });
+      };
+
+      let pageWidth = 'A4';
+      let pageHeight = '';
+      let isCustomSize = false;
+
+      if (isFullHtml) {
+        if (isAbsolute) {
+          let pageDivMatch = htmlContent.match(/id="page\d+-div"[^>]+style="([^"]+)"/i);
+          if (!pageDivMatch) {
+            pageDivMatch = htmlContent.match(/<div[^>]+style="([^"]*position:\s*relative[^"]*)"/i);
+          }
+          if (pageDivMatch) {
+            const styleAttr = pageDivMatch[1];
+            const wMatch = styleAttr.match(/width:\s*(\d+)px/i);
+            const hMatch = styleAttr.match(/height:\s*(\d+)px/i);
+            if (wMatch && hMatch) {
+              const wVal = parseInt(wMatch[1], 10);
+              const hVal = parseInt(hMatch[1], 10);
+              if (wVal > 300 && hVal > 300) {
+                pageWidth = `${wVal}px`;
+                pageHeight = `${hVal}px`;
+                isCustomSize = true;
+              }
+            }
+          }
+        }
+
+        // 1. Move all style blocks to head
+        const styles: string[] = [];
+        finalHtml = finalHtml.replace(/<style[^>]*>([\s\S]*?)<\/style>/gi, (match) => {
+          styles.push(match);
+          return '';
+        });
+
+        // 2. Inject print style overrides
+        if (isAbsolute) {
+          styles.push(`
+            <style>
+              @page {
+                size: ${isCustomSize ? `${pageWidth} ${pageHeight}` : 'A4'};
+                margin: 0 !important;
+              }
+              html, body {
+                margin: 0 !important;
+                padding: 0 !important;
+                border: 0 !important;
+                overflow: hidden !important;
+                background: white !important;
+                background-color: white !important;
+              }
+              body {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+              }
+              div[id$="-div"], div[id^="page"] {
+                margin: 0 !important;
+                padding: 0 !important;
+                box-shadow: none !important;
+                border: none !important;
+                background: white !important;
+                overflow: hidden !important;
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+              }
+              div[id$="-div"]:last-child, div[id^="page"]:last-child {
+                page-break-after: avoid !important;
+                break-after: avoid !important;
+              }
+            </style>
+          `);
+        }
+
+        const stylesString = styles.join('\n');
+        if (finalHtml.includes('</head>')) {
+          finalHtml = finalHtml.replace(/<\/head>/i, `${stylesString}</head>`);
+        } else if (finalHtml.includes('<head>')) {
+          finalHtml = finalHtml.replace(/<head>/i, `<head>${stylesString}`);
+        } else {
+          finalHtml = `<head>${stylesString}</head>${finalHtml}`;
+        }
+
+        // 3. Clean body content (remove empty spacers and trim)
+        finalHtml = finalHtml.replace(/<body([^>]*)>([\s\S]*?)<\/body>/i, (match, bodyAttrs, bodyContent) => {
+          let cleanedContent = bodyContent.trim();
+          cleanedContent = cleanedContent.replace(/<!-- Page \d+ -->/g, '');
+          cleanedContent = cleanedContent.replace(/<a name="\d+"><\/a>/g, '');
+          cleanedContent = cleanedContent.trim();
+          // Remove any whitespace between page divs to prevent spacing nodes
+          cleanedContent = cleanedContent.replace(/<\/div>\s+<div/g, '</div><div');
+          return `<body${bodyAttrs}>${cleanedContent}</body>`;
+        });
+
+        if (isAbsolute) {
+          if (isCustomSize) {
+            pdfOptions.width = pageWidth;
+            pdfOptions.height = pageHeight;
+          } else {
+            pdfOptions.format = 'A4';
+          }
+          pdfOptions.margin = { top: 0, bottom: 0, left: 0, right: 0 };
+        } else {
+          pdfOptions.format = 'A4';
+        }
+      } else {
+        finalHtml = `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <meta charset="utf-8">
+            <style>
+              @page {
+                size: A4;
+                margin: 15mm;
+              }
+              body {
+                font-family: Arial, Helvetica, sans-serif;
+                line-height: 1.4;
+                color: #2c3e50;
+                background-color: #ffffff;
+              }
+              p { margin: 0 0 8px 0; }
+              h1, h2, h3, h4, h5, h6 { 
+                color: #2c3e50; 
+                margin-top: 15px; 
+                margin-bottom: 8px;
+                font-weight: bold;
+              }
+              h1 { font-size: 24px; text-align: center; border-bottom: 2px solid #2c3e50; padding-bottom: 5px; }
+              h2 { font-size: 18px; border-bottom: 1.5px solid #bdc3c7; padding-bottom: 3px; }
+              table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+              td { padding: 4px; vertical-align: top; }
+              ul, ol { margin: 5px 0; padding-left: 20px; }
+              li { margin-bottom: 4px; }
+            </style>
+          </head>
+          <body>
+            ${htmlContent}
+          </body>
+          </html>
+        `;
+        pdfOptions.format = 'A4';
+      }
+
+      if (isFullHtml && isAbsolute && isCustomSize) {
+        const widthVal = parseInt(pageWidth, 10) || 800;
+        const heightVal = parseInt(pageHeight, 10) || 1200;
+        await page.setViewport({
+          width: widthVal,
+          height: heightVal,
+          deviceScaleFactor: 1,
+        });
+      } else {
+        await page.setViewport({
+          width: 800,
+          height: 1130,
+          deviceScaleFactor: 1,
+        });
+      }
+
+      await page.setContent(finalHtml, { waitUntil: 'networkidle0' });
+      const pdfBuffer = await page.pdf(pdfOptions);
       return Buffer.from(pdfBuffer);
     } finally {
       await browser.close();
@@ -1001,124 +1155,64 @@ export class CandidateService {
         }
       }
     } else if (resumeText) {
-      // Generate premium PDF directly from edited HTML using LibreOffice
-      const tempHtmlName = `temp-${id}-${Date.now()}.html`;
-      const tempHtmlPath = join(process.cwd(), 'uploads', tempHtmlName);
-
-      // Add clean styles to ensure beautiful styling when converting html to pdf
-      const styledHtml = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="utf-8">
-          <style>
-            @page {
-              size: A4;
-              margin: 1.2in 1in 1.2in 1in;
-            }
-            body {
-              font-family: Arial, Helvetica, sans-serif;
-              line-height: 1.35;
-              color: #2b2b2b;
-              font-size: 11pt;
-            }
-            p { margin-top: 0; margin-bottom: 6px; }
-            h1, h2, h3, h4, h5, h6 { 
-              margin-top: 14px; 
-              margin-bottom: 6px; 
-              color: #111111;
-              font-weight: bold;
-            }
-            h1 { font-size: 20pt; text-align: center; margin-bottom: 12px; }
-            h2 { font-size: 14pt; border-bottom: 1.5px solid #4a5568; padding-bottom: 3px; margin-top: 18px; }
-            h3 { font-size: 12pt; }
-            table { 
-              width: 100%; 
-              border-collapse: collapse; 
-              margin-top: 4px; 
-              margin-bottom: 8px; 
-              page-break-inside: avoid;
-            }
-            td { 
-              padding: 2px 4px; 
-              vertical-align: top; 
-            }
-            ul, ol { margin-top: 4px; margin-bottom: 6px; padding-left: 20px; }
-            li { margin-bottom: 3px; }
-          </style>
-        </head>
-        <body>
-          ${resumeText}
-        </body>
-        </html>
-      `;
-
-      fs.writeFileSync(tempHtmlPath, styledHtml);
-
       try {
-        const outputDir = join(process.cwd(), 'uploads');
         const pdfFileName = `resume-${id}-${Date.now()}.pdf`;
-        const tempPdfPath = join(
-          outputDir,
-          tempHtmlName.replace(/\.html$/i, '.pdf'),
-        );
+        const finalPdfPath = join(process.cwd(), 'uploads', pdfFileName);
 
-        const command = `libreoffice --headless --convert-to pdf --outdir "${outputDir}" "${tempHtmlPath}"`;
-        execSync(command);
+        // Generate high-quality PDF using our Puppeteer function
+        const pdfBuffer = await this.generatePdfFromHtml(resumeText);
+        fs.writeFileSync(finalPdfPath, pdfBuffer);
 
-        if (fs.existsSync(tempHtmlPath)) {
-          fs.unlinkSync(tempHtmlPath);
-        }
+        resumeFilename = pdfFileName;
 
-        if (fs.existsSync(tempPdfPath)) {
-          const finalPdfPath = join(outputDir, pdfFileName);
-          fs.renameSync(tempPdfPath, finalPdfPath);
-          resumeFilename = pdfFileName;
-
-          // Delete old resume file if it exists
-          if (candidate.resume) {
-            const oldFilePath = join(
-              process.cwd(),
-              'uploads',
-              candidate.resume,
-            );
-            try {
-              if (fs.existsSync(oldFilePath)) {
-                fs.unlinkSync(oldFilePath);
-              }
-            } catch (err) {
-              console.error(
-                `Error deleting old resume file: ${candidate.resume}`,
-                err,
-              );
-            }
-          }
-          console.log(
-            `[Backend PDF Gen] PDF generated successfully for candidate ID: ${id}`,
+        // Delete old resume file if it exists
+        if (candidate.resume) {
+          const oldFilePath = join(
+            process.cwd(),
+            'uploads',
+            candidate.resume,
           );
+          try {
+            if (fs.existsSync(oldFilePath)) {
+              fs.unlinkSync(oldFilePath);
+            }
+          } catch (err) {
+            console.error(
+              `Error deleting old resume file: ${candidate.resume}`,
+              err,
+            );
+          }
         }
+        console.log(
+          `[Backend PDF Gen] Puppeteer PDF generated successfully for candidate ID: ${id}`,
+        );
       } catch (err) {
         console.error('Error generating PDF from resumeText on server:', err);
-        if (fs.existsSync(tempHtmlPath)) {
-          fs.unlinkSync(tempHtmlPath);
-        }
       }
     }
 
     // Update candidate's resume filename and text in the database
+    const updateData: any = {};
+    if (file) {
+      updateData.resume = resumeFilename;
+      updateData.resumeText = extractedText;
+      updateData.editedHtml = null; // Reset editedHtml because they uploaded a new resume
+    } else {
+      updateData.resume = resumeFilename;
+      updateData.editedHtml = resumeText; // Store edited HTML in editedHtml field
+      // Do not touch resumeText (keep original parsed HTML)
+    }
+
     const updatedCandidate = await this.prisma.candidate.update({
       where: { id },
-      data: {
-        resume: resumeFilename,
-        resumeText: extractedText,
-      },
+      data: updateData,
       include: {
-        skills: true,
+        skills: { include: { skill: true } },
         appliedJobs: { include: { job: true } },
       },
     });
 
-    return updatedCandidate;
+    return this.mapCandidate(updatedCandidate);
   }
 }
 
