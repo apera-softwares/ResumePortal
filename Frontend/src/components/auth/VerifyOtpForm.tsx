@@ -43,7 +43,7 @@ export default function VerifyOtpForm() {
   useEffect(() => {
     // Get email from URL query param or localStorage
     const queryEmail = searchParams?.get("email");
-    const storedEmail = typeof window !== "undefined" ? localStorage.getItem("tempEmail") : null;
+    const storedEmail = typeof window !== "undefined" ? sessionStorage.getItem("tempEmail") : null;
 
     const targetEmail = queryEmail || storedEmail;
     if (targetEmail) {
@@ -94,28 +94,20 @@ export default function VerifyOtpForm() {
       // Show success
       toast.success(response.data.message || "OTP verified successfully!");
 
-      // The user requested: "Mark the user as authenticated (isAuthenticated = true). Redirect to dashboard."
       if (typeof window !== "undefined") {
-        localStorage.setItem("isAuthenticated", "true");
-
         const userData = response.data.data;
 
-        if (userData && userData.token) {
-          localStorage.setItem("token", userData.token);
+        if (userData) {
           localStorage.setItem("role", userData.role);
           localStorage.setItem("name", userData.name);
+          localStorage.setItem("email", userData.email || email);
           localStorage.setItem("userId", String(userData.id));
         } else {
           // Finalize login (if user came from Login and backend didn't send token)
-          const tempToken = localStorage.getItem("tempToken");
           const tempRole = localStorage.getItem("tempRole");
           const tempName = localStorage.getItem("tempName");
           const tempUserId = localStorage.getItem("tempUserId");
 
-          if (tempToken) {
-            localStorage.setItem("token", tempToken);
-            localStorage.removeItem("tempToken");
-          }
           if (tempRole) {
             localStorage.setItem("role", tempRole);
             localStorage.removeItem("tempRole");
@@ -128,9 +120,13 @@ export default function VerifyOtpForm() {
             localStorage.setItem("userId", tempUserId);
             localStorage.removeItem("tempUserId");
           }
+          if (email) {
+            localStorage.setItem("email", email);
+          }
         }
 
-        localStorage.removeItem("tempEmail");
+        sessionStorage.removeItem("tempEmail");
+        localStorage.removeItem("tempToken");
       }
 
       router.push("/dashboard");

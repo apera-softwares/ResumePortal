@@ -108,7 +108,7 @@ export default function SignUpForm() {
       
       // Store temp email and redirect
       if (typeof window !== "undefined") {
-        localStorage.setItem("tempEmail", formData.email);
+        sessionStorage.setItem("tempEmail", formData.email);
       }
       router.push(`/verify-otp?email=${encodeURIComponent(formData.email)}`);
     } catch (error: any) {

@@ -1,13 +1,17 @@
 "use client";
 import { useSidebar } from "@/context/SidebarContext";
 import { useRouter } from "next/navigation";
-import React, { useState ,useEffect,useRef} from "react";
+import React, { useState, useEffect, useRef } from "react";
 import toast from "react-hot-toast";
 import { ThemeToggleButton } from "@/components/common/ThemeToggleButton";
+import { Modal } from "@/components/ui/modal";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || (typeof window !== "undefined" ? `http://${window.location.hostname}:8094` : "http://localhost:8094");
 
 const AppHeader: React.FC = () => {
-  const router =useRouter();
+  const router = useRouter();
   const [isApplicationMenuOpen, setApplicationMenuOpen] = useState(false);
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
 
   const { isMobileOpen, toggleSidebar, toggleMobileSidebar } = useSidebar();
 
@@ -25,40 +29,9 @@ const AppHeader: React.FC = () => {
   };
   const inputRef = useRef<HTMLInputElement>(null);
          
-const handleLogOut = () => {
-  toast((t) => (
-    <div className="flex flex-col gap-3 p-1">
-      <p className="text-sm font-medium text-gray-900">
-        Are you sure you want to log out?
-      </p>
-      <div className="flex justify-end gap-2">
-        <button
-          onClick={() => toast.dismiss(t.id)}
-          className="px-3 py-1 text-xs text-gray-500 hover:text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-        >
-          Cancel
-        </button>
-        <button
-          onClick={() => {
-            toast.dismiss(t.id);
-            localStorage.removeItem('token');
-            localStorage.removeItem("email");
-            localStorage.removeItem("role");
-            localStorage.removeItem("name");
-            toast.success("Logout successful!");
-            router.replace("/login");
-          }}
-          className="px-3 py-1 text-xs text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors shadow-xs"
-        >
-          Logout
-        </button>
-      </div>
-    </div>
-  ), {
-    duration: 5000,
-    position: "top-center",
-  });
-};
+  const handleLogOut = () => {
+    setIsLogoutModalOpen(true);
+  };
    
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -137,6 +110,63 @@ const handleLogOut = () => {
           </div>
         </div>
       </div>
+
+      <Modal isOpen={isLogoutModalOpen} onClose={() => setIsLogoutModalOpen(false)} className="max-w-[440px] m-4" showCloseButton={false}>
+        <div className="p-6 text-center">
+          <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-150 dark:bg-red-950/40 text-red-600 dark:text-red-400 mb-4">
+            <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+          </div>
+          
+          <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">
+            Confirm Logout
+          </h3>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+            Are you sure you want to log out of your session?
+          </p>
+
+          <div className="flex items-center justify-center gap-3">
+            <button
+              onClick={() => setIsLogoutModalOpen(false)}
+              className="flex-1 py-2.5 px-4 text-sm font-semibold text-gray-750 dark:text-gray-200 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-750 rounded-xl transition-all shadow-xs border border-gray-200/50 dark:border-gray-700/50"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={async () => {
+                setIsLogoutModalOpen(false);
+                try {
+                  await fetch(`${API_URL}/users/logout`, {
+                    method: "POST",
+                  });
+                } catch (err) {
+                  console.error("Failed backend logout:", err);
+                }
+                // Save non-sensitive UI theme preference
+                const theme = localStorage.getItem("theme");
+                const colorPalette = localStorage.getItem("colorPalette");
+                const appFont = localStorage.getItem("app-font");
+
+                // Clear all session and persistent storage
+                localStorage.clear();
+                sessionStorage.clear();
+
+                // Restore non-sensitive UI settings
+                if (theme) localStorage.setItem("theme", theme);
+                if (colorPalette) localStorage.setItem("colorPalette", colorPalette);
+                if (appFont) localStorage.setItem("app-font", appFont);
+
+                toast.success("Logout successful!");
+                router.replace("/login");
+              }}
+              className="flex-1 py-2.5 px-4 text-sm font-semibold text-white bg-rose-600 hover:bg-rose-700 dark:bg-rose-650 dark:hover:bg-rose-750 rounded-xl transition-all shadow-xs"
+            >
+              Logout
+            </button>
+          </div>
+        </div>
+      </Modal>
     </header>
   );
 };
