@@ -101,7 +101,7 @@ function PublicCandidatesContent() {
 
   useEffect(() => {
     if (candidateIdParam) {
-      const cached = candidatesData.find((c) => c.id === candidateIdParam);
+      const cached = candidatesData.find((c) => String(c.id) === String(candidateIdParam));
       if (cached) {
         setViewingCandidate(cached);
       } else {
@@ -362,18 +362,19 @@ function PublicCandidatesContent() {
 
                 <TableBody className="divide-y divide-gray-200/40 dark:divide-[#222138]/60">
                   {candidatesData.length > 0 ? (
-                    candidatesData.map((cand) => {
+                    candidatesData.map((cand, index) => {
                       const avatar = getAvatarStyle(cand.firstName, cand.lastName);
                       const displayBudget = cand.job?.salary 
                         ? `$${cand.job.salary.toLocaleString()}` 
                         : "N/A";
                       const displayLocation = cand.job?.location || "Remote";
+                      const serialNumber = (currentPage - 1) * ITEMS_PER_PAGE + index + 1;
                       
                       return (
                         <TableRow key={cand.id} className="hover:bg-gray-50/50 dark:hover:bg-[#1c1b35]/20 transition-all border-b border-gray-200/40 dark:border-[#222138]/60">
                           {/* Id */}
                           <TableCell className="px-6 py-4 text-start text-sm font-semibold text-gray-500 dark:text-gray-400">
-                            #{cand.id}
+                            {serialNumber}
                           </TableCell>
 
                           {/* First Name & Avatar */}

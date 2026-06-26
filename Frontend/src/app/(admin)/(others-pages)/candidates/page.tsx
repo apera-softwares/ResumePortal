@@ -86,7 +86,7 @@ function CandidatesContent() {
 
   useEffect(() => {
     if (candidateIdParam) {
-      const cached = candidatesData.find((c) => c.id === candidateIdParam);
+      const cached = candidatesData.find((c) => String(c.id) === String(candidateIdParam));
       if (cached) {
         setEditingCandidate(cached);
       } else {
@@ -205,12 +205,12 @@ function CandidatesContent() {
           onSave={(updatedCandidate) => {
             setCandidatesData((prev) =>
               prev.map((c) =>
-                c.id === editingCandidate.id ? { ...c, ...updatedCandidate } : c
+                String(c.id) === String(editingCandidate.id) ? { ...c, ...updatedCandidate } : c
               )
             );
             setFiltercandidates((prev) =>
               prev.map((c) =>
-                c.id === editingCandidate.id ? { ...c, ...updatedCandidate } : c
+                String(c.id) === String(editingCandidate.id) ? { ...c, ...updatedCandidate } : c
               )
             );
           }}
