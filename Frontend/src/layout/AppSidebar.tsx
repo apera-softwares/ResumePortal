@@ -4,12 +4,13 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useSidebar } from "../context/SidebarContext";
-import { ListIcon, TableIcon, TimeIcon, UserCircleIcon, GridIcon } from "../icons/index";
+import { ListIcon, TableIcon, TimeIcon, UserCircleIcon, GridIcon, BellIcon } from "../icons/index";
 
 type NavItem = {
   name: string;
   icon: React.ReactNode;
   path: string;
+  onClick?: () => void;
 };
 
 const AdminRoute: NavItem[] = [
@@ -40,7 +41,6 @@ const AdminRoute: NavItem[] = [
   },
 ];
 
-
 const AppSidebar: React.FC = () => {
   const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
   const pathname = usePathname();
@@ -63,13 +63,60 @@ const AppSidebar: React.FC = () => {
     return null;
   }
       
-   let routes: NavItem[] = [];
+  const handleLogOut = async () => {
+    if (confirm("Are you sure you want to log out?")) {
+      localStorage.removeItem("token");
+      localStorage.removeItem("role");
+      localStorage.removeItem("email");
+      localStorage.removeItem("userId");
+      localStorage.removeItem("name");
+      try {
+        await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3003"}/users/logout`, { method: "POST" });
+      } catch (e) {}
+      window.location.href = "/login";
+    }
+  };
+
+  const candidateRoutes: NavItem[] = [
+    {
+      icon: <GridIcon />,
+      name: "Dashboard",
+      path: "/dashboard",
+    },
+    {
+      icon: <ListIcon />,
+      name: "Jobs",
+      path: "/dashboard/jobs",
+    },
+    {
+      icon: <UserCircleIcon />,
+      name: "My Profile",
+      path: "/profile",
+    },
+    {
+      icon: (
+        <svg className="w-5 h-5 text-rose-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+        </svg>
+      ),
+      name: "Logout",
+      path: "#",
+      onClick: handleLogOut,
+    },
+  ];
+
+  let routes: NavItem[] = [];
 
   switch (role) {
     case "ADMIN":
     case "HR":
     case "CLIENT":
       routes = AdminRoute;
+      break;
+    case "CANDIDATE":
+      routes = pathname === "/profile"
+        ? candidateRoutes.filter((route) => route.name !== "Logout")
+        : candidateRoutes;
       break;
     default:
       routes = [];
@@ -93,46 +140,67 @@ const AppSidebar: React.FC = () => {
         </Link>
       </div>
      
-<div className=" py-10 ">
-              
-              <div className="flex flex-col gap-1  xl:gap-3 xl:text-left">
-                    <div className="flex items-center gap-2  ">
-                       {isExpanded || isHovered || isMobileOpen ? (<>   <div className="w-12 h-12  rounded-full bg-blue-800 flex items-center justify-center text-white font-bold">
-                        
-                         {name.charAt(0).toLocaleUpperCase()}
-                      </div>
-                   <div className="flex flex-col">
-                                     <h4 className="text-lg font-semibold text-center text-gray-800 dark:text-white/90 xl:text-left">{name}</h4>
-                    <p className="text-xs  text-gray-500 dark:text-gray-400"> 
-                  {role}
-                </p>
-                   </div></>) : (<> <div className="w-12 h-12  rounded-full bg-blue-800 flex items-center justify-center text-white font-bold">
-                        
-                         {name.charAt(0).toLocaleUpperCase()}
-                      </div> </>)}
-                   
-
-              </div>            
-              </div>
-            </div> 
+      {pathname !== "/profile" && (
+        <div className=" py-10 ">
+          <div className="flex flex-col gap-1  xl:gap-3 xl:text-left">
+            <div className="flex items-center gap-2  ">
+              {isExpanded || isHovered || isMobileOpen ? (
+                <>
+                  <div className="w-12 h-12  rounded-full bg-blue-800 flex items-center justify-center text-white font-bold">
+                    {name.charAt(0).toLocaleUpperCase()}
+                  </div>
+                  <div className="flex flex-col">
+                    <h4 className="text-lg font-semibold text-center text-gray-800 dark:text-white/90 xl:text-left">
+                      {name}
+                    </h4>
+                    <p className="text-xs  text-gray-500 dark:text-gray-400">
+                      {role}
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="w-12 h-12  rounded-full bg-blue-800 flex items-center justify-center text-white font-bold">
+                    {name.charAt(0).toLocaleUpperCase()}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
       <div className="flex flex-col overflow-y-auto duration-300 ease-linear min-h-80 ">
         
            
         <nav className=" ">
           <ul className="flex flex-col gap-4">
-            { routes.map((nav) => (
+            {routes.map((nav) => (
               <li key={nav.name}>
-                <Link
-                  href={nav.path}
-                  className={`menu-item group ${isActive(nav.path) ? "menu-item-active" : "menu-item-inactive"}`}
-                >
-                  <span className={`${isActive(nav.path) ? "menu-item-icon-active" : "menu-item-icon-inactive"}`}>
-                    {nav.icon}
-                  </span>
-                  {(isExpanded || isHovered || isMobileOpen) && (
-                    <span className="menu-item-text">{nav.name}</span>
-                  )}
-                </Link>
+                {nav.onClick ? (
+                  <button
+                    onClick={nav.onClick}
+                    className="menu-item group menu-item-inactive w-full text-left cursor-pointer border-none bg-transparent outline-none flex items-center"
+                  >
+                    <span className="menu-item-icon-inactive">
+                      {nav.icon}
+                    </span>
+                    {(isExpanded || isHovered || isMobileOpen) && (
+                      <span className="menu-item-text">{nav.name}</span>
+                    )}
+                  </button>
+                ) : (
+                  <Link
+                    href={nav.path}
+                    className={`menu-item group ${isActive(nav.path) ? "menu-item-active" : "menu-item-inactive"}`}
+                  >
+                    <span className={`${isActive(nav.path) ? "menu-item-icon-active" : "menu-item-icon-inactive"}`}>
+                      {nav.icon}
+                    </span>
+                    {(isExpanded || isHovered || isMobileOpen) && (
+                      <span className="menu-item-text">{nav.name}</span>
+                    )}
+                  </Link>
+                )}
               </li>
             ))}
           </ul>

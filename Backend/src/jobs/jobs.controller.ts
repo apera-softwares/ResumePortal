@@ -11,8 +11,9 @@ import {
   UseGuards,
   Query,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery, ApiBody } from '@nestjs/swagger';
 import { JobsService } from './jobs.service';
+import { CandidateService } from 'src/candidate/candidate.service';
 import { CreateJobDto } from 'src/Validations/job/create-job.dto';
 import { UpdateJobDto } from 'src/Validations/job/update-job.dto';
 import { Role } from '@prisma/client';
@@ -22,7 +23,10 @@ import { RoleGuard } from 'src/guards/role.guard';
 @ApiTags('Jobs')
 @Controller('jobs')
 export class JobsController {
-  constructor(private readonly jobsService: JobsService) {}
+  constructor(
+    private readonly jobsService: JobsService,
+    private readonly candidateService: CandidateService,
+  ) {}
 
   @Post('create')
   @ApiBearerAuth()
@@ -84,5 +88,33 @@ export class JobsController {
   @UseGuards(RoleGuard)
   async deleteJob(@Param('id') id: string) {
     return this.jobsService.jobDeleteById(id);
+  }
+
+  // ── Candidate applies to a job using their JWT session ──────────────────────
+  @Post('apply')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Apply to a job (Candidate only — uses JWT email)' })
+  @ApiBody({ schema: { type: 'object', properties: { jobId: { type: 'string' } }, required: ['jobId'] } })
+  @ApiResponse({ status: 201, description: 'Applied successfully' })
+  @ApiResponse({ status: 404, description: 'No candidate profile found' })
+  @UseGuards(AuthGuard)
+  @SetMetadata('roles', [Role.CANDIDATE])
+  @UseGuards(RoleGuard)
+  async applyToJob(@Body('jobId') jobId: string, @Request() req) {
+    const email: string = req.user?.email;
+    return this.candidateService.applyToJobByEmail(email, jobId);
+  }
+
+  // ── Get all applied jobs for the logged-in candidate ────────────────────────
+  @Get('my-applied-jobs')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get all applied jobs for logged-in candidate' })
+  @ApiResponse({ status: 200, description: 'List of applied jobs' })
+  @UseGuards(AuthGuard)
+  @SetMetadata('roles', [Role.CANDIDATE])
+  @UseGuards(RoleGuard)
+  async getMyAppliedJobs(@Request() req) {
+    const email: string = req.user?.email;
+    return this.candidateService.findByEmail(email);
   }
 }

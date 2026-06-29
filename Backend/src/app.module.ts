@@ -10,6 +10,7 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
 import { OtpController } from './otp/otp.controller';
 import { OtpService } from './otp/otp.service';
 import { OtpModule } from './otp/otp.module';
+import { LocationsModule } from './locations/locations.module';
 
 import { MailModule } from './mail/mail.module';
 
@@ -25,6 +26,7 @@ import { MailModule } from './mail/mail.module';
     EventEmitterModule.forRoot(),
     OtpModule,
     MailModule,
+    LocationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

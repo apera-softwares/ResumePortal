@@ -85,9 +85,33 @@ export default function PublicJoblisting() {
     setCurrentPage(1);
   };
 
-  const handleApply = (id: string) => {
-    setApplyingJobId(id);
-    openModal();
+  const handleApply = async (id: string) => {
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    if (!token) {
+      window.location.href = "/login";
+      return;
+    }
+
+    try {
+      const checkRes = await fetch(`${API_URL}/users/check-auth`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        }
+      });
+
+      if (!checkRes.ok) {
+        window.location.href = "/login";
+        return;
+      }
+
+      setApplyingJobId(id);
+      openModal();
+    } catch (error) {
+      console.error("Error checking auth status:", error);
+      window.location.href = "/login";
+    }
   };
 
   const handleApplySuccess = (jobId: string) => {

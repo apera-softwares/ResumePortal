@@ -9,7 +9,7 @@
   import { useTheme } from '@/context/ThemeContext';
 
   const clients = ["CloudSphere Technologies", "PixelCraft Studio", "PeopleFirst HR"];
-  const majorCities = ["REMOTE", "MUMBAI", "DELHI", "BANGALORE", "HYDERABAD", "CHENNAI", "PUNE"];
+  const DEFAULT_MAJOR_CITIES = ["REMOTE", "MUMBAI", "DELHI", "BANGALORE", "HYDERABAD", "CHENNAI", "PUNE"];
   const jobTypes = ["FULL_TIME", "INTERN", "CONTRACT", "FREELANCING"]
   // const options = [
   //   { value: 'Js', label: 'Js' },
@@ -172,6 +172,27 @@
     const ITEMS_PER_PAGE = 8;
 
     const [skills ,setSkills]=useState([])
+    const [locations, setLocations] = useState<string[]>(DEFAULT_MAJOR_CITIES);
+
+    useEffect(() => {
+      const fetchLocations = async () => {
+        try {
+          const res = await fetch(`${API_URL}/locations`);
+          if (res.ok) {
+            const result = await res.json();
+            const locationsList = result.data || [];
+            const names = locationsList.map((loc: any) => loc.name.toUpperCase());
+            const unique = Array.from(new Set(names)) as string[];
+            const filtered = unique.filter((n) => n !== "REMOTE");
+            setLocations(["REMOTE", ...filtered]);
+          }
+        } catch (error) {
+          console.error("Error fetching locations:", error);
+        }
+      };
+      fetchLocations();
+    }, [API_URL]);
+
     useEffect(()=>{
       const fetchSkills =async()=>{
         try{
@@ -326,8 +347,16 @@
                       required
                     >
                       <option value="" className="text-gray-500">Select Location</option>
-                      {majorCities.map((city) => (
-                        <option key={city} value={city}>{city}</option>
+                      {locations.map((city) => (
+                        <option key={city} value={city}>
+                          {city === "REMOTE"
+                            ? "Remote"
+                            : city
+                                .toLowerCase()
+                                .split(" ")
+                                .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
+                                .join(" ")}
+                        </option>
                       ))}
                     </select>
                   </div>

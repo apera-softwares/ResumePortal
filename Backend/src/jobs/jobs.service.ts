@@ -33,6 +33,7 @@ export class JobsService {
       client: job.client?.name ?? null,
       location: job.location?.name ?? null,
       skills: (job.skills || []).map((s: any) => s.skill?.name || s.name || ''),
+      appliedCount: job._count?.appliedJobs ?? 0,
     };
   }
 
@@ -139,6 +140,11 @@ export class JobsService {
           skills: { include: { skill: true } },
           location: true,
           createdBy: { select: { id: true, name: true, role: true } },
+          _count: {
+            select: {
+              appliedJobs: true,
+            },
+          },
         },
         orderBy: { createdAt: 'desc' },
       }),
@@ -166,6 +172,11 @@ export class JobsService {
         skills: { include: { skill: true } },
         location: true,
         createdBy: true,
+        _count: {
+          select: {
+            appliedJobs: true,
+          },
+        },
       },
     });
 
@@ -216,6 +227,11 @@ export class JobsService {
         client: true,
         skills: { include: { skill: true } },
         location: true,
+        _count: {
+          select: {
+            appliedJobs: true,
+          },
+        },
       },
     });
 

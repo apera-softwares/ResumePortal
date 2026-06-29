@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
+import { useRouter } from "next/navigation";
 import {
   Table,
   TableBody,
@@ -9,7 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from "../ui/table";
-import { Trash } from "lucide-react";
+import { Trash, Users } from "lucide-react";
 
 interface Job {
   id: string;
@@ -22,6 +23,7 @@ interface Job {
   salary: number;
   location: string;
   type: string;
+  appliedCount?: number;
 }
 
 interface JoblistingProps {
@@ -34,6 +36,9 @@ interface JoblistingProps {
   setSearchTerm: React.Dispatch<React.SetStateAction<string>>;
   itemsPerPage: number;
   onRefresh?: () => void;
+  role?: string;
+  appliedJobIds?: Set<string>;
+  onApply?: (jobId: string) => void;
 }
 
 export default function Joblisting({
@@ -46,11 +51,19 @@ export default function Joblisting({
   setSearchTerm,
   itemsPerPage,
   onRefresh,
+  role,
+  appliedJobIds,
+  onApply,
 }: JoblistingProps) {
   const API_URL = process.env.NEXT_PUBLIC_API_URL;
+  const router = useRouter();
   const [localJobs, setLocalJobs] = useState<Job[]>(jData || []);
   const [isGridView, setIsGridView] = useState<boolean>(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
+  const handleAppliedClick = (job: Job) => {
+    router.push(`/candidates?jobId=${job.id}&jobTitle=${encodeURIComponent(job.title)}`);
+  };
 
   useEffect(() => {
     setLocalJobs(jData || []);
@@ -134,15 +147,17 @@ export default function Joblisting({
           </div>
 
           {/* Create Job Button */}
-          <button
-            onClick={onCreateJob}
-            className="flex items-center justify-center gap-2 rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-55 hover:bg-gray-105 dark:bg-gray-800 dark:hover:bg-gray-750 px-5 py-2.5 text-sm font-semibold text-gray-700 dark:text-white transition-all hover:scale-[1.01] active:scale-[0.99] shadow-xs cursor-pointer"
-          >
-            <svg className="fill-current text-gray-500 dark:text-white" width="14" height="14" viewBox="0 0 18 18">
-              <path fillRule="evenodd" clipRule="evenodd" d="M15.0911 2.78206C14.2125 1.90338 12.7878 1.90338 11.9092 2.78206L4.57524 10.116C4.26682 10.4244 4.0547 10.8158 3.96468 11.2426L3.31231 14.3352C3.25997 14.5833 3.33653 14.841 3.51583 15.0203C3.69512 15.1996 3.95286 15.2761 4.20096 15.2238L7.29355 14.5714C7.72031 14.4814 8.11172 14.2693 8.42013 13.9609L15.7541 6.62695C16.6327 5.74827 16.6327 4.32365 15.7541 3.44497L15.0911 2.78206Z" />
-            </svg>
-            <span>Create Job</span>
-          </button>
+          {role !== "CANDIDATE" && (
+            <button
+              onClick={onCreateJob}
+              className="flex items-center justify-center gap-2 rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-55 hover:bg-gray-105 dark:bg-gray-800 dark:hover:bg-gray-750 px-5 py-2.5 text-sm font-semibold text-gray-700 dark:text-white transition-all hover:scale-[1.01] active:scale-[0.99] shadow-xs cursor-pointer"
+            >
+              <svg className="fill-current text-gray-500 dark:text-white" width="14" height="14" viewBox="0 0 18 18">
+                <path fillRule="evenodd" clipRule="evenodd" d="M15.0911 2.78206C14.2125 1.90338 12.7878 1.90338 11.9092 2.78206L4.57524 10.116C4.26682 10.4244 4.0547 10.8158 3.96468 11.2426L3.31231 14.3352C3.25997 14.5833 3.33653 14.841 3.51583 15.0203C3.69512 15.1996 3.95286 15.2761 4.20096 15.2238L7.29355 14.5714C7.72031 14.4814 8.11172 14.2693 8.42013 13.9609L15.7541 6.62695C16.6327 5.74827 16.6327 4.32365 15.7541 3.44497L15.0911 2.78206Z" />
+              </svg>
+              <span>Create Job</span>
+            </button>
+          )}
 
           {/* Toggle buttons */}
           <div className="flex items-center bg-gray-50 dark:bg-gray-800 p-1 rounded-xl border border-gray-200 dark:border-gray-700 justify-center">
@@ -225,7 +240,7 @@ export default function Joblisting({
                             ₹{job?.salary?.toLocaleString() || 'N/A'}
                           </span>
                         </div>
-                        {job?.internalSalary && (
+                        {role !== "CANDIDATE" && job?.internalSalary && (
                           <div className="text-right">
                             <span className="text-xs text-gray-405 dark:text-gray-500 block">Internal Salary</span>
                             <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
@@ -235,12 +250,35 @@ export default function Joblisting({
                         )}
                       </div>
 
-                      <button
-                        onClick={() => handleDelete(job?.id)}
-                        className="w-full bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/20 dark:hover:bg-rose-950/40 text-rose-600 dark:text-rose-400 py-2.5 rounded-2xl text-sm font-semibold transition-all duration-200"
-                      >
-                        Delete Job
-                      </button>
+                      {role === "CANDIDATE" ? (
+                        <button
+                          disabled={appliedJobIds?.has(job.id)}
+                          onClick={() => onApply && onApply(job.id)}
+                          className={`w-full py-2.5 rounded-2xl text-sm font-semibold transition-all duration-200 ${
+                            appliedJobIds?.has(job.id)
+                              ? "bg-emerald-100 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 cursor-not-allowed"
+                              : "bg-blue-600 hover:bg-blue-700 text-white shadow-xs"
+                          }`}
+                        >
+                          {appliedJobIds?.has(job.id) ? "Applied" : "Apply Now"}
+                        </button>
+                      ) : (
+                        <div className="flex gap-2 w-full">
+                          <button
+                            onClick={() => handleAppliedClick(job)}
+                            className="flex-1 inline-flex items-center justify-center gap-1.5 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/20 dark:hover:bg-blue-950/40 text-blue-600 dark:text-blue-400 py-2.5 rounded-2xl text-sm font-semibold transition-all duration-200 text-center cursor-pointer"
+                          >
+                            <Users className="h-4 w-4" />
+                            <span>{job.appliedCount ?? 0}</span>
+                          </button>
+                          <button
+                            onClick={() => handleDelete(job?.id)}
+                            className="px-4 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/20 dark:hover:bg-rose-950/40 text-rose-600 dark:text-rose-400 py-2.5 rounded-2xl text-sm font-semibold transition-all duration-200 cursor-pointer"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -265,8 +303,13 @@ export default function Joblisting({
                         <TableCell isHeader className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-start">
                           Skills Required
                         </TableCell>
+                        {role !== "CANDIDATE" && (
+                          <TableCell isHeader className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-center">
+                            Applied
+                          </TableCell>
+                        )}
                         <TableCell isHeader className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-center">
-                          Actions
+                          {role === "CANDIDATE" ? "Apply" : "Actions"}
                         </TableCell>
                       </TableRow>
                     </TableHeader>
@@ -310,7 +353,7 @@ export default function Joblisting({
                             <TableCell className="px-6 py-4 text-start text-sm text-gray-800 dark:text-white/90">
                               <div>
                                 <span className="block font-semibold">₹{job?.salary?.toLocaleString() || 'N/A'}</span>
-                                {job?.internalSalary && (
+                                {role !== "CANDIDATE" && job?.internalSalary && (
                                   <span className="block text-xs text-emerald-600 dark:text-emerald-400 mt-0.5">
                                     ₹{job?.internalSalary?.toLocaleString()} (Internal)
                                   </span>
@@ -332,22 +375,49 @@ export default function Joblisting({
                               </div>
                             </TableCell>
 
-                            {/* Delete Action */}
+                            {/* Applied Count */}
+                            {role !== "CANDIDATE" && (
+                              <TableCell className="px-6 py-4 text-center">
+                                <button
+                                  onClick={() => handleAppliedClick(job)}
+                                  className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/30 dark:hover:bg-blue-950/50 text-blue-600 dark:text-blue-400 border border-blue-200/50 dark:border-blue-805 transition-all hover:scale-[1.03] active:scale-[0.97] cursor-pointer"
+                                >
+                                  <Users className="h-3.5 w-3.5" />
+                                  <span>{job.appliedCount ?? 0}</span>
+                                </button>
+                              </TableCell>
+                            )}
+
+                            {/* Delete/Apply Action */}
                             <TableCell className="px-6 py-4 text-center">
                               <div className="flex items-center justify-center">
-                                {/* Delete Tooltip Wrapper */}
-                                <div className="relative group">
+                                {role === "CANDIDATE" ? (
                                   <button
-                                    onClick={() => handleDelete(job?.id)}
-                                    className="px-4 py-2 rounded-xl text-xs font-semibold border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-rose-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all hover:scale-[1.01] active:scale-[0.99] shadow-xs"
+                                    disabled={appliedJobIds?.has(job.id)}
+                                    onClick={() => onApply && onApply(job.id)}
+                                    className={`px-4 py-2 rounded-xl text-xs font-semibold border transition-all ${
+                                      appliedJobIds?.has(job.id)
+                                        ? "bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900 text-emerald-600 dark:text-emerald-400 cursor-not-allowed"
+                                        : "bg-blue-600 hover:bg-blue-700 text-white border-blue-600"
+                                    }`}
                                   >
-                                    <Trash className="h-4 w-4" />
+                                    {appliedJobIds?.has(job.id) ? "Applied" : "Apply"}
                                   </button>
-                                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2.5 px-2 py-1 rounded-lg bg-rose-600 text-white text-[10px] font-semibold whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 translate-y-1 group-hover:translate-y-0 transition-all duration-150 z-50 shadow-md">
-                                    delete job
-                                    <div className="absolute top-full left-1/2 -translate-x-1/2 border-[4px] border-transparent border-t-rose-600" />
+                                ) : (
+                                  /* Delete Tooltip Wrapper */
+                                  <div className="relative group">
+                                    <button
+                                      onClick={() => handleDelete(job?.id)}
+                                      className="px-4 py-2 rounded-xl text-xs font-semibold border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-rose-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all hover:scale-[1.01] active:scale-[0.99] shadow-xs"
+                                    >
+                                      <Trash className="h-4 w-4" />
+                                    </button>
+                                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2.5 px-2 py-1 rounded-lg bg-rose-600 text-white text-[10px] font-semibold whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 translate-y-1 group-hover:translate-y-0 transition-all duration-150 z-50 shadow-md">
+                                      delete job
+                                      <div className="absolute top-full left-1/2 -translate-x-1/2 border-[4px] border-transparent border-t-rose-600" />
+                                    </div>
                                   </div>
-                                </div>
+                                )}
                               </div>
                             </TableCell>
                           </TableRow>

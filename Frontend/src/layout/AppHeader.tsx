@@ -6,7 +6,7 @@ import toast from "react-hot-toast";
 import { ThemeToggleButton } from "@/components/common/ThemeToggleButton";
 import { Modal } from "@/components/ui/modal";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || (typeof window !== "undefined" ? `http://${window.location.hostname}:8094` : "http://localhost:8094");
+const API_URL = process.env.NEXT_PUBLIC_API_URL || (typeof window !== "undefined" ? `http://${window.location.hostname}:3003` : "http://localhost:3003");
 
 const AppHeader: React.FC = () => {
   const router = useRouter();

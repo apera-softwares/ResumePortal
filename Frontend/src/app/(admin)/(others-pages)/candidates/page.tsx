@@ -2,11 +2,143 @@
 
 import { Table, TableBody, TableCell, TableHeader, TableRow } from "@/components/ui/table";
 import EditResume from "@/components/UsersModels/resumeEditModel/EditResume";
-import { SquarePen, Trash } from "lucide-react";
+import { SquarePen, Trash, SlidersHorizontal, X, ChevronDown } from "lucide-react";
 import React, { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import toast from "react-hot-toast";
 import { Squada_One } from "next/font/google";
+import Select, { components } from "react-select";
+
+const getCustomSelectStyles = (isDark: boolean) => ({
+  control: (provided: any, state: any) => ({
+    ...provided,
+    backgroundColor: isDark ? '#1f2937' : '#ffffff',
+    borderColor: state.isFocused
+      ? '#3b82f6'
+      : isDark
+        ? '#374151'
+        : '#e5e7eb',
+    borderRadius: '1rem',
+    padding: '2px 4px',
+    fontSize: '0.875rem',
+    fontWeight: '600',
+    boxShadow: state.isFocused
+      ? '0 0 0 2px rgba(59, 130, 246, 0.2)'
+      : 'none',
+    '&:hover': {
+      borderColor: isDark ? '#4b5563' : '#d1d5db',
+    },
+    transition: 'all 0.2s ease',
+  }),
+  menu: (provided: any) => ({
+    ...provided,
+    backgroundColor: isDark ? '#111827' : '#ffffff',
+    borderRadius: '0.75rem',
+    border: isDark ? '1px solid #374151' : '1px solid #e5e7eb',
+    boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+    overflow: 'hidden',
+    zIndex: 9999,
+  }),
+  singleValue: (provided: any) => ({
+    ...provided,
+    color: isDark ? '#f9fafb' : '#111827',
+  }),
+  placeholder: (provided: any) => ({
+    ...provided,
+    color: isDark ? '#9ca3af' : '#6b7280',
+  }),
+  multiValue: (provided: any) => ({
+    ...provided,
+    backgroundColor: isDark ? '#374151' : '#f3f4f6',
+    borderRadius: '0.5rem',
+    border: isDark ? '1px solid #4b5563' : '1px solid #e5e7eb',
+    padding: '1px 4px',
+  }),
+  multiValueLabel: (provided: any) => ({
+    ...provided,
+    color: isDark ? '#f9fafb' : '#374151',
+    fontWeight: '600',
+    fontSize: '0.75rem',
+  }),
+  multiValueRemove: (provided: any) => ({
+    ...provided,
+    color: isDark ? '#9ca3af' : '#6b7280',
+    borderRadius: '0.25rem',
+    marginLeft: '2px',
+    cursor: 'pointer',
+    '&:hover': {
+      backgroundColor: isDark ? '#4b5563' : '#e5e7eb',
+      color: isDark ? '#ef4444' : '#ef4444',
+    },
+  }),
+  option: (provided: any, state: any) => ({
+    ...provided,
+    backgroundColor: state.isSelected
+      ? '#3b82f6'
+      : state.isFocused
+        ? isDark
+          ? '#1f2937'
+          : '#f3f4f6'
+        : 'transparent',
+    color: state.isSelected
+      ? '#ffffff'
+      : isDark
+        ? '#f9fafb'
+        : '#111827',
+    padding: '8px 12px',
+    borderRadius: '0.5rem',
+    fontSize: '0.875rem',
+    cursor: 'pointer',
+    '&:active': {
+      backgroundColor: '#3b82f6',
+    },
+  }),
+});
+
+const CustomOption = (props: any) => {
+  return (
+    <components.Option {...props}>
+      <div className="flex items-center gap-2">
+        <input
+          type="checkbox"
+          checked={props.isSelected}
+          onChange={() => null}
+          className="h-4 w-4 rounded border-gray-300 dark:border-gray-650 bg-white dark:bg-gray-800 text-blue-600 focus:ring-blue-500 dark:focus:ring-blue-600 cursor-pointer"
+        />
+        <span className="text-sm font-medium text-gray-700 dark:text-gray-200">{props.label}</span>
+      </div>
+    </components.Option>
+  );
+};
+
+const DEFAULT_CITY_OPTIONS = [
+  { value: "Remote", label: "Remote" },
+  { value: "Bangalore", label: "Bangalore" },
+  { value: "Mumbai", label: "Mumbai" },
+  { value: "Delhi NCR", label: "Delhi NCR" },
+  { value: "Gurgaon", label: "Gurgaon" },
+  { value: "Noida", label: "Noida" },
+  { value: "Hyderabad", label: "Hyderabad" },
+  { value: "Pune", label: "Pune" },
+  { value: "Chennai", label: "Chennai" },
+  { value: "Kolkata", label: "Kolkata" },
+  { value: "Ahmedabad", label: "Ahmedabad" },
+  { value: "Kochi", label: "Kochi" },
+  { value: "Jaipur", label: "Jaipur" },
+];
+
+const EXPERIENCE_OPTIONS = [
+  { value: "fresher", label: "Fresher (0 Years)" },
+  { value: "0-1", label: "0–1 Yrs" },
+  { value: "1-2", label: "1–2 Yrs" },
+  { value: "2-3", label: "2–3 Yrs" },
+  { value: "3-5", label: "3–5 Yrs" },
+  { value: "5-7", label: "5–7 Yrs" },
+  { value: "7-10", label: "7–10 Yrs" },
+  { value: "10-12", label: "10–12 Yrs" },
+  { value: "12-15", label: "12–15 Yrs" },
+  { value: "15+", label: "15+ Yrs" },
+];
 
 interface Candidate {
   id: string;
@@ -31,12 +163,14 @@ interface Candidate {
 }
 
 function CandidatesContent() {
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || (typeof window !== "undefined" ? `http://${window.location.hostname}:8094` : "http://localhost:8094");
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || (typeof window !== "undefined" ? `http://${window.location.hostname}:3003` : "http://localhost:3003");
   const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const candidateIdParam = searchParams.get("candidateId");
   const modeParam = searchParams.get("mode");
+  const jobIdParam = searchParams.get("jobId");
+  const jobTitleParam = searchParams.get("jobTitle");
 
   const [role, setRole] = useState<string | null>(() => {
     if (typeof window !== "undefined") {
@@ -54,13 +188,122 @@ function CandidatesContent() {
   const [candidatesData, setCandidatesData] = useState<Candidate[]>([]);
   const [filtercandidate, setFiltercandidates] = useState<Candidate[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [expFilter, setExpFilter] = useState("");
-  const [skillFilter, setSkillFilter] = useState("");
+  const [expFilter, setExpFilter] = useState<{ value: string; label: string } | null>(null);
+  const [skillFilter, setSkillFilter] = useState<{ value: string; label: string }[]>([]);
   const [availableSkills, setAvailableSkills] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [editingCandidate, setEditingCandidate] = useState<Candidate | null>(null);
   const [totalCount, setTotalCount] = useState(0);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
+  const [jobs, setJobs] = useState<{ id: string; title: string }[]>([]);
+  const [jobFilter, setJobFilter] = useState<{ value: string; label: string } | null>(null);
+  const [locationFilter, setLocationFilter] = useState<{ value: string; label: string }[]>([]);
+  const [cityOptions, setCityOptions] = useState<{ value: string; label: string }[]>(DEFAULT_CITY_OPTIONS);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [isDark, setIsDark] = useState(false);
+
+  const activeFiltersCount = [
+    jobFilter ? 1 : 0,
+    locationFilter.length > 0 ? 1 : 0,
+    skillFilter.length > 0 ? 1 : 0,
+    expFilter ? 1 : 0,
+  ].reduce((a, b) => a + b, 0);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setIsDark(document.documentElement.classList.contains("dark"));
+
+      const observer = new MutationObserver(() => {
+        setIsDark(document.documentElement.classList.contains("dark"));
+      });
+      observer.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ["class"],
+      });
+      return () => observer.disconnect();
+    }
+  }, []);
+
+  const fetchJobs = async () => {
+    try {
+      const res = await fetch(`${API_URL}/jobs`);
+      if (res.ok) {
+        const data = await res.json();
+        const jobsList = data.data || [];
+        setJobs(jobsList);
+      }
+    } catch (error) {
+      console.error("Error fetching jobs list:", error);
+    }
+  };
+
+  const fetchCities = async () => {
+    try {
+      const res = await fetch(`${API_URL}/locations`);
+      if (res.ok) {
+        const result = await res.json();
+        const locationsList = result.data || [];
+        const mapped = locationsList
+          .filter((loc: any) => loc.name.toUpperCase() !== "REMOTE")
+          .map((loc: any) => ({
+            value: loc.name,
+            label: loc.name
+              .toLowerCase()
+              .split(" ")
+              .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
+              .join(" "),
+          }));
+        setCityOptions([
+          { value: "Remote", label: "Remote" },
+          ...mapped
+        ]);
+      }
+    } catch (error) {
+      console.error("Error fetching cities list:", error);
+    }
+  };
+
+  const clearJobFilterAndUrl = () => {
+    setJobFilter(null);
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      params.delete("jobId");
+      params.delete("jobTitle");
+      const newSearch = params.toString();
+      router.replace(newSearch ? `${pathname}?${newSearch}` : pathname);
+    }
+  };
+
+  const clearAllFiltersAndUrl = () => {
+    setJobFilter(null);
+    setLocationFilter([]);
+    setSkillFilter([]);
+    setExpFilter(null);
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      params.delete("jobId");
+      params.delete("jobTitle");
+      const newSearch = params.toString();
+      router.replace(newSearch ? `${pathname}?${newSearch}` : pathname);
+    }
+  };
+
+  useEffect(() => {
+    fetchJobs();
+    fetchCities();
+  }, [API_URL]);
+
+  useEffect(() => {
+    if (jobIdParam) {
+      setJobFilter({
+        value: jobIdParam,
+        label: jobTitleParam ? decodeURIComponent(jobTitleParam) : "Filtered Job",
+      });
+    } else {
+      setJobFilter(null);
+    }
+  }, [jobIdParam, jobTitleParam]);
 
   const ITEMS_PER_PAGE = 8;
 
@@ -110,7 +353,7 @@ function CandidatesContent() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, expFilter, skillFilter]);
+  }, [searchTerm, expFilter, skillFilter, jobFilter, locationFilter]);
 
   useEffect(() => {
     const isCompanyUser = role && role !== "ADMIN";
@@ -124,10 +367,12 @@ function CandidatesContent() {
         queryParams.append("page", String(currentPage));
         queryParams.append("limit", String(ITEMS_PER_PAGE));
         if (searchTerm) queryParams.append("search", searchTerm);
-        if (skillFilter) queryParams.append("skill", skillFilter);
-        if (expFilter) queryParams.append("experience", expFilter);
+        if (skillFilter && skillFilter.length > 0) queryParams.append("skill", skillFilter.map(s => s.value).join(","));
+        if (expFilter?.value) queryParams.append("experience", expFilter.value);
         if (role) queryParams.append("role", role);
         if (userId) queryParams.append("userId", String(userId));
+        if (jobFilter?.value) queryParams.append("jobId", jobFilter.value);
+        if (locationFilter && locationFilter.length > 0) queryParams.append("location", locationFilter.map(l => l.value).join(","));
 
         const res = await fetch(`${API_URL}/candidates?${queryParams.toString()}`, {
           method: "GET",
@@ -153,7 +398,7 @@ function CandidatesContent() {
     };
 
     fetchData();
-  }, [API_URL, currentPage, searchTerm, expFilter, skillFilter, role, userId]);
+  }, [API_URL, currentPage, searchTerm, expFilter, skillFilter, role, userId, jobFilter, locationFilter]);
 
   const executeDelete = async (candidatesID: string) => {
     const url = `${API_URL}/candidates/${candidatesID}`;
@@ -231,33 +476,7 @@ function CandidatesContent() {
             Search candidates by name, email, tagged skills, experience, or keywords in their resume.
           </p>
         </div>
-        <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-          {/* Skill Filter */}
-          <select
-            value={skillFilter}
-            onChange={(e) => setSkillFilter(e.target.value)}
-            onFocus={fetchAvailableSkills}
-            className="px-3 py-2.5 text-sm text-gray-900 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-white transition-all cursor-pointer font-semibold"
-          >
-            <option value="">All Skills</option>
-            {availableSkills.map((skill) => (
-              <option key={skill} value={skill}>{skill}</option>
-            ))}
-          </select>
-
-          {/* Experience Filter */}
-          <select
-            value={expFilter}
-            onChange={(e) => setExpFilter(e.target.value)}
-            className="px-3 py-2.5 text-sm text-gray-900 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-white transition-all cursor-pointer font-semibold"
-          >
-            <option value="">All Experience</option>
-            <option value="0-2">0 - 2 Years</option>
-            <option value="3-5">3 - 5 Years</option>
-            <option value="6-9">6 - 9 Years</option>
-            <option value="10+">10+ Years</option>
-          </select>
-
+        <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto items-center">
           {/* Search Input */}
           <div className="relative w-full sm:w-80">
             <input
@@ -265,9 +484,9 @@ function CandidatesContent() {
               placeholder="Search candidates..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 text-sm text-gray-900 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-gray-950 dark:text-white transition-all"
+              className="w-full pl-10 pr-4 py-2.5 text-sm text-gray-900 bg-gray-55 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-gray-950 dark:text-white transition-all"
             />
-            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400">
+            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-405">
               <svg
                 className="w-4 h-4"
                 fill="none"
@@ -284,8 +503,166 @@ function CandidatesContent() {
               </svg>
             </span>
           </div>
+
+          {/* Unified Filter Popover */}
+          <div className="relative w-full sm:w-auto">
+            <button
+              onClick={() => setIsFilterOpen(!isFilterOpen)}
+              className="w-full sm:w-auto flex items-center justify-between sm:justify-start gap-2 px-4 py-2.5 text-sm font-semibold text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl hover:bg-gray-55 dark:hover:bg-gray-800 transition-all cursor-pointer shadow-xs"
+            >
+              <div className="flex items-center gap-2">
+                <SlidersHorizontal className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                <span>Filters</span>
+                {activeFiltersCount > 0 && (
+                  <span className="flex items-center justify-center h-5 px-1.5 min-w-[20px] text-[10px] font-bold text-white bg-blue-600 rounded-full">
+                    {activeFiltersCount}
+                  </span>
+                )}
+              </div>
+              <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform duration-200 ${isFilterOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {/* Popover Card */}
+            {isFilterOpen && (
+              <>
+                <div
+                  className="fixed inset-0 z-40"
+                  onClick={() => setIsFilterOpen(false)}
+                />
+                
+                <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl shadow-2xl p-5 z-50 flex flex-col gap-4">
+                  <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-2">
+                    <span className="text-sm font-bold text-gray-900 dark:text-white">Filters</span>
+                    {activeFiltersCount > 0 && (
+                      <button
+                        onClick={clearAllFiltersAndUrl}
+                        className="text-xs font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400 cursor-pointer"
+                      >
+                        Clear All
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Job Filter */}
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs font-semibold text-gray-500 dark:text-gray-400">Job Profile</label>
+                    <Select
+                      name="jobFilter"
+                      value={jobFilter}
+                      onChange={(selected: any) => {
+                        if (!selected) {
+                          clearJobFilterAndUrl();
+                        } else {
+                          setJobFilter(selected);
+                        }
+                      }}
+                      onFocus={fetchJobs}
+                      options={jobs.map((j) => ({ value: j.id, label: j.title }))}
+                      styles={getCustomSelectStyles(isDark)}
+                      placeholder="Select Job..."
+                      isClearable
+                    />
+                  </div>
+
+                  {/* Location Filter */}
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs font-semibold text-gray-500 dark:text-gray-400">Location</label>
+                    <Select
+                      name="locationFilter"
+                      value={locationFilter}
+                      onChange={(selected: any) => setLocationFilter(selected || [])}
+                      options={cityOptions}
+                      styles={getCustomSelectStyles(isDark)}
+                      placeholder="Select Location..."
+                      isMulti
+                      closeMenuOnSelect={false}
+                      hideSelectedOptions={false}
+                      components={{ Option: CustomOption }}
+                    />
+                  </div>
+
+                  {/* Skill Filter */}
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs font-semibold text-gray-500 dark:text-gray-400">Skill</label>
+                    <Select
+                      name="skillFilter"
+                      value={skillFilter}
+                      onChange={(selected: any) => setSkillFilter(selected || [])}
+                      onFocus={fetchAvailableSkills}
+                      options={availableSkills.map((s) => ({ value: s, label: s }))}
+                      styles={getCustomSelectStyles(isDark)}
+                      placeholder="Select Skill..."
+                      isMulti
+                      closeMenuOnSelect={false}
+                      hideSelectedOptions={false}
+                      components={{ Option: CustomOption }}
+                    />
+                  </div>
+
+                  {/* Experience Filter */}
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs font-semibold text-gray-500 dark:text-gray-400">Experience</label>
+                    <Select
+                      name="expFilter"
+                      value={expFilter}
+                      onChange={(selected: any) => setExpFilter(selected)}
+                      options={EXPERIENCE_OPTIONS}
+                      styles={getCustomSelectStyles(isDark)}
+                      placeholder="Select Experience..."
+                      isClearable
+                    />
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
+
+      {/* Active Filters Row */}
+      {activeFiltersCount > 0 && (
+        <div className="flex flex-wrap items-center gap-2 px-6 py-3.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800/80 rounded-3xl shadow-xs">
+          <span className="text-xs font-semibold text-gray-400 dark:text-gray-505">Active Filters:</span>
+          {jobFilter && (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-100/50 dark:border-blue-900/50">
+              Job: {jobFilter.label}
+              <button onClick={clearJobFilterAndUrl} className="hover:text-blue-800 dark:hover:text-blue-300 cursor-pointer">
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </span>
+          )}
+          {locationFilter.map((loc) => (
+            <span key={loc.value} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-100/50 dark:border-blue-900/50 animate-fade-in">
+              Location: {loc.label}
+              <button onClick={() => setLocationFilter(prev => prev.filter(item => item.value !== loc.value))} className="hover:text-blue-800 dark:hover:text-blue-300 cursor-pointer">
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </span>
+          ))}
+          {skillFilter.map((skill) => (
+            <span key={skill.value} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-100/50 dark:border-blue-900/50 animate-fade-in">
+              Skill: {skill.label}
+              <button onClick={() => setSkillFilter(prev => prev.filter(item => item.value !== skill.value))} className="hover:text-blue-800 dark:hover:text-blue-300 cursor-pointer">
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </span>
+          ))}
+          {expFilter && (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-100/50 dark:border-blue-900/50">
+              Experience: {expFilter.label}
+              <button onClick={() => setExpFilter(null)} className="hover:text-blue-800 dark:hover:text-blue-300 cursor-pointer">
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </span>
+          )}
+          <button
+            onClick={clearAllFiltersAndUrl}
+            className="text-xs font-bold text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 ml-1 transition-colors cursor-pointer"
+          >
+            Clear All
+          </button>
+        </div>
+      )}
 
       <div className="min-h-[70vh] flex flex-col justify-between overflow-hidden rounded-3xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-xs">
         <div className="max-w-full overflow-x-auto flex-1">
@@ -359,7 +736,7 @@ function CandidatesContent() {
                                 </span>
                               ))
                             ) : (
-                              <span className="text-gray-400">-</span>
+                              <span className="text-gray-400 dark:text-gray-500 font-medium">NA</span>
                             )}
                           </div>
                         </TableCell>

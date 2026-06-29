@@ -87,6 +87,15 @@ export class UsersController {
     return { message: 'Logout successful', statusCode: 200 };
   }
 
+  @Get('check-auth')
+  @ApiOperation({ summary: 'Check if user is logged in' })
+  @ApiResponse({ status: 200, description: 'User is logged in' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @UseGuards(AuthGuard)
+  async checkAuth() {
+    return { loggedIn: true };
+  }
+
   @Post('signup')
   @ApiOperation({ summary: 'Sign up a new candidate' })
   @ApiResponse({ status: 201, description: 'Candidate signed up successfully' })

@@ -5,12 +5,78 @@ import Select from 'react-select';
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 
+const DEFAULT_CITY_OPTIONS = [
+  { value: "Remote", label: "Remote" },
+  { value: "Bangalore", label: "Bangalore" },
+  { value: "Mumbai", label: "Mumbai" },
+  { value: "Delhi NCR", label: "Delhi NCR" },
+  { value: "Gurgaon", label: "Gurgaon" },
+  { value: "Noida", label: "Noida" },
+  { value: "Hyderabad", label: "Hyderabad" },
+  { value: "Pune", label: "Pune" },
+  { value: "Chennai", label: "Chennai" },
+  { value: "Kolkata", label: "Kolkata" },
+  { value: "Ahmedabad", label: "Ahmedabad" },
+  { value: "Kochi", label: "Kochi" },
+  { value: "Jaipur", label: "Jaipur" },
+];
+
+const WORK_MODE_OPTIONS = [
+  { value: "Remote", label: "Remote" },
+  { value: "Hybrid", label: "Hybrid" },
+  { value: "On-site", label: "On-site" },
+];
+const NOTICE_PERIOD_OPTIONS = [
+  { value: "0", label: "Immediate Join" },
+  { value: "15", label: "0-15 days" },
+  { value: "30", label: "1-month" },
+  { value: "60", label: "2-month" },
+  { value: "90", label: "3-month" },
+  { value: "120", label: "more than 3" },
+];
+
+const EXP_YEARS_OPTIONS = [
+  { value: "0", label: "0 Yrs" },
+  { value: "1", label: "1 Yr" },
+  { value: "2", label: "2 Yrs" },
+  { value: "3", label: "3 Yrs" },
+  { value: "4", label: "4 Yrs" },
+  { value: "5", label: "5 Yrs" },
+  { value: "6", label: "6 Yrs" },
+  { value: "7", label: "7 Yrs" },
+  { value: "8", label: "8 Yrs" },
+  { value: "9", label: "9 Yrs" },
+  { value: "10", label: "10 Yrs" },
+  { value: "11", label: "11 Yrs" },
+  { value: "12", label: "12 Yrs" },
+  { value: "13", label: "13 Yrs" },
+  { value: "14", label: "14 Yrs" },
+  { value: "15", label: "15+ Yrs" },
+];
+
+const EXP_MONTHS_OPTIONS = [
+  { value: "0", label: "0 Months" },
+  { value: "1", label: "1 Month" },
+  { value: "2", label: "2 Months" },
+  { value: "3", label: "3 Months" },
+  { value: "4", label: "4 Months" },
+  { value: "5", label: "5 Months" },
+  { value: "6", label: "6 Months" },
+  { value: "7", label: "7 Months" },
+  { value: "8", label: "8 Months" },
+  { value: "9", label: "9 Months" },
+  { value: "10", label: "10 Months" },
+  { value: "11", label: "11 Months" },
+];
+
 
 export default function ResumeUploadForm({ closeModal, jobId, onApplySuccess }: { closeModal: () => void; jobId?: string | null; onApplySuccess?: (jobId: string) => void }) {
   const API_URL = process.env.NEXT_PUBLIC_API_URL || (typeof window !== "undefined" ? `http://${window.location.hostname}:3003` : "http://localhost:3003");
   const [candidData, setcanditData] = useState<any[]>([]);
   const [selectedOption, setSelectedOption] = useState<any[]>([]);
   const [isDark, setIsDark] = useState(false);
+  const [cityOptions, setCityOptions] = useState<{ value: string; label: string }[]>(DEFAULT_CITY_OPTIONS);
+
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -27,6 +93,35 @@ export default function ResumeUploadForm({ closeModal, jobId, onApplySuccess }: 
     }
   }, []);
 
+  useEffect(() => {
+    const fetchCities = async () => {
+      try {
+        const res = await fetch(`${API_URL}/locations`);
+        if (res.ok) {
+          const result = await res.json();
+          const locationsList = result.data || [];
+          const mapped = locationsList
+            .filter((loc: any) => loc.name.toUpperCase() !== "REMOTE")
+            .map((loc: any) => ({
+              value: loc.name,
+              label: loc.name
+                .toLowerCase()
+                .split(" ")
+                .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
+                .join(" "),
+            }));
+          setCityOptions([
+            { value: "Remote", label: "Remote" },
+            ...mapped
+          ]);
+        }
+      } catch (error) {
+        console.error("Error fetching cities:", error);
+      }
+    };
+    fetchCities();
+  }, [API_URL]);
+
   const handleSkillsChange = (selected: any) => {
     const values = selected ? selected.map((opt: any) => opt.value) : [];
     setFormData((prev) => ({ ...prev, skills: values }));
@@ -39,6 +134,11 @@ export default function ResumeUploadForm({ closeModal, jobId, onApplySuccess }: 
     yearsOfExperience: "",
     education: "",
     noticePeriod: "",
+    currentLocation: "",
+    preferredWorkMode: "",
+    preferredJobLocations: [] as string[],
+    expectedCtc: "",
+    currentCtc: "",
     resume: null as File | null,
     skills: "",
   });
@@ -47,6 +147,41 @@ export default function ResumeUploadForm({ closeModal, jobId, onApplySuccess }: 
     email: "",
     mobile: "",
   });
+
+  const [expYears, setExpYears] = useState("0");
+  const [expMonths, setExpMonths] = useState("0");
+
+  useEffect(() => {
+    if (formData.yearsOfExperience !== undefined && formData.yearsOfExperience !== "") {
+      const totalExp = Number(formData.yearsOfExperience);
+      if (!isNaN(totalExp)) {
+        const yrs = Math.floor(totalExp);
+        const mos = Math.round((totalExp - yrs) * 12);
+        const clampedYrs = Math.min(15, Math.max(0, yrs));
+        const clampedMos = Math.min(11, Math.max(0, mos));
+        setExpYears(String(clampedYrs));
+        setExpMonths(String(clampedMos));
+      }
+    }
+  }, [formData.yearsOfExperience]);
+
+  const handleExpYearsChange = (selected: any) => {
+    const yrs = selected ? selected.value : "0";
+    setExpYears(yrs);
+    const total = Number(yrs) + Number(expMonths) / 12;
+    setFormData(prev => ({ ...prev, yearsOfExperience: String(total) }));
+  };
+
+  const handleExpMonthsChange = (selected: any) => {
+    const mos = selected ? selected.value : "0";
+    setExpMonths(mos);
+    const total = Number(expYears) + Number(mos) / 12;
+    setFormData(prev => ({ ...prev, yearsOfExperience: String(total) }));
+  };
+
+  const handleNoticePeriodChange = (selected: any) => {
+    setFormData(prev => ({ ...prev, noticePeriod: selected ? selected.value : "" }));
+  };
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
@@ -121,7 +256,9 @@ export default function ResumeUploadForm({ closeModal, jobId, onApplySuccess }: 
       if (value !== null) {
         // If the field is "resume", backend expects it as "file"
         if (key === "resume") {
-          bodyData.append("file", value);
+          bodyData.append("file", value as any);
+        } else if (Array.isArray(value)) {
+          bodyData.append(key, value.join(","));
         } else {
           bodyData.append(key, value as any);
         }
@@ -153,7 +290,6 @@ export default function ResumeUploadForm({ closeModal, jobId, onApplySuccess }: 
 
 
       setFormData({
-
         firstName: "",
         lastName: "",
         email: "",
@@ -161,6 +297,11 @@ export default function ResumeUploadForm({ closeModal, jobId, onApplySuccess }: 
         yearsOfExperience: "",
         education: "",
         noticePeriod: "",
+        currentLocation: "",
+        preferredWorkMode: "",
+        preferredJobLocations: [],
+        expectedCtc: "",
+        currentCtc: "",
         resume: null,
         skills: "",
       });
@@ -211,15 +352,15 @@ export default function ResumeUploadForm({ closeModal, jobId, onApplySuccess }: 
     control: (provided: any, state: any) => {
       return {
         ...provided,
-        backgroundColor: isDark ? '#1f2937' : '#ffffff', // gray-800 or white
+        backgroundColor: isDark ? '#111827' : '#ffffff',
         borderColor: state.isFocused
-          ? '#3b82f6' // blue-500
+          ? '#3b82f6'
           : isDark
-            ? '#374151' // gray-700
-            : '#e5e7eb', // gray-200
-        borderRadius: '0.75rem', // rounded-xl
+            ? '#374151'
+            : '#e5e7eb',
+        borderRadius: '0.75rem',
         padding: '2px 4px',
-        fontSize: '0.875rem', // text-sm
+        fontSize: '0.875rem',
         boxShadow: state.isFocused
           ? '0 0 0 2px rgba(59, 130, 246, 0.2)'
           : 'none',
@@ -232,7 +373,7 @@ export default function ResumeUploadForm({ closeModal, jobId, onApplySuccess }: 
     menu: (provided: any) => {
       return {
         ...provided,
-        backgroundColor: isDark ? '#111827' : '#ffffff', // gray-900 or white
+        backgroundColor: isDark ? '#111827' : '#ffffff',
         borderRadius: '0.75rem',
         border: isDark ? '1px solid #374151' : '1px solid #e5e7eb',
         boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
@@ -245,8 +386,8 @@ export default function ResumeUploadForm({ closeModal, jobId, onApplySuccess }: 
         ...provided,
         maxHeight: '180px',
         padding: '4px',
-        scrollbarWidth: 'thin' as any, // Firefox
-        scrollbarColor: isDark ? '#4b5563 transparent' : '#cbd5e1 transparent', // Firefox
+        scrollbarWidth: 'thin' as any,
+        scrollbarColor: isDark ? '#4b5563 transparent' : '#cbd5e1 transparent',
         '&::-webkit-scrollbar': {
           width: '6px',
           height: '6px',
@@ -271,14 +412,14 @@ export default function ResumeUploadForm({ closeModal, jobId, onApplySuccess }: 
           ? '#3b82f6'
           : state.isFocused
             ? isDark
-              ? '#1f2937' // gray-800
-              : '#f3f4f6' // gray-100
+              ? '#1f2937'
+              : '#f3f4f6'
             : 'transparent',
         color: state.isSelected
           ? '#ffffff'
           : isDark
-            ? '#f9fafb' // gray-50
-            : '#111827', // gray-900
+            ? '#f9fafb'
+            : '#111827',
         padding: '8px 12px',
         borderRadius: '0.5rem',
         fontSize: '0.875rem',
@@ -290,39 +431,48 @@ export default function ResumeUploadForm({ closeModal, jobId, onApplySuccess }: 
         transition: 'all 0.15s ease',
       };
     },
-    multiValue: (provided: any) => {
-      return {
-        ...provided,
-        backgroundColor: isDark ? '#374151' : '#e5e7eb', // gray-700 or gray-200
-        borderRadius: '0.375rem',
-        padding: '2px 6px',
-      };
-    },
-    multiValueLabel: (provided: any) => {
+    singleValue: (provided: any) => {
       return {
         ...provided,
         color: isDark ? '#f9fafb' : '#111827',
-        fontSize: '0.75rem',
-        fontWeight: '500',
-      };
-    },
-    multiValueRemove: (provided: any) => {
-      return {
-        ...provided,
-        color: isDark ? '#9ca3af' : '#4b5563',
-        '&:hover': {
-          backgroundColor: isDark ? '#4b5563' : '#d1d5db',
-          color: isDark ? '#f9fafb' : '#111827',
-        },
-        borderRadius: '0.25rem',
-        transition: 'all 0.15s ease',
       };
     },
     placeholder: (provided: any) => {
       return {
         ...provided,
-        color: isDark ? '#6b7280' : '#9ca3af',
+        color: isDark ? '#9ca3af' : '#6b7280',
         fontSize: '0.875rem',
+      };
+    },
+    multiValue: (provided: any) => {
+      return {
+        ...provided,
+        backgroundColor: isDark ? '#374151' : '#f3f4f6',
+        borderRadius: '0.5rem',
+        border: isDark ? '1px solid #4b5563' : '1px solid #e5e7eb',
+        padding: '1px 4px',
+      };
+    },
+    multiValueLabel: (provided: any) => {
+      return {
+        ...provided,
+        color: isDark ? '#f9fafb' : '#374151',
+        fontWeight: '600',
+        fontSize: '0.75rem',
+      };
+    },
+    multiValueRemove: (provided: any) => {
+      return {
+        ...provided,
+        color: isDark ? '#9ca3af' : '#6b7280',
+        borderRadius: '0.25rem',
+        marginLeft: '2px',
+        cursor: 'pointer',
+        '&:hover': {
+          backgroundColor: isDark ? '#4b5563' : '#e5e7eb',
+          color: isDark ? '#ef4444' : '#ef4444',
+        },
+        transition: 'all 0.15s ease',
       };
     },
   };
@@ -397,23 +547,87 @@ export default function ResumeUploadForm({ closeModal, jobId, onApplySuccess }: 
               </div>
 
               <div className="col-span-2 lg:col-span-1">
-                <Label>Yrs Of Exp</Label>
+                <Label>Yrs of Exp</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <Select
+                    name="expYears"
+                    value={EXP_YEARS_OPTIONS.find(opt => opt.value === expYears) || null}
+                    onChange={handleExpYearsChange}
+                    options={EXP_YEARS_OPTIONS}
+                    styles={customSelectStyles}
+                    placeholder="Yrs"
+                  />
+                  <Select
+                    name="expMonths"
+                    value={EXP_MONTHS_OPTIONS.find(opt => opt.value === expMonths) || null}
+                    onChange={handleExpMonthsChange}
+                    options={EXP_MONTHS_OPTIONS}
+                    styles={customSelectStyles}
+                    placeholder="Months"
+                  />
+                </div>
+              </div>
+
+              <div className="col-span-2 lg:col-span-1">
+                <Label>Notice Period</Label>
+                <Select
+                  name="noticePeriod"
+                  value={NOTICE_PERIOD_OPTIONS.find(opt => opt.value === String(formData.noticePeriod)) || null}
+                  onChange={handleNoticePeriodChange}
+                  options={NOTICE_PERIOD_OPTIONS}
+                  styles={customSelectStyles}
+                  placeholder="Select notice period..."
+                />
+              </div>
+
+              <div className="col-span-2 lg:col-span-1">
+                <Label>Current Location</Label>
+                <Select
+                  name="currentLocation"
+                  value={cityOptions.find(opt => opt.value.toLowerCase() === (formData.currentLocation || "").toLowerCase()) || null}
+                  onChange={(selected: any) => {
+                    setFormData((prev) => ({ ...prev, currentLocation: selected ? selected.value : "" }));
+                  }}
+                  options={cityOptions}
+                  styles={customSelectStyles}
+                  placeholder="Select city..."
+                />
+              </div>
+
+              <div className="col-span-2 lg:col-span-1">
+                <Label>Preferred Work Mode</Label>
+                <Select
+                  name="preferredWorkMode"
+                  value={WORK_MODE_OPTIONS.find(opt => opt.value === formData.preferredWorkMode) || null}
+                  onChange={(selected: any) => {
+                    setFormData((prev) => ({ ...prev, preferredWorkMode: selected ? selected.value : "" }));
+                  }}
+                  options={WORK_MODE_OPTIONS}
+                  styles={customSelectStyles}
+                  placeholder="Select mode..."
+                />
+              </div>
+
+              <div className="col-span-2 lg:col-span-1">
+                <Label>Current CTC (LPA, Optional)</Label>
                 <Input
                   type="number"
-                  name="yearsOfExperience"
-                  placeholder="e.g. 5"
-                  value={formData.yearsOfExperience}
+                  step={0.1}
+                  name="currentCtc"
+                  placeholder="e.g. 6.0"
+                  value={formData.currentCtc}
                   onChange={handleChange}
                 />
               </div>
 
               <div className="col-span-2 lg:col-span-1">
-                <Label>Notice Period</Label>
+                <Label>Expected CTC (LPA, Optional)</Label>
                 <Input
                   type="number"
-                  name="noticePeriod"
-                  placeholder="e.g. 30"
-                  value={formData.noticePeriod}
+                  step={0.1}
+                  name="expectedCtc"
+                  placeholder="e.g. 8.5"
+                  value={formData.expectedCtc}
                   onChange={handleChange}
                 />
               </div>
