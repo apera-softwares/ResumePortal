@@ -79,6 +79,8 @@ export class CandidateController {
   @ApiQuery({ name: 'userId', required: false, type: String })
   @ApiQuery({ name: 'role', required: false, type: String })
   @ApiQuery({ name: 'isPublic', required: false, type: String })
+  @ApiQuery({ name: 'jobId', required: false, type: String })
+  @ApiQuery({ name: 'location', required: false, type: String })
   @ApiResponse({ status: 200, description: 'List of candidates' })
   async getAll(
     @Query('page') page?: string,
@@ -89,6 +91,8 @@ export class CandidateController {
     @Query('userId') userId?: string,
     @Query('role') role?: string,
     @Query('isPublic') isPublic?: string,
+    @Query('jobId') jobId?: string,
+    @Query('location') location?: string,
   ) {
     const pageNum = page ? parseInt(page, 10) : undefined;
     const limitNum = limit ? parseInt(limit, 10) : undefined;
@@ -104,6 +108,8 @@ export class CandidateController {
       userId,
       role,
       isPublicBool,
+      jobId,
+      location,
     );
   }
 
@@ -250,5 +256,16 @@ export class CandidateController {
       console.error('[export-docx]', err);
       res.status(500).json({ error: 'Failed to export Word document' });
     }
+  }
+
+  @Post(':id/apply')
+  @ApiOperation({ summary: 'Apply to a job directly' })
+  @ApiBody({ schema: { type: 'object', properties: { jobId: { type: 'string' } } } })
+  @ApiResponse({ status: 200, description: 'Applied successfully' })
+  async applyToJob(
+    @Param('id') id: string,
+    @Body('jobId') jobId: string,
+  ) {
+    return this.candidateService.applyToJob(id, jobId);
   }
 }

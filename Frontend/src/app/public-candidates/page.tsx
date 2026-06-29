@@ -1,12 +1,12 @@
 "use client";
 
 import { Table, TableBody, TableCell, TableHeader, TableRow } from "@/components/ui/table";
-import EditResume from "@/components/UsersModels/resumeEditModel/EditResume";
+import PublicResumeViewer from "@/components/UsersModels/resumeEditModel/PublicResumeViewer";
 import ResumeUploadForm from "@/components/ResumeUploadForm/ResumeUploadForm";
 import { Modal } from "@/components/ui/modal";
 import { useModal } from "@/hooks/useModal";
 import React, { useEffect, useState, Suspense } from "react";
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 interface Candidate {
   id: string;
@@ -34,7 +34,6 @@ function PublicCandidatesContent() {
   const API_URL = process.env.NEXT_PUBLIC_API_URL || (typeof window !== "undefined" ? `http://${window.location.hostname}:3003` : "http://localhost:3003");
   const router = useRouter();
   const searchParams = useSearchParams();
-  const pathname = usePathname();
   const candidateIdParam = searchParams.get("candidateId");
 
   const [candidatesData, setCandidatesData] = useState<Candidate[]>([]);
@@ -185,34 +184,38 @@ function PublicCandidatesContent() {
   if (viewingCandidate) {
     return (
       <div className="min-h-screen w-full flex flex-col relative bg-gray-50 dark:bg-[#0b0a19] transition-colors duration-300">
+        {/* Premium Header */}
         <header className="sticky top-0 z-50 w-full backdrop-blur-md bg-white/80 dark:bg-[#0b0a19]/80 border-b border-gray-100 dark:border-[#1c1b2e] transition-all duration-300">
           <div className="max-w-7xl mx-auto flex justify-between items-center px-4 sm:px-6 lg:px-8 h-16 sm:h-20">
-            <div className="flex items-center">
-              <img 
-                src="/images/brand/brand-logo-png.png" 
-                alt="Brand Logo" 
-                className="h-9 sm:h-11 w-auto object-contain cursor-pointer" 
+            <div className="flex items-center gap-4">
+              <img
+                src="/images/brand/brand-logo-png.png"
+                alt="Brand Logo"
+                className="h-9 sm:h-11 w-auto object-contain cursor-pointer"
                 onClick={() => router.push("/")}
               />
-            </div>
-            <div className="flex items-center gap-2.5">
               <button
                 onClick={() => router.push("/public-candidates")}
-                className="px-4 py-2 text-sm font-semibold rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 dark:border-[#222138] dark:bg-[#121124] dark:text-gray-200 dark:hover:bg-[#1c1b35] transition-all shadow-sm"
+                className="hidden sm:flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-xl border border-gray-200 dark:border-[#222138] bg-white dark:bg-[#121124] hover:bg-gray-50 dark:hover:bg-[#1c1b35] text-gray-700 dark:text-gray-200 transition-all shadow-sm"
               >
-                Back to List
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+                Back to Candidates
               </button>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 hidden md:block">
+                {viewingCandidate.firstName} {viewingCandidate.lastName}
+              </span>
             </div>
           </div>
         </header>
 
         <main className="flex-grow w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <EditResume
+          <PublicResumeViewer
             candidate={viewingCandidate}
-            isInline={true}
-            onClose={() => router.push(pathname)}
-            initialMode="preview"
-            isPublicPage={true}
+            onClose={() => router.push("/public-candidates")}
           />
         </main>
       </div>
@@ -392,7 +395,7 @@ function PublicCandidatesContent() {
                           {/* View Resume */}
                           <TableCell className="px-6 py-4 text-center">
                             <button
-                              onClick={() => router.push(`${pathname}?candidateId=${cand.id}`)}
+                              onClick={() => router.push(`/public-candidates?candidateId=${cand.id}`)}
                               className="px-4 py-1.5 rounded-xl text-xs font-semibold border border-gray-200 dark:border-[#2d2c4b] text-gray-700 dark:text-gray-200 bg-white dark:bg-[#121124] hover:bg-gray-50 dark:hover:bg-[#1c1b35] transition-all shadow-xs"
                             >
                               View

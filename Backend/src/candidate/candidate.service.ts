@@ -44,6 +44,8 @@ export class CandidateService {
 
     const yearsOfExperience = Number(candidateData.yearsOfExperience);
     const noticePeriod = Number(candidateData.noticePeriod);
+    const expectedCtc = candidateData.expectedCtc ? Number(candidateData.expectedCtc) : null;
+    const currentCtc = candidateData.currentCtc ? Number(candidateData.currentCtc) : null;
 
     let skillsArray: string[] = [];
 
@@ -52,6 +54,20 @@ export class CandidateService {
         skillsArray = candidateData.skills.split(',').map((s) => s.trim());
       } else if (Array.isArray(candidateData.skills)) {
         skillsArray = candidateData.skills.map((s) => s.trim());
+      }
+    }
+
+    let preferredJobLocationsArray: string[] = [];
+    if (candidateData.preferredJobLocations) {
+      if (typeof candidateData.preferredJobLocations === 'string') {
+        preferredJobLocationsArray = candidateData.preferredJobLocations
+          .split(',')
+          .map((l) => l.trim())
+          .filter(Boolean);
+      } else if (Array.isArray(candidateData.preferredJobLocations)) {
+        preferredJobLocationsArray = candidateData.preferredJobLocations
+          .map((l: any) => String(l).trim())
+          .filter(Boolean);
       }
     }
 
@@ -93,6 +109,11 @@ export class CandidateService {
           yearsOfExperience,
           education: candidateData.education,
           noticePeriod,
+          currentLocation: candidateData.currentLocation || null,
+          preferredWorkMode: candidateData.preferredWorkMode || null,
+          preferredJobLocations: preferredJobLocationsArray,
+          expectedCtc,
+          currentCtc,
           resume: file.filename,
           resumeText: '', // reset and parse asynchronously via event
           skills: {
@@ -149,6 +170,11 @@ export class CandidateService {
         yearsOfExperience,
         education: candidateData.education,
         noticePeriod,
+        currentLocation: candidateData.currentLocation || null,
+        preferredWorkMode: candidateData.preferredWorkMode || null,
+        preferredJobLocations: preferredJobLocationsArray,
+        expectedCtc,
+        currentCtc,
         resume: file.filename,
         resumeText: '', // initially empty, parsed in event handler
         skills: {
@@ -196,52 +222,82 @@ export class CandidateService {
     userId?: string,
     role?: string,
     isPublic?: boolean,
+    jobId?: string,
+    location?: string,
   ) {
     const where: any = {};
     if (isPublic !== undefined) {
       where.isPublic = isPublic;
     }
 
-    // 1. Company User filter
-    if (role && role !== 'ADMIN' && userId) {
-      where.appliedJobs = {
-        some: {
-          job: { createdById: userId },
+    const andConditions: any[] = [];
+
+    // 1. Job Filter or Company User filter
+    if (jobId) {
+      andConditions.push({
+        appliedJobs: {
+          some: { jobId: jobId },
         },
-      };
+      });
+    } else if (role && role !== 'ADMIN' && userId) {
+      andConditions.push({
+        appliedJobs: {
+          some: {
+            job: { createdById: userId },
+          },
+        },
+      });
     }
 
     // 2. Skill Filter
     if (skill) {
-      where.skills = {
-        some: {
-          skill: {
-            name: {
-              equals: skill,
-              mode: 'insensitive',
-            },
-          },
-        },
-      };
+      const skillList = skill.split(',').map(s => s.trim()).filter(Boolean);
+      if (skillList.length > 0) {
+        andConditions.push({
+          skills: {
+            some: {
+              skill: {
+                OR: skillList.map(s => ({
+                  name: { equals: s, mode: 'insensitive' }
+                }))
+              }
+            }
+          }
+        });
+      }
     }
 
     // 3. Experience Filter
     if (experience) {
-      if (experience === '0-2') {
-        where.yearsOfExperience = { gte: 0, lte: 2 };
+      if (experience === 'fresher') {
+        andConditions.push({ yearsOfExperience: 0 });
+      } else if (experience === '0-1') {
+        andConditions.push({ yearsOfExperience: { gte: 0, lte: 1 } });
+      } else if (experience === '1-2') {
+        andConditions.push({ yearsOfExperience: { gte: 1, lte: 2 } });
+      } else if (experience === '2-3') {
+        andConditions.push({ yearsOfExperience: { gte: 2, lte: 3 } });
       } else if (experience === '3-5') {
-        where.yearsOfExperience = { gte: 3, lte: 5 };
-      } else if (experience === '6-9') {
-        where.yearsOfExperience = { gte: 6, lte: 9 };
-      } else if (experience === '10+') {
-        where.yearsOfExperience = { gte: 10 };
+        andConditions.push({ yearsOfExperience: { gte: 3, lte: 5 } });
+      } else if (experience === '5-7') {
+        andConditions.push({ yearsOfExperience: { gte: 5, lte: 7 } });
+      } else if (experience === '7-10') {
+        andConditions.push({ yearsOfExperience: { gte: 7, lte: 10 } });
+      } else if (experience === '10-12') {
+        andConditions.push({ yearsOfExperience: { gte: 10, lte: 12 } });
+      } else if (experience === '12-15') {
+        andConditions.push({ yearsOfExperience: { gte: 12, lte: 15 } });
+      } else if (experience === '15+') {
+        andConditions.push({ yearsOfExperience: { gte: 15 } });
       }
     }
 
     // 4. Search Term Filter
     if (search && search.trim()) {
       const term = search.trim();
-      where.OR = [
+      const words = term.split(/\s+/).filter(Boolean);
+      
+      const searchConditions: any[] = [
         { firstName: { contains: term, mode: 'insensitive' } },
         { lastName: { contains: term, mode: 'insensitive' } },
         { email: { contains: term, mode: 'insensitive' } },
@@ -258,6 +314,43 @@ export class CandidateService {
           },
         },
       ];
+
+      // Support searching by full name (e.g., "Trushant Kose")
+      if (words.length > 1) {
+        searchConditions.push({
+          AND: [
+            { firstName: { contains: words[0], mode: 'insensitive' } },
+            { lastName: { contains: words.slice(1).join(' '), mode: 'insensitive' } },
+          ],
+        });
+      }
+
+      andConditions.push({
+        OR: searchConditions,
+      });
+    }
+
+    // 5. Location Filter
+    if (location && location.trim() !== '') {
+      const locationList = location.split(',').map(l => l.trim().toUpperCase()).filter(Boolean);
+      if (locationList.length > 0) {
+        andConditions.push({
+          OR: [
+            ...locationList.map(loc => ({
+              currentLocation: { equals: loc, mode: 'insensitive' }
+            })),
+            {
+              preferredJobLocations: {
+                hasSome: locationList
+              }
+            }
+          ]
+        });
+      }
+    }
+
+    if (andConditions.length > 0) {
+      where.AND = andConditions;
     }
 
     const skip = page && limit ? (page - 1) * limit : undefined;
@@ -1213,6 +1306,50 @@ export class CandidateService {
     });
 
     return this.mapCandidate(updatedCandidate);
+  }
+
+  async applyToJob(candidateId: string, jobId: string) {
+    const existing = await this.prisma.appliedJob.findUnique({
+      where: {
+        candidateId_jobId: { candidateId, jobId },
+      },
+    });
+    if (existing) {
+      return {
+        message: 'Already applied to this job',
+        statusCode: 200,
+        data: existing,
+      };
+    }
+    const applied = await this.prisma.appliedJob.create({
+      data: {
+        candidateId,
+        jobId,
+        status: 'APPLIED',
+      },
+      include: {
+        job: true,
+      },
+    });
+    return {
+      message: 'Successfully applied to the job',
+      statusCode: 201,
+      data: applied,
+    };
+  }
+
+  // ── Apply via logged-in user (resolves candidate from user email in JWT) ───
+  async applyToJobByEmail(email: string, jobId: string) {
+    const candidate = await this.prisma.candidate.findFirst({
+      where: { email },
+      select: { id: true, firstName: true, lastName: true, email: true },
+    });
+    if (!candidate) {
+      throw new NotFoundException(
+        'No candidate profile found. Please upload your resume first.',
+      );
+    }
+    return this.applyToJob(candidate.id, jobId);
   }
 }
 

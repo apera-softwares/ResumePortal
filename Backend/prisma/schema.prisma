@@ -58,28 +58,33 @@ model Job {
 }
 
 model Candidate {
-  id                String           @id @default(uuid())
-  firstName         String
-  lastName          String
-  email             String           @unique
-  mobile            String?
-  yearsOfExperience Int
-  education         String?
-  noticePeriod      Int
-  resume            String
-  createdAt         DateTime         @default(now())
-  updatedAt         DateTime         @updatedAt
-  resumeText        String?
-  cleanedResume     String?
-  resumeJson        String?
-  editedHtml        String?
-  parsedHtml        String?
-  isPublic          Boolean          @default(false)
-  userId            String?
-  appliedJobs       AppliedJob[]
-  user              User?            @relation(fields: [userId], references: [id])
-  skills            CandidateSkill[]
-  ResumeVersion     ResumeVersion[]
+  id                    String           @id @default(uuid())
+  firstName             String
+  lastName              String
+  email                 String           @unique
+  mobile                String?
+  yearsOfExperience     Float
+  education             String?
+  noticePeriod          Int
+  currentLocation       String?
+  preferredWorkMode     String?
+  preferredJobLocations String[]
+  expectedCtc           Float?
+  currentCtc            Float?
+  resume                String
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+  resumeText            String?
+  cleanedResume         String?
+  resumeJson            String?
+  editedHtml            String?
+  parsedHtml            String?
+  isPublic              Boolean          @default(false)
+  userId                String?
+  appliedJobs           AppliedJob[]
+  user                  User?            @relation(fields: [userId], references: [id])
+  skills                CandidateSkill[]
+  ResumeVersion         ResumeVersion[]
 }
 
 model AppliedJob {

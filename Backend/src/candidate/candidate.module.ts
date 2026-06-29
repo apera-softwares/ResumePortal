@@ -9,5 +9,7 @@ import { CandidateCreatedListener } from '../listeners/candidate-created.listene
   imports: [AuthModule],
   controllers: [CandidateController],
   providers: [CandidateService, PrismaService, CandidateCreatedListener],
+  exports: [CandidateService],
 })
 export class CandidateModule {}
+
