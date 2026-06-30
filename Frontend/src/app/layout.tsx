@@ -17,7 +17,6 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={`${outfit.className}`} suppressHydrationWarning>
           <Providers>{children}</Providers>
-          <Script src="https://accounts.google.com/gsi/client" strategy="lazyOnload" />
       </body>
     </html>
   );

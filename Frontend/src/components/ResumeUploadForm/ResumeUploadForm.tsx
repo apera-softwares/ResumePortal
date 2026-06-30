@@ -1,4 +1,4 @@
-import Button from "../ui/button/Button";
+
 import Input from "../form/input/InputField";
 import Label from "../form/Label";
 import Select from 'react-select';
@@ -36,7 +36,7 @@ const NOTICE_PERIOD_OPTIONS = [
 ];
 
 const EXP_YEARS_OPTIONS = [
-  { value: "0", label: "0 Yrs" },
+  { value: "0", label: "Fresher" },
   { value: "1", label: "1 Yr" },
   { value: "2", label: "2 Yrs" },
   { value: "3", label: "3 Yrs" },
@@ -76,6 +76,7 @@ export default function ResumeUploadForm({ closeModal, jobId, onApplySuccess }: 
   const [selectedOption, setSelectedOption] = useState<any[]>([]);
   const [isDark, setIsDark] = useState(false);
   const [cityOptions, setCityOptions] = useState<{ value: string; label: string }[]>(DEFAULT_CITY_OPTIONS);
+  const [isCandidate, setIsCandidate] = useState(false);
 
 
   useEffect(() => {
@@ -135,7 +136,7 @@ export default function ResumeUploadForm({ closeModal, jobId, onApplySuccess }: 
     education: "",
     noticePeriod: "",
     currentLocation: "",
-    preferredWorkMode: "",
+    budget: "",
     preferredJobLocations: [] as string[],
     expectedCtc: "",
     currentCtc: "",
@@ -143,9 +144,37 @@ export default function ResumeUploadForm({ closeModal, jobId, onApplySuccess }: 
     skills: "",
   });
 
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const storedRole = localStorage.getItem("role") || "";
+      const storedEmail = localStorage.getItem("email") || "";
+      const storedName = localStorage.getItem("name") || "";
+
+      if (storedRole === "CANDIDATE" && storedEmail) {
+        setIsCandidate(true);
+        let first = "";
+        let last = "";
+        if (storedName) {
+          const parts = storedName.trim().split(/\s+/);
+          first = parts[0] || "";
+          last = parts.slice(1).join(" ") || "";
+        }
+        setFormData((prev) => ({
+          ...prev,
+          email: prev.email || storedEmail,
+          firstName: prev.firstName || first,
+          lastName: prev.lastName || last,
+        }));
+      }
+    }
+  }, []);
+
   const [errors, setErrors] = useState({
+    firstName: "",
+    lastName: "",
     email: "",
     mobile: "",
+    resume: "",
   });
 
   const [expYears, setExpYears] = useState("0");
@@ -204,9 +233,7 @@ export default function ResumeUploadForm({ closeModal, jobId, onApplySuccess }: 
       [name]: value,
     }));
     // Clear errors as user types
-    if (name === "email" || name === "mobile") {
-      setErrors((prev) => ({ ...prev, [name]: "" }));
-    }
+    setErrors((prev) => ({ ...prev, [name]: "" }));
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -216,12 +243,23 @@ export default function ResumeUploadForm({ closeModal, jobId, onApplySuccess }: 
         ...prev,
         resume: file,
       }));
+      setErrors((prev) => ({ ...prev, resume: "" }));
     }
   };
 
   const validate = () => {
     let isValid = true;
-    const tempErrors = { email: "", mobile: "" };
+    const tempErrors = { firstName: "", lastName: "", email: "", mobile: "", resume: "" };
+
+    if (!formData.firstName.trim()) {
+      tempErrors.firstName = "First name is required";
+      isValid = false;
+    }
+
+    if (!formData.lastName.trim()) {
+      tempErrors.lastName = "Last name is required";
+      isValid = false;
+    }
 
     const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
     if (!formData.email.trim()) {
@@ -238,6 +276,11 @@ export default function ResumeUploadForm({ closeModal, jobId, onApplySuccess }: 
       isValid = false;
     } else if (!mobileRegex.test(formData.mobile)) {
       tempErrors.mobile = "Mobile number must be exactly 10 digits";
+      isValid = false;
+    }
+
+    if (!formData.resume) {
+      tempErrors.resume = "Please upload your resume";
       isValid = false;
     }
 
@@ -298,7 +341,7 @@ export default function ResumeUploadForm({ closeModal, jobId, onApplySuccess }: 
         education: "",
         noticePeriod: "",
         currentLocation: "",
-        preferredWorkMode: "",
+        budget: "",
         preferredJobLocations: [],
         expectedCtc: "",
         currentCtc: "",
@@ -497,7 +540,7 @@ export default function ResumeUploadForm({ closeModal, jobId, onApplySuccess }: 
 
             <div className="grid grid-cols-1 gap-x-6 gap-y-5 lg:grid-cols-2">
               <div className="col-span-2 lg:col-span-1">
-                <Label>First Name</Label>
+                <Label>First Name <span className="text-rose-500">*</span></Label>
                 <Input
                   type="text"
                   name="firstName"
@@ -505,10 +548,13 @@ export default function ResumeUploadForm({ closeModal, jobId, onApplySuccess }: 
                   value={formData.firstName}
                   onChange={handleChange}
                 />
+                {errors.firstName && (
+                  <p className="text-xs text-rose-500 mt-1.5 font-medium">{errors.firstName}</p>
+                )}
               </div>
 
               <div className="col-span-2 lg:col-span-1">
-                <Label>Last Name</Label>
+                <Label>Last Name <span className="text-rose-500">*</span></Label>
                 <Input
                   type="text"
                   name="lastName"
@@ -516,16 +562,20 @@ export default function ResumeUploadForm({ closeModal, jobId, onApplySuccess }: 
                   value={formData.lastName}
                   onChange={handleChange}
                 />
+                {errors.lastName && (
+                  <p className="text-xs text-rose-500 mt-1.5 font-medium">{errors.lastName}</p>
+                )}
               </div>
 
               <div className="col-span-2 lg:col-span-1">
-                <Label>Email</Label>
+                <Label>Email <span className="text-rose-500">*</span></Label>
                 <Input
                   type="email"
                   name="email"
                   placeholder="Enter email"
                   value={formData.email}
                   onChange={handleChange}
+                  disabled={isCandidate}
                 />
                 {errors.email && (
                   <p className="text-xs text-rose-500 mt-1.5 font-medium">{errors.email}</p>
@@ -533,7 +583,7 @@ export default function ResumeUploadForm({ closeModal, jobId, onApplySuccess }: 
               </div>
 
               <div className="col-span-2 lg:col-span-1">
-                <Label>Mobile</Label>
+                <Label>Mobile <span className="text-rose-500">*</span></Label>
                 <Input
                   type="text"
                   name="mobile"
@@ -547,23 +597,23 @@ export default function ResumeUploadForm({ closeModal, jobId, onApplySuccess }: 
               </div>
 
               <div className="col-span-2 lg:col-span-1">
-                <Label>Yrs of Exp</Label>
+                <Label>Years of Experience</Label>
                 <div className="grid grid-cols-2 gap-2">
                   <Select
-                    name="expYears"
-                    value={EXP_YEARS_OPTIONS.find(opt => opt.value === expYears) || null}
-                    onChange={handleExpYearsChange}
-                    options={EXP_YEARS_OPTIONS}
-                    styles={customSelectStyles}
-                    placeholder="Yrs"
+                     name="expYears"
+                     value={EXP_YEARS_OPTIONS.find(opt => opt.value === expYears) || null}
+                     onChange={handleExpYearsChange}
+                     options={EXP_YEARS_OPTIONS}
+                     styles={customSelectStyles}
+                     placeholder="Yrs"
                   />
                   <Select
-                    name="expMonths"
-                    value={EXP_MONTHS_OPTIONS.find(opt => opt.value === expMonths) || null}
-                    onChange={handleExpMonthsChange}
-                    options={EXP_MONTHS_OPTIONS}
-                    styles={customSelectStyles}
-                    placeholder="Months"
+                     name="expMonths"
+                     value={EXP_MONTHS_OPTIONS.find(opt => opt.value === expMonths) || null}
+                     onChange={handleExpMonthsChange}
+                     options={EXP_MONTHS_OPTIONS}
+                     styles={customSelectStyles}
+                     placeholder="Months"
                   />
                 </div>
               </div>
@@ -595,16 +645,13 @@ export default function ResumeUploadForm({ closeModal, jobId, onApplySuccess }: 
               </div>
 
               <div className="col-span-2 lg:col-span-1">
-                <Label>Preferred Work Mode</Label>
-                <Select
-                  name="preferredWorkMode"
-                  value={WORK_MODE_OPTIONS.find(opt => opt.value === formData.preferredWorkMode) || null}
-                  onChange={(selected: any) => {
-                    setFormData((prev) => ({ ...prev, preferredWorkMode: selected ? selected.value : "" }));
-                  }}
-                  options={WORK_MODE_OPTIONS}
-                  styles={customSelectStyles}
-                  placeholder="Select mode..."
+                <Label>Budget (Optional)</Label>
+                <Input
+                  type="text"
+                  name="budget"
+                  placeholder="e.g. 5-7 LPA"
+                  value={formData.budget}
+                  onChange={handleChange}
                 />
               </div>
 
@@ -659,13 +706,16 @@ export default function ResumeUploadForm({ closeModal, jobId, onApplySuccess }: 
               </div>
 
               <div className="col-span-2">
-                <Label>Upload Resume (PDF/DOC)</Label>
+                <Label>Upload Resume (PDF/DOC) <span className="text-rose-500">*</span></Label>
                 <Input
                   type="file"
                   name="resume"
                   accept=".pdf,.doc,.docx"
                   onChange={handleFileChange}
                 />
+                {errors.resume && (
+                  <p className="text-xs text-rose-500 mt-1.5 font-medium">{errors.resume}</p>
+                )}
               </div>
             </div>
           </div>

@@ -11,12 +11,7 @@
   const clients = ["CloudSphere Technologies", "PixelCraft Studio", "PeopleFirst HR"];
   const DEFAULT_MAJOR_CITIES = ["REMOTE", "MUMBAI", "DELHI", "BANGALORE", "HYDERABAD", "CHENNAI", "PUNE"];
   const jobTypes = ["FULL_TIME", "INTERN", "CONTRACT", "FREELANCING"]
-  // const options = [
-  //   { value: 'Js', label: 'Js' },
-  //   { value: 'nodeJs', label: 'nodeJs' },
-  //   { value: 'React', label: 'React' },
-  //   { value: 'SCSS', label: 'SCSS' },
-  // ];
+
 
   interface Job {
     id: string;
@@ -93,7 +88,7 @@
       title: "",
       description: "",
       client: "",
-      skills: [],
+      skills: [] as string[],
       salary: 0,
       internalSalary: 0,
       location: "",
@@ -113,10 +108,18 @@
       setFormData((prev) => ({ ...prev, skills: values }));
     };
 
-    const handlSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+      const handlSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
       e.preventDefault();
       if (!formData.skills || formData.skills.length === 0) {
         toast.error("Please select at least one skill.");
+        return;
+      }
+      if (!formData.client) {
+        toast.error("Please select a client.");
+        return;
+      }
+      if (!formData.location) {
+        toast.error("Please select a location.");
         return;
       }
       const token = localStorage.getItem("token");
@@ -171,7 +174,7 @@
     const [refreshTrigger, setRefreshTrigger] = useState(0);
     const ITEMS_PER_PAGE = 8;
 
-    const [skills ,setSkills]=useState([])
+    const [skills, setSkills] = useState([])
     const [locations, setLocations] = useState<string[]>(DEFAULT_MAJOR_CITIES);
 
     useEffect(() => {
@@ -262,6 +265,7 @@
                     <input
                       type="text"
                       name="title"
+                      value={formData.title}
                       onChange={handleChnage}
                       placeholder="Enter job title"
                       className="w-full border border-gray-300 dark:border-gray-700 rounded-lg p-2 focus:ring-2 focus:ring-blue-400 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
@@ -274,6 +278,7 @@
                     <label className="block mb-1 text-gray-700 dark:text-gray-300 font-medium">Description</label>
                     <textarea
                       name="description"
+                      value={formData.description}
                       onChange={handleChnage}
                       placeholder="Enter job description"
                       className="w-full border border-gray-300 dark:border-gray-700 rounded-lg p-2 focus:ring-2 focus:ring-blue-400 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
@@ -285,17 +290,14 @@
                   {/* Client */}
                   <div>
                     <label className="block mb-1 text-gray-700 dark:text-gray-300 font-medium">Client</label>
-                    <select
+                    <Select
                       name="client"
-                      onChange={handleChnage}
-                      className="w-full border border-gray-300 dark:border-gray-700 rounded-lg p-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                      required
-                    >
-                      <option value="" className="text-gray-500">Select Client</option>
-                      {clients.map((client) => (
-                        <option key={client} value={client}>{client}</option>
-                      ))}
-                    </select>
+                      value={formData.client ? { value: formData.client, label: formData.client } : null}
+                      onChange={(selected: any) => setFormData(prev => ({ ...prev, client: selected ? selected.value : "" }))}
+                      options={clients.map((client) => ({ value: client, label: client }))}
+                      styles={selectStyles}
+                      placeholder="Select Client"
+                    />
                   </div>
 
                   {/* Skills */}
@@ -303,7 +305,10 @@
                     <label className="block mb-1 text-gray-700 dark:text-gray-300 font-medium">Skills</label>
                     <Select
                       name="skills"
-                      defaultValue={selectedOption}
+                      value={skills.map((skill: any) => ({
+                        value: skill.name,
+                        label: skill.name,
+                      })).filter((opt: any) => formData.skills.includes(opt.value))}
                       onChange={handleSkillsChange}
                       options={skills.map((skill: any) => ({
                         value: skill.name,
@@ -311,6 +316,7 @@
                       }))}
                       isMulti
                       styles={selectStyles}
+                      placeholder="Select Skills..."
                     />
                   </div>
 
@@ -320,6 +326,7 @@
                       <input
                         type="number"
                         name="salary"
+                        value={formData.salary || ""}
                         onChange={handleChnage}
                         placeholder="e.g. 80000"
                         className="w-full border border-gray-300 dark:border-gray-700 rounded-lg p-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
@@ -330,6 +337,7 @@
                       <input
                         type="number"
                         name="internalSalary"
+                        value={formData.internalSalary || ""}
                         onChange={handleChnage}
                         placeholder="e.g. 100000"
                         className="w-full border border-gray-300 dark:border-gray-700 rounded-lg p-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
@@ -340,25 +348,32 @@
                   {/* Location */}
                   <div>
                     <label className="block mb-1 text-gray-700 dark:text-gray-300 font-medium">Location</label>
-                    <select
+                    <Select
                       name="location"
-                      onChange={handleChnage}
-                      className="w-full border border-gray-300 dark:border-gray-700 rounded-lg p-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                      required
-                    >
-                      <option value="" className="text-gray-500">Select Location</option>
-                      {locations.map((city) => (
-                        <option key={city} value={city}>
-                          {city === "REMOTE"
-                            ? "Remote"
-                            : city
-                                .toLowerCase()
-                                .split(" ")
-                                .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
-                                .join(" ")}
-                        </option>
-                      ))}
-                    </select>
+                      value={formData.location ? {
+                        value: formData.location,
+                        label: formData.location === "REMOTE"
+                          ? "Remote"
+                          : formData.location
+                              .toLowerCase()
+                              .split(" ")
+                              .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
+                              .join(" ")
+                      } : null}
+                      onChange={(selected: any) => setFormData(prev => ({ ...prev, location: selected ? selected.value : "" }))}
+                      options={locations.map((city) => ({
+                        value: city,
+                        label: city === "REMOTE"
+                          ? "Remote"
+                          : city
+                              .toLowerCase()
+                              .split(" ")
+                              .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
+                              .join(" ")
+                      }))}
+                      styles={selectStyles}
+                      placeholder="Select Location"
+                    />
                   </div>
 
                   {/* Job Type */}

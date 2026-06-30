@@ -11,11 +11,9 @@ import { LoginDto } from 'src/Validations/users/login.dto';
 import { UsersUpdateDto } from 'src/Validations/users/users-update.dto';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
-import { OAuth2Client } from 'google-auth-library';
 
 @Injectable()
 export class UsersService {
-  private readonly googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
   constructor(
     private prisma: PrismaService,
@@ -24,8 +22,9 @@ export class UsersService {
 
   // ── Create User ────────────────────────────────────────────────────────────
   async createUser(createDto: UsersCreateDto) {
+    const email = createDto.email.trim().toLowerCase();
     const existing = await this.prisma.user.findUnique({
-      where: { email: createDto.email },
+      where: { email },
     });
     if (existing) throw new ConflictException('User already exists');
 
@@ -44,7 +43,7 @@ export class UsersService {
     await this.prisma.user.create({
       data: {
         name: createDto.name,
-        email: createDto.email,
+        email: email,
         password: passwordHash,
         role: createDto.role || 'CANDIDATE',
       },
@@ -55,8 +54,9 @@ export class UsersService {
 
   // ── Login ──────────────────────────────────────────────────────────────────
   async loginUser(loginDto: LoginDto) {
+    const email = loginDto.email.trim().toLowerCase();
     const user = await this.prisma.user.findUnique({
-      where: { email: loginDto.email },
+      where: { email },
     });
 
     if (!user) {
@@ -75,7 +75,7 @@ export class UsersService {
     }
 
     const token = this.jwtService.sign(
-      { user: user.id, role: user.role },
+      { user: user.id, role: user.role, email: user.email },
       { secret: process.env.JWT_SECRET },
     );
 
@@ -92,67 +92,7 @@ export class UsersService {
     };
   }
 
-  // ── Google Login ──────────────────────────────────────────────────────────
-  async googleLogin(idToken: string) {
-    try {
-      const googleClientId = process.env.GOOGLE_CLIENT_ID;
-      if (!googleClientId) {
-        throw new InternalServerErrorException('Google Client ID is not configured on the server.');
-      }
 
-      const ticket = await this.googleClient.verifyIdToken({
-        idToken,
-        audience: googleClientId,
-      });
-
-      const payload = ticket.getPayload();
-      if (!payload || !payload.email) {
-        throw new UnauthorizedException('Invalid Google ID Token.');
-      }
-
-      const { email, name } = payload;
-
-      // Find or create the user in the database
-      let user = await this.prisma.user.findUnique({
-        where: { email },
-      });
-
-      if (!user) {
-        // Create user with default role CANDIDATE
-        user = await this.prisma.user.create({
-          data: {
-            name: name || 'Google User',
-            email,
-            password: '', // OAuth accounts do not need a password
-            role: 'CANDIDATE',
-          },
-        });
-      }
-
-      // Generate app JWT session token
-      const token = this.jwtService.sign(
-        { user: user.id, role: user.role },
-        { secret: process.env.JWT_SECRET },
-      );
-
-      return {
-        message: 'Google login successful',
-        statusCode: 200,
-        data: {
-          id: user.id,
-          token,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-        },
-      };
-    } catch (error) {
-      if (error instanceof UnauthorizedException || error instanceof InternalServerErrorException) {
-        throw error;
-      }
-      throw new UnauthorizedException('Google token validation failed: ' + error.message);
-    }
-  }
 
   // ── Get All Users ──────────────────────────────────────────────────────────
   async getAllUsers(page = 1, limit = 10, search?: string) {
@@ -244,5 +184,124 @@ export class UsersService {
 
     await this.prisma.user.delete({ where: { id } });
     return { message: 'User deleted successfully', statusCode: 200 };
+  }
+
+  // ── Profile Operations ──────────────────────────────────────────────────────
+  async getProfile(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        createdAt: true,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (user.role === 'CANDIDATE') {
+      const candidate = await this.prisma.candidate.findFirst({
+        where: { userId: user.id },
+        include: {
+          skills: { include: { skill: true } },
+        },
+      });
+      return {
+        statusCode: 200,
+        data: {
+          user,
+          candidate,
+        },
+      };
+    }
+
+    return {
+      statusCode: 200,
+      data: {
+        user,
+      },
+    };
+  }
+
+  async updateProfile(userId: string, updateDto: any) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Update user details
+    const updatedUser = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        name: updateDto.name !== undefined ? updateDto.name : user.name,
+        email: updateDto.email !== undefined ? updateDto.email : user.email,
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+      },
+    });
+
+    if (user.role === 'CANDIDATE') {
+      let candidate = await this.prisma.candidate.findFirst({
+        where: { userId: user.id },
+      });
+
+      const cData = updateDto.candidate || {};
+      let firstName = cData.firstName;
+      let lastName = cData.lastName;
+
+      if (!firstName && !lastName && updateDto.name) {
+        const parts = updateDto.name.trim().split(/\s+/);
+        firstName = parts[0] || '';
+        lastName = parts.slice(1).join(' ') || '';
+      }
+
+      if (candidate) {
+        const updatedCandidate = await this.prisma.candidate.update({
+          where: { id: candidate.id },
+          data: {
+            firstName: firstName !== undefined ? firstName : candidate.firstName,
+            lastName: lastName !== undefined ? lastName : candidate.lastName,
+            email: updateDto.email !== undefined ? updateDto.email : candidate.email,
+            mobile: cData.mobile !== undefined ? cData.mobile : candidate.mobile,
+            yearsOfExperience: cData.yearsOfExperience !== undefined ? Number(cData.yearsOfExperience) : candidate.yearsOfExperience,
+            education: cData.education !== undefined ? cData.education : candidate.education,
+            noticePeriod: cData.noticePeriod !== undefined ? Number(cData.noticePeriod) : candidate.noticePeriod,
+            currentLocation: cData.currentLocation !== undefined ? cData.currentLocation : candidate.currentLocation,
+            preferredWorkMode: cData.preferredWorkMode !== undefined ? cData.preferredWorkMode : candidate.preferredWorkMode,
+            budget: cData.budget !== undefined ? cData.budget : candidate.budget,
+            expectedCtc: cData.expectedCtc !== undefined ? Number(cData.expectedCtc) : candidate.expectedCtc,
+            currentCtc: cData.currentCtc !== undefined ? Number(cData.currentCtc) : candidate.currentCtc,
+          },
+        });
+
+        return {
+          statusCode: 200,
+          message: 'Profile updated successfully',
+          data: {
+            user: updatedUser,
+            candidate: updatedCandidate,
+          },
+        };
+      }
+    }
+
+    return {
+      statusCode: 200,
+      message: 'Profile updated successfully',
+      data: {
+        user: updatedUser,
+      },
+    };
   }
 }

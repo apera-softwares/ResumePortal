@@ -73,7 +73,8 @@ export default function DashboardPage() {
         apps.forEach((cand: any) => {
           if (cand.skills) {
             cand.skills.forEach((sk: any) => {
-              if (sk.skill?.name) uniqueSkills.add(sk.skill.name);
+              const skillName = sk.name || sk.skill?.name;
+              if (skillName) uniqueSkills.add(skillName);
             });
           }
           if (cand.appliedJobs) {

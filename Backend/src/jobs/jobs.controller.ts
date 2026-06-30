@@ -102,7 +102,8 @@ export class JobsController {
   @UseGuards(RoleGuard)
   async applyToJob(@Body('jobId') jobId: string, @Request() req) {
     const email: string = req.user?.email;
-    return this.candidateService.applyToJobByEmail(email, jobId);
+    const userId: string = req.user?.user;
+    return this.candidateService.applyToJobByEmail(email, jobId, userId);
   }
 
   // ── Get all applied jobs for the logged-in candidate ────────────────────────
