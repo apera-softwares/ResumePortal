@@ -1,8 +1,11 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import Joblisting from "@/components/joblisting/Joblisting";
+import { Modal } from "@/components/ui/modal";
+import ResumeUploadForm from "@/components/ResumeUploadForm/ResumeUploadForm";
 
 interface Job {
   id: string;
@@ -27,8 +30,10 @@ interface Candidate {
 }
 
 export default function SavedJobsPage() {
+  const router = useRouter();
   const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3003";
 
+  // Data & Pagination State
   const [jData, setJData] = useState<Job[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
@@ -36,28 +41,15 @@ export default function SavedJobsPage() {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const ITEMS_PER_PAGE = 8;
 
-  const [candidateProfile, setCandidateProfile] = useState<Candidate | null>(null);
   const [appliedJobIds, setAppliedJobIds] = useState<Set<string>>(new Set());
-
-  // Apply Modal & Upload Form State
-  const [isApplyModalOpen, setIsApplyModalOpen] = useState(false);
-  const [applyJobId, setApplyJobId] = useState<string | null>(null);
-  const [uploadLoading, setUploadLoading] = useState(false);
-  const [uploadForm, setUploadForm] = useState({
-    firstName: "",
-    lastName: "",
-    mobile: "",
-    yearsOfExperience: 2,
-    education: "",
-    noticePeriod: 30,
-  });
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isResumeAlertOpen, setIsResumeAlertOpen] = useState(false);
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
 
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm]);
 
-  // Fetch Candidate Profile
+  // Fetch Candidate Profile and Applications
   const fetchCandidateProfile = async () => {
     const userRole = localStorage.getItem("role") || "";
     const userEmail = localStorage.getItem("email") || "";
@@ -70,8 +62,6 @@ export default function SavedJobsPage() {
           const profiles = Array.isArray(candData) ? candData : [];
           if (profiles.length > 0) {
             const activeProfile = profiles[0];
-            setCandidateProfile(activeProfile);
-
             const appliedIds = new Set<string>();
             activeProfile.appliedJobs?.forEach((app: any) => {
               if (app.jobId) appliedIds.add(app.jobId);
@@ -85,11 +75,10 @@ export default function SavedJobsPage() {
     }
   };
 
-  // Fetch Saved Jobs
+  // Fetch Saved Jobs List
   useEffect(() => {
     const fetchSavedJobs = async () => {
       try {
-        // Get saved job IDs from localStorage
         const saved = localStorage.getItem("saved_jobs");
         const savedIds: string[] = saved ? JSON.parse(saved) : [];
 
@@ -99,16 +88,13 @@ export default function SavedJobsPage() {
           return;
         }
 
-        // Fetch all jobs
         const res = await fetch(`${API_URL}/jobs`);
         if (!res.ok) throw new Error("Failed to fetch jobs");
         const jobsData = await res.json();
         const allJobs: Job[] = jobsData.data || [];
 
-        // Filter jobs matching saved IDs
         let filtered = allJobs.filter((job) => savedIds.includes(job.id));
 
-        // Search filter client side
         if (searchTerm) {
           const query = searchTerm.toLowerCase();
           filtered = filtered.filter(
@@ -122,7 +108,6 @@ export default function SavedJobsPage() {
 
         setTotalCount(filtered.length);
 
-        // Paginate client side
         const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
         const paginated = filtered.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
@@ -136,87 +121,62 @@ export default function SavedJobsPage() {
     fetchCandidateProfile();
   }, [API_URL, currentPage, searchTerm, refreshTrigger]);
 
-  const handleApplyClick = (jobId: string) => {
-    if (candidateProfile) {
-      applyDirectly(candidateProfile.id, jobId);
-    } else {
-      setApplyJobId(jobId);
-      setIsApplyModalOpen(true);
+  const getAuthToken = () => {
+    if (typeof window === "undefined") return "";
+    const localToken = localStorage.getItem("token");
+    if (localToken) return localToken;
+
+    // Fallback to cookies
+    const cookies = document.cookie.split(";");
+    for (let i = 0; i < cookies.length; i++) {
+      const [key, value] = cookies[i].split("=");
+      if (key.trim() === "token") {
+        return decodeURIComponent(value);
+      }
     }
+    return "";
   };
 
-  const applyDirectly = async (candidateId: string, jobId: string) => {
+  const handleApplyClick = async (jobId: string) => {
+    const token = getAuthToken();
+    if (!token) {
+      toast.error("Please login to apply for this job.");
+      router.push("/login");
+      return;
+    }
+
+    const applyToast = toast.loading("Submitting your application...");
+
     try {
-      const res = await fetch(`${API_URL}/candidates/${candidateId}/apply`, {
+      const res = await fetch(`${API_URL}/jobs/apply`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({ jobId }),
       });
       const data = await res.json();
+      toast.dismiss(applyToast);
+
       if (res.ok) {
-        toast.success("Applied successfully!");
+        toast.success("Successfully applied to the job!");
         setAppliedJobIds((prev) => {
           const updated = new Set(prev);
           updated.add(jobId);
           return updated;
         });
       } else {
-        toast.error(data.message || "Failed to submit application");
+        if (res.status === 404 || data.message?.toLowerCase().includes("resume") || data.message?.toLowerCase().includes("profile")) {
+          setIsResumeAlertOpen(true);
+        } else {
+          toast.error(data.message || "Failed to submit application.");
+        }
       }
     } catch (e) {
       console.error(e);
-      toast.error("Application submission failed");
-    }
-  };
-
-  const handleResumeUploadApply = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedFile) {
-      toast.error("Please upload a resume file (PDF)");
-      return;
-    }
-    if (!applyJobId) return;
-
-    setUploadLoading(true);
-    try {
-      const email = localStorage.getItem("email") || "";
-      const userId = localStorage.getItem("userId") || "";
-
-      const formData = new FormData();
-      formData.append("file", selectedFile);
-      formData.append("firstName", uploadForm.firstName);
-      formData.append("lastName", uploadForm.lastName);
-      formData.append("email", email);
-      formData.append("mobile", uploadForm.mobile);
-      formData.append("yearsOfExperience", String(uploadForm.yearsOfExperience));
-      formData.append("education", uploadForm.education);
-      formData.append("noticePeriod", String(uploadForm.noticePeriod));
-      formData.append("jobId", applyJobId);
-      if (userId) formData.append("userId", userId);
-
-      const res = await fetch(`${API_URL}/candidates/uploadMedia`, {
-        method: "POST",
-        body: formData,
-      });
-
-      if (res.ok) {
-        toast.success("Resume uploaded and applied successfully!");
-        setAppliedJobIds((prev) => {
-          const updated = new Set(prev);
-          updated.add(applyJobId);
-          return updated;
-        });
-        setIsApplyModalOpen(false);
-        setRefreshTrigger((prev) => prev + 1);
-      } else {
-        const errorData = await res.json();
-        toast.error(errorData.message || "Failed to upload resume and apply");
-      }
-    } catch (e) {
-      console.error(e);
-      toast.error("An error occurred during upload");
-    } finally {
-      setUploadLoading(false);
+      toast.dismiss(applyToast);
+      toast.error("An error occurred while submitting your application.");
     }
   };
 
@@ -242,140 +202,58 @@ export default function SavedJobsPage() {
         onApply={handleApplyClick}
       />
 
-      {/* ──── MODAL: UPLOAD RESUME & APPLY ──── */}
-      {isApplyModalOpen && applyJobId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-xs">
-          <div className="bg-white dark:bg-gray-800 border border-gray-150 dark:border-gray-750 w-full max-w-lg rounded-2xl overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200 flex flex-col">
-            
-            <div className="p-6 border-b border-gray-100 dark:border-gray-700/80 flex justify-between items-center bg-gray-55 dark:bg-gray-900">
-              <h2 className="text-sm font-bold text-gray-900 dark:text-white">Create Candidate Profile & Apply</h2>
-              <button
-                onClick={() => setIsApplyModalOpen(false)}
-                className="text-gray-400 hover:text-gray-655 dark:hover:text-white"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
+      {/* ──── MODAL: RESUME REQUIRED ALERT ──── */}
+      {isResumeAlertOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-950/60 backdrop-blur-xs animate-fade-in">
+          <div className="bg-white dark:bg-gray-900 border border-gray-150 dark:border-gray-800/80 w-full max-w-md rounded-3xl overflow-hidden shadow-2xl p-6 text-center animate-in fade-in zoom-in-95 duration-200">
+            {/* Warning Circle Icon */}
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-50 dark:bg-amber-950/30 text-amber-500 dark:text-amber-400 mb-4 border border-amber-100/50 dark:border-amber-900/30">
+              <svg className="w-7 h-7" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
             </div>
 
-            <form onSubmit={handleResumeUploadApply} className="p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase">First Name</label>
-                  <input
-                    type="text"
-                    required
-                    value={uploadForm.firstName}
-                    onChange={(e) => setUploadForm({ ...uploadForm, firstName: e.target.value })}
-                    className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-905 border border-gray-200 dark:border-gray-700 rounded-xl text-xs text-gray-900 dark:text-white"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase">Last Name</label>
-                  <input
-                    type="text"
-                    required
-                    value={uploadForm.lastName}
-                    onChange={(e) => setUploadForm({ ...uploadForm, lastName: e.target.value })}
-                    className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-905 border border-gray-200 dark:border-gray-700 rounded-xl text-xs text-gray-900 dark:text-white"
-                  />
-                </div>
-              </div>
+            {/* Title */}
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">
+              Please submit the resume first
+            </h3>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase">Mobile Number</label>
-                  <input
-                    type="tel"
-                    required
-                    value={uploadForm.mobile}
-                    onChange={(e) => setUploadForm({ ...uploadForm, mobile: e.target.value })}
-                    className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-905 border border-gray-200 dark:border-gray-700 rounded-xl text-xs text-gray-900 dark:text-white"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase">Years of Experience</label>
-                  <input
-                    type="number"
-                    min={0}
-                    max={50}
-                    required
-                    value={uploadForm.yearsOfExperience}
-                    onChange={(e) => setUploadForm({ ...uploadForm, yearsOfExperience: parseInt(e.target.value) })}
-                    className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-905 border border-gray-200 dark:border-gray-700 rounded-xl text-xs text-gray-900 dark:text-white"
-                  />
-                </div>
-              </div>
+            {/* Message */}
+            <p className="text-xs text-gray-550 dark:text-gray-400 leading-relaxed mb-6">
+              You haven't uploaded a resume yet. To apply for this job, please submit your resume first to complete your candidate profile.
+            </p>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase">Education</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. B.Tech in CSE"
-                    value={uploadForm.education}
-                    onChange={(e) => setUploadForm({ ...uploadForm, education: e.target.value })}
-                    className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-905 border border-gray-200 dark:border-gray-700 rounded-xl text-xs text-gray-900 dark:text-white"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase">Notice Period (Days)</label>
-                  <input
-                    type="number"
-                    min={0}
-                    required
-                    value={uploadForm.noticePeriod}
-                    onChange={(e) => setUploadForm({ ...uploadForm, noticePeriod: parseInt(e.target.value) })}
-                    className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-905 border border-gray-200 dark:border-gray-700 rounded-xl text-xs text-gray-900 dark:text-white"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold text-gray-400 uppercase">Upload Resume (PDF only)</label>
-                <div className="border-2 border-dashed border-gray-200 dark:border-gray-750 rounded-2xl p-6 text-center bg-gray-55 dark:bg-gray-905 cursor-pointer relative hover:border-blue-400 dark:hover:border-blue-800 transition-colors">
-                  <input
-                    type="file"
-                    accept=".pdf"
-                    required
-                    onChange={(e) => {
-                      if (e.target.files && e.target.files.length > 0) {
-                        setSelectedFile(e.target.files[0]);
-                      }
-                    }}
-                    className="absolute inset-0 opacity-0 cursor-pointer"
-                  />
-                  <svg className="w-8 h-8 text-gray-400 mx-auto mb-2" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.233-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z" />
-                  </svg>
-                  <span className="block text-xs font-bold text-gray-800 dark:text-gray-200">
-                    {selectedFile ? selectedFile.name : "Select or drag your PDF resume here"}
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 dark:border-gray-700">
-                <button
-                  type="button"
-                  onClick={() => setIsApplyModalOpen(false)}
-                  className="px-4 py-2 bg-white hover:bg-gray-50 dark:bg-gray-850 dark:hover:bg-gray-900 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-750 rounded-xl text-xs font-bold"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={uploadLoading}
-                  className="px-5 py-2 bg-blue-600 hover:bg-blue-750 text-white rounded-xl text-xs font-bold transition-all disabled:opacity-50"
-                >
-                  {uploadLoading ? "Uploading & Applying..." : "Upload & Apply"}
-                </button>
-              </div>
-            </form>
+            {/* Action Buttons */}
+            <div className="flex flex-col sm:flex-row justify-center gap-3">
+              <button
+                type="button"
+                onClick={() => setIsResumeAlertOpen(false)}
+                className="flex-1 px-4 py-2.5 text-xs font-semibold rounded-xl border border-gray-200 dark:border-gray-850 text-gray-750 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsResumeAlertOpen(false);
+                  setIsUploadModalOpen(true);
+                }}
+                className="flex-1 px-4 py-2.5 text-xs font-semibold rounded-xl text-white bg-blue-600 hover:bg-blue-700 shadow-sm transition-all cursor-pointer flex items-center justify-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 8.25H7.5a2.25 2.25 0 00-2.25 2.25v9a2.25 2.25 0 002.25 2.25h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25H15m0-3l-3-3m0 0l-3 3m3-3V15" />
+                </svg>
+                <span>Upload Resume</span>
+              </button>
+            </div>
           </div>
         </div>
       )}
+
+      {/* Upload Resume Modal */}
+      <Modal isOpen={isUploadModalOpen} onClose={() => setIsUploadModalOpen(false)} className="max-w-[700px] m-4">
+        <ResumeUploadForm closeModal={() => { setIsUploadModalOpen(false); setRefreshTrigger((prev) => prev + 1); }} />
+      </Modal>
     </>
   );
 }

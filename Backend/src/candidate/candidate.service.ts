@@ -6,7 +6,7 @@ type CandidateStatus = $Enums.CandidateStatus;
 import { CandidateDto } from 'src/Validations/candidate/create-candidate.dto';
 import { join } from 'path';
 import { extname } from 'path';
-import { NotFoundException } from '@nestjs/common';
+import { NotFoundException, BadRequestException } from '@nestjs/common';
 import * as fs from 'fs';
 import * as mammoth from 'mammoth';
 import { Document, Packer, Paragraph, TextRun } from 'docx';
@@ -71,9 +71,10 @@ export class CandidateService {
       }
     }
 
+    const emailLower = candidateData.email.trim().toLowerCase();
     // Check if candidate with this email already exists to avoid unique constraint violations
     const existingCandidate = await this.prisma.candidate.findUnique({
-      where: { email: candidateData.email },
+      where: { email: emailLower },
     });
 
     if (existingCandidate) {
@@ -111,6 +112,7 @@ export class CandidateService {
           noticePeriod,
           currentLocation: candidateData.currentLocation || null,
           preferredWorkMode: candidateData.preferredWorkMode || null,
+          budget: candidateData.budget || null,
           preferredJobLocations: preferredJobLocationsArray,
           expectedCtc,
           currentCtc,
@@ -166,12 +168,13 @@ export class CandidateService {
         firstName: candidateData.firstName,
         lastName: candidateData.lastName,
         mobile: candidateData.mobile,
-        email: candidateData.email,
+        email: emailLower,
         yearsOfExperience,
         education: candidateData.education,
         noticePeriod,
         currentLocation: candidateData.currentLocation || null,
         preferredWorkMode: candidateData.preferredWorkMode || null,
+        budget: candidateData.budget || null,
         preferredJobLocations: preferredJobLocationsArray,
         expectedCtc,
         currentCtc,
@@ -503,8 +506,9 @@ export class CandidateService {
 
   async findByEmail(email: string) {
     if (!email) return [];
+    const emailLower = email.trim().toLowerCase();
     const candidates = await this.prisma.candidate.findMany({
-      where: { email },
+      where: { email: emailLower },
       include: {
         skills: { include: { skill: true } },
         appliedJobs: { include: { job: true } },
@@ -1339,9 +1343,23 @@ export class CandidateService {
   }
 
   // ── Apply via logged-in user (resolves candidate from user email in JWT) ───
-  async applyToJobByEmail(email: string, jobId: string) {
-    const candidate = await this.prisma.candidate.findFirst({
-      where: { email },
+  async applyToJobByEmail(email: string, jobId: string, userId?: string) {
+    let targetEmail: string | undefined = email;
+    if (!targetEmail && userId) {
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { email: true },
+      });
+      targetEmail = user?.email;
+    }
+
+    if (!targetEmail) {
+      throw new BadRequestException('Candidate email is required to apply');
+    }
+
+    const emailLower = targetEmail.trim().toLowerCase();
+    const candidate = await this.prisma.candidate.findUnique({
+      where: { email: emailLower },
       select: { id: true, firstName: true, lastName: true, email: true },
     });
     if (!candidate) {

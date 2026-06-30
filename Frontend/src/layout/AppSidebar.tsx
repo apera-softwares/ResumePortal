@@ -66,10 +66,7 @@ const AppSidebar: React.FC = () => {
   const handleLogOut = async () => {
     if (confirm("Are you sure you want to log out?")) {
       localStorage.removeItem("token");
-      localStorage.removeItem("role");
-      localStorage.removeItem("email");
-      localStorage.removeItem("userId");
-      localStorage.removeItem("name");
+      localStorage.removeItem("user");
       try {
         await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3003"}/users/logout`, { method: "POST" });
       } catch (e) {}
@@ -88,21 +85,6 @@ const AppSidebar: React.FC = () => {
       name: "Jobs",
       path: "/dashboard/jobs",
     },
-    {
-      icon: <UserCircleIcon />,
-      name: "My Profile",
-      path: "/profile",
-    },
-    {
-      icon: (
-        <svg className="w-5 h-5 text-rose-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-        </svg>
-      ),
-      name: "Logout",
-      path: "#",
-      onClick: handleLogOut,
-    },
   ];
 
   let routes: NavItem[] = [];
@@ -114,9 +96,7 @@ const AppSidebar: React.FC = () => {
       routes = AdminRoute;
       break;
     case "CANDIDATE":
-      routes = pathname === "/profile"
-        ? candidateRoutes.filter((route) => route.name !== "Logout")
-        : candidateRoutes;
+      routes = candidateRoutes;
       break;
     default:
       routes = [];

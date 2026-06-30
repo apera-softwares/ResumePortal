@@ -59,6 +59,11 @@ export class CandidateDto {
   @IsString()
   preferredWorkMode?: string;
 
+  @ApiProperty({ description: 'Budget of the candidate', required: false, example: '5-7 LPA' })
+  @IsOptional()
+  @IsString()
+  budget?: string;
+
   @ApiProperty({ description: 'Preferred job locations (comma-separated or array)', required: false, example: 'Bangalore, Pune' })
   @IsOptional()
   preferredJobLocations?: string | string[];

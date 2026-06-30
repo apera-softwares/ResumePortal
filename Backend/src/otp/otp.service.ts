@@ -64,7 +64,7 @@ export class OtpService {
 
     if (user) {
       const token = this.jwtService.sign(
-        { user: user.id, role: user.role },
+        { user: user.id, role: user.role, email: user.email },
         { secret: process.env.JWT_SECRET },
       );
 

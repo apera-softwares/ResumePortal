@@ -68,6 +68,7 @@ model Candidate {
   noticePeriod          Int
   currentLocation       String?
   preferredWorkMode     String?
+  budget                String?
   preferredJobLocations String[]
   expectedCtc           Float?
   currentCtc            Float?

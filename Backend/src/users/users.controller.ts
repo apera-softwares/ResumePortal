@@ -12,6 +12,7 @@ import {
   DefaultValuePipe,
   ParseIntPipe,
   Res,
+  Req,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { UsersService } from './users.service';
@@ -21,7 +22,7 @@ import { AuthGuard } from 'src/guards/auth.guard';
 import { UsersCreateDto } from 'src/Validations/users/users-create.dto';
 import { LoginDto } from 'src/Validations/users/login.dto';
 import { UsersUpdateDto } from 'src/Validations/users/users-update.dto';
-import { GoogleLoginDto } from 'src/Validations/users/google-login.dto';
+
 
 @ApiTags('Users')
 @Controller('users')
@@ -55,24 +56,7 @@ export class UsersController {
     return result;
   }
 
-  @Post('google-login')
-  @ApiOperation({ summary: 'Login or signup a user using Google OAuth' })
-  @ApiResponse({ status: 200, description: 'Login successful' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async googleLogin(
-    @Body() googleLoginDto: GoogleLoginDto,
-    @Res({ passthrough: true }) response: any,
-  ) {
-    const result = await this.usersService.googleLogin(googleLoginDto.idToken);
-    response.cookie('token', result.data.token, {
-      httpOnly: true,
-      secure: false,
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
-    return result;
-  }
+
 
   @Post('logout')
   @ApiOperation({ summary: 'Logout a user and clear the session cookie' })
@@ -103,6 +87,26 @@ export class UsersController {
   async signup(@Body() signupDto: UsersCreateDto) {
     signupDto.role = Role.CANDIDATE;
     return this.usersService.createUser(signupDto);
+  }
+
+  @Get('profile')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get current user profile' })
+  @ApiResponse({ status: 200, description: 'Profile retrieved successfully' })
+  @UseGuards(AuthGuard)
+  async getProfile(@Req() req: any) {
+    const userId = req.user.user;
+    return this.usersService.getProfile(userId);
+  }
+
+  @Put('profile')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update current user profile' })
+  @ApiResponse({ status: 200, description: 'Profile updated successfully' })
+  @UseGuards(AuthGuard)
+  async updateProfile(@Req() req: any, @Body() updateDto: any) {
+    const userId = req.user.user;
+    return this.usersService.updateProfile(userId, updateDto);
   }
 
   @Get()

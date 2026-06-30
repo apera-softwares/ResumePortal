@@ -6,7 +6,6 @@ import { SquarePen, Trash, SlidersHorizontal, X, ChevronDown } from "lucide-reac
 import React, { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import toast from "react-hot-toast";
-import { Squada_One } from "next/font/google";
 import Select, { components } from "react-select";
 
 const getCustomSelectStyles = (isDark: boolean) => ({
@@ -149,6 +148,7 @@ interface Candidate {
   yearsOfExperience: number;
   education?: string;
   noticePeriod: number;
+  budget?: string;
   resume: string;
   resumeText?: string;
   cleanedResume?: string;
@@ -158,7 +158,11 @@ interface Candidate {
     id: string;
     title: string;
     createdById: string;
+    location?: string;
+    salary?: number;
   };
+  currentLocation?: string;
+  preferredJobLocations?: string[];
   status?: string;
 }
 
@@ -672,8 +676,9 @@ function CandidatesContent() {
               <TableHeader className="border-b border-gray-200/40 dark:border-gray-800/60 bg-gray-50/50 dark:bg-gray-900/50">
                 <TableRow className="h-14">
                   <TableCell isHeader className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-start">Candidate Name</TableCell>
-                  <TableCell isHeader className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-start">Email</TableCell>
-                  <TableCell isHeader className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-start">Mobile No</TableCell>
+                  <TableCell isHeader className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-start">Location</TableCell>
+                  <TableCell isHeader className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-start">Notice Period</TableCell>
+                  <TableCell isHeader className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-start">Budget</TableCell>
                   <TableCell isHeader className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-start">Yrs of Exp</TableCell>
                   <TableCell isHeader className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-start">Skills</TableCell>
                   {/* <TableCell isHeader className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-start">Status</TableCell> */}
@@ -702,27 +707,34 @@ function CandidatesContent() {
                               <span className="block font-semibold text-gray-900 dark:text-white">
                                 {user.firstName} {user.lastName}
                               </span>
-                              <span className="block text-xs text-gray-400 dark:text-gray-500 mt-0.5">
-                                Notice: {user.noticePeriod} days
-                              </span>
                             </div>
                           </div>
                         </TableCell>
 
-                        {/* Email */}
-                        <TableCell className="px-6 py-4 text-start text-sm text-gray-700 dark:text-gray-300">
-                          {user.email}
+                        {/* Location */}
+                        <TableCell className="px-6 py-4 text-start text-sm text-gray-750 dark:text-gray-300 font-medium capitalize">
+                          {user.currentLocation || "Remote"}
                         </TableCell>
 
-                        {/* Mobile */}
-                        <TableCell className="px-6 py-4 text-start text-sm text-gray-700 dark:text-gray-300 font-mono">
-                          {user.mobile || "-"}
+                        {/* Notice Period */}
+                        <TableCell className="px-6 py-4 text-start text-sm text-gray-750 dark:text-gray-300 font-medium">
+                          {user.noticePeriod !== undefined && user.noticePeriod !== null ? `${user.noticePeriod} Days` : "N/A"}
+                        </TableCell>
+
+                        {/* Budget */}
+                        <TableCell className="px-6 py-4 text-start text-sm text-gray-750 dark:text-gray-300 font-semibold">
+                          {user.budget || "N/A"}
                         </TableCell>
 
                         {/* Experience */}
                         <TableCell className="px-6 py-4 text-start text-sm text-gray-700 dark:text-gray-300">
                           <span className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-900/50">
-                            {user.yearsOfExperience} Yrs
+                            {(() => {
+                              const exp = user.yearsOfExperience;
+                              if (!exp || exp === 0) return "Fresher";
+                              const formatted = parseFloat(Number(exp).toFixed(1));
+                              return `${formatted} ${formatted === 1 ? "Yr" : "Yrs"}`;
+                            })()}
                           </span>
                         </TableCell>
 
