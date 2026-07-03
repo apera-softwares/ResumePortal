@@ -601,8 +601,24 @@ export class CandidateService {
 
   private mapCandidate(candidate: any) {
     if (!candidate) return null;
+
+    // Calculate the LPM budget from the raw LPA string input
+    // Formula: Value LPA / 12 months = monthly amount; monthly amount + 20% margin = LPM
+    // Example: 12 LPA -> 60,000 PM + 20% = 72,000 LPM (which displays on the candidate table as 72KPM)
+    let calculatedBudget: string | null = null;
+    if (candidate.budget) {
+      const match = candidate.budget.match(/(\d+(\.\d+)?)/);
+      if (match) {
+        const val = parseFloat(match[1]);
+        const monthly = val * 5000;
+        const withTwentyPercent = monthly * 1.2;
+        calculatedBudget = `${Math.round(withTwentyPercent / 1000)}KPM`;
+      }
+    }
+
     return {
       ...candidate,
+      calculatedBudget,
       skills: (candidate.skills || []).map((cs: any) => ({
         id: cs.skill?.id || cs.skillId,
         name: cs.skill?.name || cs.name || '',

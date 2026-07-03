@@ -28,16 +28,6 @@ export class UsersService {
     });
     if (existing) throw new ConflictException('User already exists');
 
-    if (createDto.role === 'ADMIN') {
-      const adminExists = await this.prisma.user.findFirst({
-        where: { role: 'ADMIN' },
-      });
-      if (adminExists)
-        throw new ConflictException(
-          'Admin already exists. Only one admin is allowed.',
-        );
-    }
-
     const passwordHash = await bcrypt.hash(createDto.password, 10);
 
     const computedName = createDto.name || `${createDto.firstName || ''} ${createDto.lastName || ''}`.trim() || 'User';

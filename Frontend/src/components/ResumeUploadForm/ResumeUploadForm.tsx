@@ -1,7 +1,7 @@
 
 import Input from "../form/input/InputField";
 import Label from "../form/Label";
-import Select from 'react-select';
+import Select, { components } from 'react-select';
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 
@@ -520,6 +520,38 @@ export default function ResumeUploadForm({ closeModal, jobId, onApplySuccess }: 
     },
   };
 
+  const locationSelectStyles = {
+    ...customSelectStyles,
+    option: (provided: any, state: any) => ({
+      ...provided,
+      backgroundColor: state.isFocused
+        ? isDark
+          ? "#1f2937"
+          : "#f3f4f6"
+        : "transparent",
+      color: isDark ? "#f9fafb" : "#111827",
+      cursor: "pointer",
+      padding: "8px 12px",
+    }),
+  };
+
+  const OptionWithCheckbox = (props: any) => {
+    return (
+      <components.Option {...props}>
+        <div className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={props.isSelected}
+            onChange={() => {}}
+            className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500 cursor-pointer"
+          />
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-200">{props.label}</span>
+        </div>
+      </components.Option>
+    );
+  };
+
+
   return (
     <div className="relative w-full p-2 sm:p-4">
       <div className="px-2 pr-14">
@@ -631,16 +663,22 @@ export default function ResumeUploadForm({ closeModal, jobId, onApplySuccess }: 
               </div>
 
               <div className="col-span-2 lg:col-span-1">
-                <Label>Prefered Loaction</Label>
+                <Label>Preferred Location</Label>
+                {/* Multi-select dropdown to allow candidates to select multiple preferred locations with checkbox options */}
                 <Select
-                  name="currentLocation"
-                  value={cityOptions.find(opt => opt.value.toLowerCase() === (formData.currentLocation || "").toLowerCase()) || null}
+                  name="preferredJobLocations"
+                  value={cityOptions.filter(opt => (formData.preferredJobLocations || []).includes(opt.value))}
                   onChange={(selected: any) => {
-                    setFormData((prev) => ({ ...prev, currentLocation: selected ? selected.value : "" }));
+                    const values = selected ? selected.map((opt: any) => opt.value) : [];
+                    setFormData((prev) => ({ ...prev, preferredJobLocations: values }));
                   }}
                   options={cityOptions}
-                  styles={customSelectStyles}
-                  placeholder="Select city..."
+                  isMulti
+                  styles={locationSelectStyles}
+                  components={{ Option: OptionWithCheckbox }}
+                  closeMenuOnSelect={false}
+                  hideSelectedOptions={false}
+                  placeholder="Select locations..."
                 />
               </div>
 

@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { Modal } from "../../ui/modal";
 import toast from "react-hot-toast";
-import Select from "react-select";
+import Select, { components } from "react-select";
 import {
   X,
   User,
@@ -101,6 +101,7 @@ export default function CandidateDetailsModal({
     currentCtc: "",
     expectedCtc: "",
     skills: [] as string[],
+    preferredJobLocations: [] as string[],
   });
 
   const [expYears, setExpYears] = useState("0");
@@ -160,6 +161,7 @@ export default function CandidateDetailsModal({
         currentCtc: candidate.currentCtc !== null && candidate.currentCtc !== undefined ? String(candidate.currentCtc) : "",
         expectedCtc: candidate.expectedCtc !== null && candidate.expectedCtc !== undefined ? String(candidate.expectedCtc) : "",
         skills: skillsFlat,
+        preferredJobLocations: candidate.preferredJobLocations || [],
       });
 
       const totalExp = Number(candidate.yearsOfExperience || 0);
@@ -204,22 +206,12 @@ export default function CandidateDetailsModal({
     e.preventDefault();
     if (!isEditable) return;
 
-    if (!formData.firstName.trim()) {
-      toast.error("First Name is required");
-      return;
-    }
-    if (!formData.lastName.trim()) {
-      toast.error("Last Name is required");
-      return;
-    }
-    if (!formData.email.trim()) {
-      toast.error("Email is required");
-      return;
-    }
-    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-    if (!emailRegex.test(formData.email)) {
-      toast.error("Invalid email address");
-      return;
+    if (formData.email && formData.email.trim()) {
+      const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+      if (!emailRegex.test(formData.email)) {
+        toast.error("Invalid email address");
+        return;
+      }
     }
     if (formData.mobile && formData.mobile.length !== 10) {
       toast.error("Mobile number must be exactly 10 digits");
@@ -301,6 +293,37 @@ export default function CandidateDetailsModal({
     }),
   };
 
+  const locationSelectStyles = {
+    ...customSelectStyles,
+    option: (provided: any, state: any) => ({
+      ...provided,
+      backgroundColor: state.isFocused
+        ? isDark
+          ? "#1f2937"
+          : "#f3f4f6"
+        : "transparent",
+      color: isDark ? "#f9fafb" : "#111827",
+      cursor: "pointer",
+      padding: "8px 12px",
+    }),
+  };
+
+  const OptionWithCheckbox = (props: any) => {
+    return (
+      <components.Option {...props}>
+        <div className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={props.isSelected}
+            onChange={() => {}}
+            className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500 cursor-pointer"
+          />
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-200">{props.label}</span>
+        </div>
+      </components.Option>
+    );
+  };
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} className="max-w-[800px] m-4">
       <div className="w-full rounded-3xl bg-white dark:bg-gray-900 p-6 lg:p-10 border border-gray-100 dark:border-gray-800 shadow-xl max-h-[85vh] overflow-y-auto custom-scrollbar">
@@ -333,7 +356,7 @@ export default function CandidateDetailsModal({
             <div>
               <label className="block mb-1.5 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-1">
                 <User className="w-3.5 h-3.5 text-gray-400" />
-                <span>First Name <span className="text-rose-500">*</span></span>
+                <span>First Name</span>
               </label>
               <input
                 type="text"
@@ -350,7 +373,7 @@ export default function CandidateDetailsModal({
             <div>
               <label className="block mb-1.5 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-1">
                 <User className="w-3.5 h-3.5 text-gray-400" />
-                <span>Last Name <span className="text-rose-500">*</span></span>
+                <span>Last Name</span>
               </label>
               <input
                 type="text"
@@ -367,7 +390,7 @@ export default function CandidateDetailsModal({
             <div>
               <label className="block mb-1.5 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-1">
                 <Mail className="w-3.5 h-3.5 text-gray-400" />
-                <span>Email Address <span className="text-rose-500">*</span></span>
+                <span>Email Address</span>
               </label>
               <input
                 type="email"
@@ -395,7 +418,7 @@ export default function CandidateDetailsModal({
                 placeholder="Enter 10-digit mobile number"
                 className="w-full border border-gray-200 dark:border-gray-700 rounded-xl p-3 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white text-sm transition-all disabled:opacity-75 disabled:cursor-not-allowed"
               />
-              {isEditable && formData.mobile && formData.mobile.length !== 10 && (
+              {isEditable && formData.mobile && formData.mobile.length > 10 && (
                 <p className="text-xs text-amber-500 font-semibold mt-1">Must be exactly 10 digits</p>
               )}
             </div>
@@ -447,29 +470,30 @@ export default function CandidateDetailsModal({
               />
             </div>
 
-            {/* Location */}
+            {/* Preferred Locations */}
             <div>
               <label className="block mb-1.5 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-1">
                 <MapPin className="w-3.5 h-3.5 text-gray-400" />
-                <span>Location</span>
+                <span>Preferred Locations</span>
               </label>
               <Select
-                name="currentLocation"
-                value={
-                  formData.currentLocation
-                    ? { value: formData.currentLocation, label: formData.currentLocation }
-                    : null
-                }
+                name="preferredJobLocations"
+                value={(formData.preferredJobLocations || []).map((loc) => ({ value: loc, label: loc }))}
                 onChange={(selected: any) => {
-                  setFormData(prev => ({ ...prev, currentLocation: selected ? selected.value : "" }));
+                  const values = selected ? selected.map((opt: any) => opt.value) : [];
+                  setFormData((prev) => ({ ...prev, preferredJobLocations: values }));
                 }}
                 options={[
                   { value: "Remote", label: "Remote" },
                   ...availableLocations.map((l: any) => ({ value: l.name, label: l.name })),
                 ]}
+                isMulti
                 isDisabled={!isEditable}
-                styles={customSelectStyles}
-                placeholder="Select location..."
+                styles={locationSelectStyles}
+                components={{ Option: OptionWithCheckbox }}
+                closeMenuOnSelect={false}
+                hideSelectedOptions={false}
+                placeholder="Select preferred locations..."
               />
             </div>
 
