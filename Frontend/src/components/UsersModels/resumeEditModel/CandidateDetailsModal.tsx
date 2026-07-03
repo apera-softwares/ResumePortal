@@ -206,22 +206,12 @@ export default function CandidateDetailsModal({
     e.preventDefault();
     if (!isEditable) return;
 
-    if (!formData.firstName.trim()) {
-      toast.error("First Name is required");
-      return;
-    }
-    if (!formData.lastName.trim()) {
-      toast.error("Last Name is required");
-      return;
-    }
-    if (!formData.email.trim()) {
-      toast.error("Email is required");
-      return;
-    }
-    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-    if (!emailRegex.test(formData.email)) {
-      toast.error("Invalid email address");
-      return;
+    if (formData.email && formData.email.trim()) {
+      const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+      if (!emailRegex.test(formData.email)) {
+        toast.error("Invalid email address");
+        return;
+      }
     }
     if (formData.mobile && formData.mobile.length !== 10) {
       toast.error("Mobile number must be exactly 10 digits");
@@ -366,7 +356,7 @@ export default function CandidateDetailsModal({
             <div>
               <label className="block mb-1.5 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-1">
                 <User className="w-3.5 h-3.5 text-gray-400" />
-                <span>First Name <span className="text-rose-500">*</span></span>
+                <span>First Name</span>
               </label>
               <input
                 type="text"
@@ -383,7 +373,7 @@ export default function CandidateDetailsModal({
             <div>
               <label className="block mb-1.5 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-1">
                 <User className="w-3.5 h-3.5 text-gray-400" />
-                <span>Last Name <span className="text-rose-500">*</span></span>
+                <span>Last Name</span>
               </label>
               <input
                 type="text"
@@ -400,7 +390,7 @@ export default function CandidateDetailsModal({
             <div>
               <label className="block mb-1.5 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-1">
                 <Mail className="w-3.5 h-3.5 text-gray-400" />
-                <span>Email Address <span className="text-rose-500">*</span></span>
+                <span>Email Address</span>
               </label>
               <input
                 type="email"
