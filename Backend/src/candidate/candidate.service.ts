@@ -610,9 +610,11 @@ export class CandidateService {
       const match = candidate.budget.match(/(\d+(\.\d+)?)/);
       if (match) {
         const val = parseFloat(match[1]);
-        const monthly = val * 5000;
+        // 12 LPA = 1,200,000 / 12 months = 100,000 PM. 100,000 + 20% = 120,000 LPM (₹1,20,000/month)
+        const monthly = (val * 100000) / 12;
         const withTwentyPercent = monthly * 1.2;
-        calculatedBudget = `${Math.round(withTwentyPercent / 1000)}KPM`;
+        const formatted = new Intl.NumberFormat('en-IN').format(Math.round(withTwentyPercent));
+        calculatedBudget = `₹${formatted}`;
       }
     }
 
@@ -1651,13 +1653,6 @@ export class CandidateService {
   }
 
   async updateCandidate(id: string, data: any) {
-    const existing = await this.prisma.candidate.findUnique({
-      where: { id },
-    });
-    if (!existing) {
-      throw new NotFoundException(`Candidate not found`);
-    }
-
     const {
       firstName,
       lastName,
@@ -1675,10 +1670,56 @@ export class CandidateService {
       skills,
     } = data;
 
+    let targetId = id;
+    if (id.startsWith('user-')) {
+      const userId = id.replace('user-', '');
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+      });
+      if (!user) {
+        throw new NotFoundException(`User with ID ${userId} not found`);
+      }
+
+      let existingCandidate = await this.prisma.candidate.findFirst({
+        where: { userId },
+      });
+
+      if (!existingCandidate) {
+        // Create candidate record dynamically
+        existingCandidate = await this.prisma.candidate.create({
+          data: {
+            firstName: firstName !== undefined ? firstName : user.name.split(' ')[0] || '',
+            lastName: lastName !== undefined ? lastName : user.name.split(' ').slice(1).join(' ') || '',
+            email: email !== undefined ? email.trim().toLowerCase() : user.email,
+            mobile: mobile || null,
+            yearsOfExperience: yearsOfExperience !== undefined ? parseFloat(yearsOfExperience) : 0,
+            education: education || null,
+            noticePeriod: noticePeriod !== undefined ? parseInt(noticePeriod, 10) : 0,
+            currentLocation: currentLocation || null,
+            preferredWorkMode: preferredWorkMode || null,
+            budget: budget || null,
+            preferredJobLocations: Array.isArray(preferredJobLocations) ? preferredJobLocations : [],
+            expectedCtc: expectedCtc !== undefined && expectedCtc !== null && expectedCtc !== "" ? parseFloat(expectedCtc) : null,
+            currentCtc: currentCtc !== undefined && currentCtc !== null && currentCtc !== "" ? parseFloat(currentCtc) : null,
+            resume: '',
+            userId: user.id,
+          },
+        });
+      }
+      targetId = existingCandidate.id;
+    } else {
+      const existing = await this.prisma.candidate.findUnique({
+        where: { id },
+      });
+      if (!existing) {
+        throw new NotFoundException(`Candidate not found`);
+      }
+    }
+
     let skillsUpdate = {};
     if (skills !== undefined && Array.isArray(skills)) {
       await this.prisma.candidateSkill.deleteMany({
-        where: { candidateId: id },
+        where: { candidateId: targetId },
       });
       skillsUpdate = {
         skills: {
@@ -1695,7 +1736,7 @@ export class CandidateService {
     }
 
     const updated = await this.prisma.candidate.update({
-      where: { id },
+      where: { id: targetId },
       data: {
         firstName: firstName !== undefined ? firstName : undefined,
         lastName: lastName !== undefined ? lastName : undefined,
