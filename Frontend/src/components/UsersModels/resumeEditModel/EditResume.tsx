@@ -357,6 +357,9 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
   const [isTogglingPublic, setIsTogglingPublic] = useState(false);
   const [role, setRole] = useState<string | null>(null);
 
+  const [isLoading, setIsLoading] = useState(true);
+  const [candidateResume, setCandidateResume] = useState<string | null>(candidate.resume || null);
+
   const isLoadedRef = useRef(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -416,6 +419,7 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
     }
 
     const loadContent = async () => {
+      setIsLoading(true);
       try {
         const token = localStorage.getItem("token");
         const response = await fetch(`${API_URL}/candidates/${candidate.id}`, {
@@ -430,6 +434,7 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
           setRawHtml(sourceHtml);
           setOriginalParsedHtml(data.resumeText || "");
           setIsPublic(data.isPublic || false);
+          setCandidateResume(data.resume || null);
           if (!initialMode) {
             setViewMode(isPublicPage ? "preview" : "edit");
           }
@@ -439,6 +444,8 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
         }
       } catch (err) {
         console.error("Failed to fetch resume HTML", err);
+      } finally {
+        setIsLoading(false);
       }
     };
 
@@ -480,7 +487,72 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
     setRawHtml(html);
   };
 
+  const renderUploadResumePlaceholder = () => {
+    return (
+      <div className="w-full h-full min-h-[450px] flex flex-col items-center justify-center p-8 bg-gray-50 dark:bg-gray-900 border border-dashed border-gray-300 dark:border-gray-800 rounded-2xl">
+        <div className="max-w-md w-full flex flex-col items-center text-center">
+          <div className="p-4 bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400 rounded-full mb-4">
+            <svg className="w-10 h-10" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.233-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z" />
+            </svg>
+          </div>
+          <h4 className="text-lg font-bold text-gray-900 dark:text-white mb-2">No Resume Found</h4>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+            This candidate does not have a resume uploaded. Upload a resume file (PDF or Word) to start parsing and viewing.
+          </p>
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isUploadingFile}
+            className="px-6 py-3 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition-all shadow-md hover:scale-[1.01] active:scale-[0.99] flex items-center gap-2 cursor-pointer disabled:opacity-50"
+          >
+            {isUploadingFile ? (
+              <>
+                <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+                <span>Uploading...</span>
+              </>
+            ) : (
+              <>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                </svg>
+                <span>Upload Resume</span>
+              </>
+            )}
+          </button>
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            accept=".pdf,.docx,.doc"
+            className="hidden"
+          />
+        </div>
+      </div>
+    );
+  };
+
   const renderResumeSurface = () => {
+    if (isLoading) {
+      return (
+        <div className="w-full h-full flex items-center justify-center p-8 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl min-h-[500px]">
+          <div className="flex flex-col items-center gap-3">
+            <svg className="animate-spin h-8 w-8 text-blue-600" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+            </svg>
+            <span className="text-sm font-semibold text-gray-500">Loading resume...</span>
+          </div>
+        </div>
+      );
+    }
+
+    if (!candidateResume && !rawHtml && !previewHtml && !originalParsedHtml) {
+      return renderUploadResumePlaceholder();
+    }
+
     if (viewMode === "review") {
       return (
         <div className="h-full overflow-hidden rounded-2xl border border-gray-200 bg-gray-100 shadow-inner dark:border-gray-800 dark:bg-gray-950">
@@ -538,8 +610,8 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
       );
     }
 
-    const resumeUrl = candidate.resume ? `${API_URL}/uploads/${candidate.resume}` : null;
-    const isPdf = candidate.resume?.toLowerCase().endsWith(".pdf");
+    const resumeUrl = candidateResume ? `${API_URL}/uploads/${candidateResume}` : null;
+    const isPdf = candidateResume?.toLowerCase().endsWith(".pdf");
 
     if (isPdf && resumeUrl) {
       return (
@@ -552,17 +624,20 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
     }
 
     if (!isPdf && !originalParsedHtml) {
-      return (
-        <div className="w-full h-full flex items-center justify-center p-8 bg-gray-50 dark:bg-gray-900">
-          <div className="flex flex-col items-center gap-3">
-            <svg className="animate-spin h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-            </svg>
-            <span className="text-sm font-semibold text-gray-500">Loading original resume...</span>
+      if (isLoading) {
+        return (
+          <div className="w-full h-full flex items-center justify-center p-8 bg-gray-50 dark:bg-gray-900">
+            <div className="flex flex-col items-center gap-3">
+              <svg className="animate-spin h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              </svg>
+              <span className="text-sm font-semibold text-gray-500">Loading original resume...</span>
+            </div>
           </div>
-        </div>
-      );
+        );
+      }
+      return renderUploadResumePlaceholder();
     }
 
     return (
@@ -721,6 +796,7 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
       const updatedCandidate = await response.json();
 
       setIsPublic(updatedCandidate.isPublic || false);
+      setCandidateResume(updatedCandidate.resume || null);
       onSave?.(updatedCandidate);
 
       const parsedContent = updatedCandidate.resumeText || "";

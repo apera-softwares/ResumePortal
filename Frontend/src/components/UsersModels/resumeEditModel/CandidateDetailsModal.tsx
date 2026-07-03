@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Modal } from "../../ui/modal";
 import toast from "react-hot-toast";
 import Select, { components } from "react-select";
@@ -84,6 +84,16 @@ export default function CandidateDetailsModal({
 
   const [isDark, setIsDark] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [showMobileWarning, setShowMobileWarning] = useState(false);
+  const warningTimeoutRef = useRef<any>(null);
+
+  useEffect(() => {
+    return () => {
+      if (warningTimeoutRef.current) {
+        clearTimeout(warningTimeoutRef.current);
+      }
+    };
+  }, []);
   const [availableSkills, setAvailableSkills] = useState<any[]>([]);
   const [availableLocations, setAvailableLocations] = useState<any[]>([]);
 
@@ -169,6 +179,7 @@ export default function CandidateDetailsModal({
       const mos = Math.round((totalExp - yrs) * 12);
       setExpYears(String(Math.min(15, Math.max(0, yrs))));
       setExpMonths(String(Math.min(11, Math.max(0, mos))));
+      setShowMobileWarning(false);
     }
   }, [candidate]);
 
@@ -176,8 +187,18 @@ export default function CandidateDetailsModal({
     const { name, value } = e.target;
     if (name === "mobile") {
       const numeric = value.replace(/\D/g, "");
-      if (numeric.length > 10) return;
-      setFormData((prev) => ({ ...prev, [name]: numeric }));
+      if (numeric.length > 10) {
+        setShowMobileWarning(true);
+        if (warningTimeoutRef.current) {
+          clearTimeout(warningTimeoutRef.current);
+        }
+        warningTimeoutRef.current = setTimeout(() => {
+          setShowMobileWarning(false);
+        }, 2000);
+      } else {
+        setShowMobileWarning(false);
+      }
+      setFormData((prev) => ({ ...prev, [name]: numeric.slice(0, 10) }));
       return;
     }
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -291,6 +312,26 @@ export default function CandidateDetailsModal({
       ...provided,
       color: isDark ? "#f9fafb" : "#374151",
     }),
+    multiValueRemove: (provided: any) => ({
+      ...provided,
+      color: isDark ? "#9ca3af" : "#4b5563",
+      "&:hover": {
+        backgroundColor: isDark ? "#4b5563" : "#e5e7eb",
+        color: isDark ? "#ffffff" : "#111827",
+      },
+    }),
+    singleValue: (provided: any) => ({
+      ...provided,
+      color: isDark ? "#ffffff" : "#111827",
+    }),
+    input: (provided: any) => ({
+      ...provided,
+      color: isDark ? "#ffffff" : "#111827",
+    }),
+    placeholder: (provided: any) => ({
+      ...provided,
+      color: isDark ? "#9ca3af" : "#6b7280",
+    }),
   };
 
   const locationSelectStyles = {
@@ -354,8 +395,8 @@ export default function CandidateDetailsModal({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
             {/* First Name */}
             <div>
-              <label className="block mb-1.5 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-1">
-                <User className="w-3.5 h-3.5 text-gray-400" />
+              <label className="block mb-1.5 text-xs font-bold text-gray-500 dark:text-gray-300 uppercase tracking-wider flex items-center gap-1">
+                <User className="w-3.5 h-3.5 text-gray-400 dark:text-gray-300" />
                 <span>First Name</span>
               </label>
               <input
@@ -371,8 +412,8 @@ export default function CandidateDetailsModal({
 
             {/* Last Name */}
             <div>
-              <label className="block mb-1.5 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-1">
-                <User className="w-3.5 h-3.5 text-gray-400" />
+              <label className="block mb-1.5 text-xs font-bold text-gray-500 dark:text-gray-300 uppercase tracking-wider flex items-center gap-1">
+                <User className="w-3.5 h-3.5 text-gray-400 dark:text-gray-300" />
                 <span>Last Name</span>
               </label>
               <input
@@ -382,14 +423,14 @@ export default function CandidateDetailsModal({
                 onChange={handleChange}
                 disabled={!isEditable}
                 placeholder="Enter last name"
-                className="w-full border border-gray-200 dark:border-gray-700 rounded-xl p-3 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white text-sm transition-all disabled:opacity-75 disabled:cursor-not-allowed"
+                className="w-full border border-gray-200 dark:border-gray-700 rounded-xl p-3 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-gray-55 dark:bg-gray-800 text-gray-900 dark:text-white text-sm transition-all disabled:opacity-75 disabled:cursor-not-allowed"
               />
             </div>
 
             {/* Email */}
             <div>
-              <label className="block mb-1.5 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-1">
-                <Mail className="w-3.5 h-3.5 text-gray-400" />
+              <label className="block mb-1.5 text-xs font-bold text-gray-500 dark:text-gray-300 uppercase tracking-wider flex items-center gap-1">
+                <Mail className="w-3.5 h-3.5 text-gray-400 dark:text-gray-300" />
                 <span>Email Address</span>
               </label>
               <input
@@ -405,8 +446,8 @@ export default function CandidateDetailsModal({
 
             {/* Mobile */}
             <div>
-              <label className="block mb-1.5 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-1">
-                <Phone className="w-3.5 h-3.5 text-gray-400" />
+              <label className="block mb-1.5 text-xs font-bold text-gray-500 dark:text-gray-300 uppercase tracking-wider flex items-center gap-1">
+                <Phone className="w-3.5 h-3.5 text-gray-400 dark:text-gray-300" />
                 <span>Mobile Number</span>
               </label>
               <input
@@ -416,17 +457,17 @@ export default function CandidateDetailsModal({
                 onChange={handleChange}
                 disabled={!isEditable}
                 placeholder="Enter 10-digit mobile number"
-                className="w-full border border-gray-200 dark:border-gray-700 rounded-xl p-3 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white text-sm transition-all disabled:opacity-75 disabled:cursor-not-allowed"
+                className="w-full border border-gray-200 dark:border-gray-700 rounded-xl p-3 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-gray-55 dark:bg-gray-800 text-gray-900 dark:text-white text-sm transition-all disabled:opacity-75 disabled:cursor-not-allowed"
               />
-              {isEditable && formData.mobile && formData.mobile.length > 10 && (
-                <p className="text-xs text-amber-500 font-semibold mt-1">Must be exactly 10 digits</p>
+              {isEditable && showMobileWarning && (
+                <p className="text-xs text-rose-500 font-semibold mt-1 flex items-center gap-1 animate-pulse">⚠️ Enter only 10 digits</p>
               )}
             </div>
 
             {/* Experience */}
             <div>
-              <label className="block mb-1.5 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-1">
-                <Briefcase className="w-3.5 h-3.5 text-gray-400" />
+              <label className="block mb-1.5 text-xs font-bold text-gray-500 dark:text-gray-300 uppercase tracking-wider flex items-center gap-1">
+                <Briefcase className="w-3.5 h-3.5 text-gray-400 dark:text-gray-300" />
                 <span>Years of Experience</span>
               </label>
               <div className="grid grid-cols-2 gap-3">
@@ -453,8 +494,8 @@ export default function CandidateDetailsModal({
 
             {/* Notice Period */}
             <div>
-              <label className="block mb-1.5 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-1">
-                <Calendar className="w-3.5 h-3.5 text-gray-400" />
+              <label className="block mb-1.5 text-xs font-bold text-gray-500 dark:text-gray-300 uppercase tracking-wider flex items-center gap-1">
+                <Calendar className="w-3.5 h-3.5 text-gray-400 dark:text-gray-300" />
                 <span>Notice Period</span>
               </label>
               <Select
@@ -472,8 +513,8 @@ export default function CandidateDetailsModal({
 
             {/* Preferred Locations */}
             <div>
-              <label className="block mb-1.5 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-1">
-                <MapPin className="w-3.5 h-3.5 text-gray-400" />
+              <label className="block mb-1.5 text-xs font-bold text-gray-500 dark:text-gray-300 uppercase tracking-wider flex items-center gap-1">
+                <MapPin className="w-3.5 h-3.5 text-gray-400 dark:text-gray-300" />
                 <span>Preferred Locations</span>
               </label>
               <Select
@@ -499,8 +540,8 @@ export default function CandidateDetailsModal({
 
             {/* Budget */}
             <div>
-              <label className="block mb-1.5 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-1">
-                <DollarSign className="w-3.5 h-3.5 text-gray-400" />
+              <label className="block mb-1.5 text-xs font-bold text-gray-500 dark:text-gray-300 uppercase tracking-wider flex items-center gap-1">
+                <DollarSign className="w-3.5 h-3.5 text-gray-400 dark:text-gray-300" />
                 <span>Budget / Package</span>
               </label>
               <input
@@ -516,8 +557,8 @@ export default function CandidateDetailsModal({
 
             {/* Current CTC */}
             <div>
-              <label className="block mb-1.5 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-1">
-                <DollarSign className="w-3.5 h-3.5 text-gray-400" />
+              <label className="block mb-1.5 text-xs font-bold text-gray-500 dark:text-gray-300 uppercase tracking-wider flex items-center gap-1">
+                <DollarSign className="w-3.5 h-3.5 text-gray-400 dark:text-gray-300" />
                 <span>Current CTC (LPA)</span>
               </label>
               <input
@@ -528,14 +569,14 @@ export default function CandidateDetailsModal({
                 onChange={handleChange}
                 disabled={!isEditable}
                 placeholder="e.g. 8.5"
-                className="w-full border border-gray-200 dark:border-gray-700 rounded-xl p-3 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white text-sm transition-all disabled:opacity-75 disabled:cursor-not-allowed"
+                className="w-full border border-gray-200 dark:border-gray-700 rounded-xl p-3 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-gray-55 dark:bg-gray-800 text-gray-900 dark:text-white text-sm transition-all disabled:opacity-75 disabled:cursor-not-allowed"
               />
             </div>
 
             {/* Expected CTC */}
             <div>
-              <label className="block mb-1.5 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-1">
-                <DollarSign className="w-3.5 h-3.5 text-gray-400" />
+              <label className="block mb-1.5 text-xs font-bold text-gray-500 dark:text-gray-300 uppercase tracking-wider flex items-center gap-1">
+                <DollarSign className="w-3.5 h-3.5 text-gray-400 dark:text-gray-300" />
                 <span>Expected CTC (LPA)</span>
               </label>
               <input
@@ -552,8 +593,8 @@ export default function CandidateDetailsModal({
 
             {/* Education */}
             <div className="md:col-span-2">
-              <label className="block mb-1.5 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-1">
-                <GraduationCap className="w-3.5 h-3.5 text-gray-400" />
+              <label className="block mb-1.5 text-xs font-bold text-gray-500 dark:text-gray-300 uppercase tracking-wider flex items-center gap-1">
+                <GraduationCap className="w-3.5 h-3.5 text-gray-400 dark:text-gray-300" />
                 <span>Education Details</span>
               </label>
               <input
@@ -563,14 +604,14 @@ export default function CandidateDetailsModal({
                 onChange={handleChange}
                 disabled={!isEditable}
                 placeholder="e.g. B.Tech in CSE / MCA"
-                className="w-full border border-gray-200 dark:border-gray-700 rounded-xl p-3 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white text-sm transition-all disabled:opacity-75 disabled:cursor-not-allowed"
+                className="w-full border border-gray-200 dark:border-gray-700 rounded-xl p-3 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-gray-55 dark:bg-gray-800 text-gray-900 dark:text-white text-sm transition-all disabled:opacity-75 disabled:cursor-not-allowed"
               />
             </div>
 
             {/* Skills */}
             <div className="md:col-span-2">
-              <label className="block mb-1.5 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-1">
-                <Award className="w-3.5 h-3.5 text-gray-400" />
+              <label className="block mb-1.5 text-xs font-bold text-gray-500 dark:text-gray-300 uppercase tracking-wider flex items-center gap-1">
+                <Award className="w-3.5 h-3.5 text-gray-400 dark:text-gray-300" />
                 <span>Tagged Skills</span>
               </label>
               <Select
