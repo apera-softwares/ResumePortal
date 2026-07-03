@@ -101,6 +101,7 @@ export default function CandidateDetailsModal({
     currentCtc: "",
     expectedCtc: "",
     skills: [] as string[],
+    preferredJobLocations: [] as string[],
   });
 
   const [expYears, setExpYears] = useState("0");
@@ -160,6 +161,7 @@ export default function CandidateDetailsModal({
         currentCtc: candidate.currentCtc !== null && candidate.currentCtc !== undefined ? String(candidate.currentCtc) : "",
         expectedCtc: candidate.expectedCtc !== null && candidate.expectedCtc !== undefined ? String(candidate.expectedCtc) : "",
         skills: skillsFlat,
+        preferredJobLocations: candidate.preferredJobLocations || [],
       });
 
       const totalExp = Number(candidate.yearsOfExperience || 0);
@@ -470,6 +472,30 @@ export default function CandidateDetailsModal({
                 isDisabled={!isEditable}
                 styles={customSelectStyles}
                 placeholder="Select location..."
+              />
+            </div>
+
+            {/* Preferred Locations */}
+            <div>
+              <label className="block mb-1.5 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-1">
+                <MapPin className="w-3.5 h-3.5 text-gray-400" />
+                <span>Preferred Locations</span>
+              </label>
+              <Select
+                name="preferredJobLocations"
+                value={(formData.preferredJobLocations || []).map((loc) => ({ value: loc, label: loc }))}
+                onChange={(selected: any) => {
+                  const values = selected ? selected.map((opt: any) => opt.value) : [];
+                  setFormData((prev) => ({ ...prev, preferredJobLocations: values }));
+                }}
+                options={[
+                  { value: "Remote", label: "Remote" },
+                  ...availableLocations.map((l: any) => ({ value: l.name, label: l.name })),
+                ]}
+                isMulti
+                isDisabled={!isEditable}
+                styles={customSelectStyles}
+                placeholder="Select preferred locations..."
               />
             </div>
 

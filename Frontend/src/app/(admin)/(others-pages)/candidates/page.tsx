@@ -165,6 +165,7 @@ interface Candidate {
   currentLocation?: string;
   preferredJobLocations?: string[];
   status?: string;
+  calculatedBudget?: string;
 }
 
 function CandidatesContent() {
@@ -762,17 +763,19 @@ function CandidatesContent() {
 
                         {/* Location */}
                         <TableCell className="px-6 py-4 text-start text-sm text-gray-750 dark:text-gray-300 font-medium capitalize">
-                          {user.currentLocation || "Remote"}
+                          {user.preferredJobLocations && user.preferredJobLocations.length > 0
+                            ? user.preferredJobLocations.join(", ")
+                            : (user.currentLocation || "Remote")}
                         </TableCell>
 
                         {/* Notice Period */}
-                        <TableCell className="px-6 py-4 text-start text-sm text-gray-750 dark:text-gray-300 font-medium">
+                        <TableCell className="px-6 py-4 text-start text-sm text-gray-755 dark:text-gray-300 font-medium">
                           {user.noticePeriod !== undefined && user.noticePeriod !== null ? `${user.noticePeriod} Days` : "N/A"}
                         </TableCell>
 
                         {/* Budget */}
                         <TableCell className="px-6 py-4 text-start text-sm text-gray-755 dark:text-gray-300 font-semibold">
-                          {user.budget || "N/A"}
+                          {user.calculatedBudget || user.budget || "N/A"}
                         </TableCell>
 
                         {/* Actions */}
@@ -791,22 +794,6 @@ function CandidatesContent() {
                                 <div className="absolute top-full left-1/2 -translate-x-1/2 border-[4px] border-transparent border-t-gray-900 dark:border-t-gray-800" />
                               </div>
                             </div>
-
-                            {/* Edit Resume Tooltip Wrapper */}
-                            {role !== "CLIENT" && (
-                              <div className="relative group">
-                                <button
-                                  onClick={() => router.push(`${pathname}?candidateId=${user.id}&mode=edit`)}
-                                  className="p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-amber-600 dark:text-amber-400 bg-amber-50/50 hover:bg-amber-100/70 dark:bg-amber-950/20 dark:hover:bg-amber-950/40 transition-all shadow-xs cursor-pointer"
-                                >
-                                  <SquarePen className="h-4 w-4" />
-                                </button>
-                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2.5 px-2 py-1 rounded-lg bg-gray-900 dark:bg-gray-800 text-white text-[10px] font-semibold whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 translate-y-1 group-hover:translate-y-0 transition-all duration-150 z-50 shadow-md">
-                                  Edit Resume
-                                  <div className="absolute top-full left-1/2 -translate-x-1/2 border-[4px] border-transparent border-t-gray-900 dark:border-t-gray-800" />
-                                </div>
-                              </div>
-                            )}
 
                             {/* View Candidate Tooltip Wrapper */}
                             <div className="relative group">

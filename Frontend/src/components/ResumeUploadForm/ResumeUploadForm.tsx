@@ -631,16 +631,19 @@ export default function ResumeUploadForm({ closeModal, jobId, onApplySuccess }: 
               </div>
 
               <div className="col-span-2 lg:col-span-1">
-                <Label>Prefered Loaction</Label>
+                <Label>Preferred Location</Label>
+                {/* Multi-select dropdown to allow candidates to select multiple preferred locations */}
                 <Select
-                  name="currentLocation"
-                  value={cityOptions.find(opt => opt.value.toLowerCase() === (formData.currentLocation || "").toLowerCase()) || null}
+                  name="preferredJobLocations"
+                  value={cityOptions.filter(opt => (formData.preferredJobLocations || []).includes(opt.value))}
                   onChange={(selected: any) => {
-                    setFormData((prev) => ({ ...prev, currentLocation: selected ? selected.value : "" }));
+                    const values = selected ? selected.map((opt: any) => opt.value) : [];
+                    setFormData((prev) => ({ ...prev, preferredJobLocations: values }));
                   }}
                   options={cityOptions}
+                  isMulti
                   styles={customSelectStyles}
-                  placeholder="Select city..."
+                  placeholder="Select locations..."
                 />
               </div>
 
