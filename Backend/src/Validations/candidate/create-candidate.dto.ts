@@ -49,6 +49,33 @@ export class CandidateDto {
   @IsOptional()
   skills: string | string[];
 
+  @ApiProperty({ description: 'Current location of the candidate', required: false, example: 'Delhi' })
+  @IsOptional()
+  @IsString()
+  currentLocation?: string;
+
+  @ApiProperty({ description: 'Preferred work mode (Remote / Hybrid / On-site)', required: false, example: 'Remote' })
+  @IsOptional()
+  @IsString()
+  preferredWorkMode?: string;
+
+  @ApiProperty({ description: 'Budget of the candidate', required: false, example: '5-7 LPA' })
+  @IsOptional()
+  @IsString()
+  budget?: string;
+
+  @ApiProperty({ description: 'Preferred job locations (comma-separated or array)', required: false, example: 'Bangalore, Pune' })
+  @IsOptional()
+  preferredJobLocations?: string | string[];
+
+  @ApiProperty({ description: 'Expected CTC', required: false, example: 12.5 })
+  @IsOptional()
+  expectedCtc?: number | string;
+
+  @ApiProperty({ description: 'Current CTC', required: false, example: 10.0 })
+  @IsOptional()
+  currentCtc?: number | string;
+
   @ApiProperty({ description: 'The ID of the job the candidate is applying for', required: false, example: 'uuid-123' })
   @IsOptional()
   jobId?: string | number;

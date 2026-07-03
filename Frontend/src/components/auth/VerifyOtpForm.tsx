@@ -43,7 +43,7 @@ export default function VerifyOtpForm() {
   useEffect(() => {
     // Get email from URL query param or localStorage
     const queryEmail = searchParams?.get("email");
-    const storedEmail = typeof window !== "undefined" ? localStorage.getItem("tempEmail") : null;
+    const storedEmail = typeof window !== "undefined" ? sessionStorage.getItem("tempEmail") : null;
 
     const targetEmail = queryEmail || storedEmail;
     if (targetEmail) {
@@ -94,43 +94,48 @@ export default function VerifyOtpForm() {
       // Show success
       toast.success(response.data.message || "OTP verified successfully!");
 
-      // The user requested: "Mark the user as authenticated (isAuthenticated = true). Redirect to dashboard."
       if (typeof window !== "undefined") {
-        localStorage.setItem("isAuthenticated", "true");
-
         const userData = response.data.data;
 
-        if (userData && userData.token) {
+          if (userData) {
           localStorage.setItem("token", userData.token);
-          localStorage.setItem("role", userData.role);
-          localStorage.setItem("name", userData.name);
-          localStorage.setItem("userId", String(userData.id));
+          
+          // Save complete user object
+          const userObj = {
+            id: userData.id,
+            name: userData.name,
+            email: userData.email || email,
+            role: userData.role,
+          };
+          localStorage.setItem("user", JSON.stringify(userObj));
         } else {
           // Finalize login (if user came from Login and backend didn't send token)
-          const tempToken = localStorage.getItem("tempToken");
           const tempRole = localStorage.getItem("tempRole");
           const tempName = localStorage.getItem("tempName");
           const tempUserId = localStorage.getItem("tempUserId");
 
-          if (tempToken) {
-            localStorage.setItem("token", tempToken);
-            localStorage.removeItem("tempToken");
-          }
           if (tempRole) {
-            localStorage.setItem("role", tempRole);
             localStorage.removeItem("tempRole");
           }
           if (tempName) {
-            localStorage.setItem("name", tempName);
             localStorage.removeItem("tempName");
           }
           if (tempUserId) {
-            localStorage.setItem("userId", tempUserId);
             localStorage.removeItem("tempUserId");
           }
+          
+          // Save complete user object
+          const userObj = {
+            id: tempUserId || "",
+            name: tempName || "",
+            email: email || "",
+            role: tempRole || "",
+          };
+          localStorage.setItem("user", JSON.stringify(userObj));
         }
 
-        localStorage.removeItem("tempEmail");
+        sessionStorage.removeItem("tempEmail");
+        localStorage.removeItem("tempToken");
       }
 
       router.push("/dashboard");
@@ -293,7 +298,17 @@ export default function VerifyOtpForm() {
                   type="submit"
                   disabled={isVerifying}
                 >
-                  {isVerifying ? "Verifying..." : "Verify OTP"}
+                  {isVerifying ? (
+                    <div className="flex items-center gap-2">
+                      <svg className="animate-spin h-5 w-5 text-white animate-infinite" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Verifying...
+                    </div>
+                  ) : (
+                    "Verify OTP"
+                  )}
                 </Button>
               </div>
 

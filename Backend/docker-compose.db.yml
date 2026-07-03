@@ -1,0 +1,27 @@
+version: "3.8"
+# Deploy trigger: 2026-06-23T13:00:00Z
+services:
+  resumebuilder-postgres:
+    image: postgres:18
+    container_name: resumebuilder-postgres
+    restart: unless-stopped
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: "${POSTGRES_USER}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+      POSTGRES_DB: "${POSTGRES_DB}"
+      PGDATA: "/var/lib/postgresql/data/pgdata"
+    volumes:
+      - resumebuilder-postgres-data:/var/lib/postgresql/data
+    networks:
+      - resumebuilder-network
+
+volumes:
+  resumebuilder-postgres-data:
+    name: resumebuilder-postgres-data
+
+networks:
+  resumebuilder-network:
+    name: resumebuilder-network
+    external: true

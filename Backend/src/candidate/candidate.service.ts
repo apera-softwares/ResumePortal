@@ -6,7 +6,7 @@ type CandidateStatus = $Enums.CandidateStatus;
 import { CandidateDto } from 'src/Validations/candidate/create-candidate.dto';
 import { join } from 'path';
 import { extname } from 'path';
-import { NotFoundException } from '@nestjs/common';
+import { NotFoundException, BadRequestException } from '@nestjs/common';
 import * as fs from 'fs';
 import * as mammoth from 'mammoth';
 import { Document, Packer, Paragraph, TextRun } from 'docx';
@@ -44,6 +44,8 @@ export class CandidateService {
 
     const yearsOfExperience = Number(candidateData.yearsOfExperience);
     const noticePeriod = Number(candidateData.noticePeriod);
+    const expectedCtc = candidateData.expectedCtc ? Number(candidateData.expectedCtc) : null;
+    const currentCtc = candidateData.currentCtc ? Number(candidateData.currentCtc) : null;
 
     let skillsArray: string[] = [];
 
@@ -55,9 +57,24 @@ export class CandidateService {
       }
     }
 
+    let preferredJobLocationsArray: string[] = [];
+    if (candidateData.preferredJobLocations) {
+      if (typeof candidateData.preferredJobLocations === 'string') {
+        preferredJobLocationsArray = candidateData.preferredJobLocations
+          .split(',')
+          .map((l) => l.trim())
+          .filter(Boolean);
+      } else if (Array.isArray(candidateData.preferredJobLocations)) {
+        preferredJobLocationsArray = candidateData.preferredJobLocations
+          .map((l: any) => String(l).trim())
+          .filter(Boolean);
+      }
+    }
+
+    const emailLower = candidateData.email.trim().toLowerCase();
     // Check if candidate with this email already exists to avoid unique constraint violations
     const existingCandidate = await this.prisma.candidate.findUnique({
-      where: { email: candidateData.email },
+      where: { email: emailLower },
     });
 
     if (existingCandidate) {
@@ -93,13 +110,23 @@ export class CandidateService {
           yearsOfExperience,
           education: candidateData.education,
           noticePeriod,
+          currentLocation: candidateData.currentLocation || null,
+          preferredWorkMode: candidateData.preferredWorkMode || null,
+          budget: candidateData.budget || null,
+          preferredJobLocations: preferredJobLocationsArray,
+          expectedCtc,
+          currentCtc,
           resume: file.filename,
           resumeText: '', // reset and parse asynchronously via event
           skills: {
-            set: [], // clear existing skills associations
-            connectOrCreate: skillsArray.map((name) => ({
-              where: { name },
-              create: { name },
+            deleteMany: {}, // clear existing skills associations
+            create: skillsArray.map((name) => ({
+              skill: {
+                connectOrCreate: {
+                  where: { name },
+                  create: { name },
+                },
+              },
             })),
           },
           ...((candidateData as any).jobId
@@ -119,7 +146,7 @@ export class CandidateService {
             : {}),
         },
         include: {
-          skills: true,
+          skills: { include: { skill: true } },
           appliedJobs: { include: { job: true } },
         },
       });
@@ -132,7 +159,7 @@ export class CandidateService {
         new CandidateCreatedEvent(updatedCandidate.id),
       );
 
-      return updatedCandidate;
+      return this.mapCandidate(updatedCandidate);
     }
 
     // Create a new candidate record in the database
@@ -141,16 +168,26 @@ export class CandidateService {
         firstName: candidateData.firstName,
         lastName: candidateData.lastName,
         mobile: candidateData.mobile,
-        email: candidateData.email,
+        email: emailLower,
         yearsOfExperience,
         education: candidateData.education,
         noticePeriod,
+        currentLocation: candidateData.currentLocation || null,
+        preferredWorkMode: candidateData.preferredWorkMode || null,
+        budget: candidateData.budget || null,
+        preferredJobLocations: preferredJobLocationsArray,
+        expectedCtc,
+        currentCtc,
         resume: file.filename,
         resumeText: '', // initially empty, parsed in event handler
         skills: {
-          connectOrCreate: skillsArray.map((name) => ({
-            where: { name },
-            create: { name },
+          create: skillsArray.map((name) => ({
+            skill: {
+              connectOrCreate: {
+                where: { name },
+                create: { name },
+              },
+            },
           })),
         },
         ...((candidateData as any).jobId
@@ -162,7 +199,7 @@ export class CandidateService {
           : {}),
       },
       include: {
-        skills: true,
+        skills: { include: { skill: true } },
         appliedJobs: { include: { job: true } },
       },
     });
@@ -175,7 +212,7 @@ export class CandidateService {
       new CandidateCreatedEvent(createdCandidate.id),
     );
 
-    return createdCandidate;
+    return this.mapCandidate(createdCandidate);
   }
 
   // get all candidate
@@ -188,50 +225,82 @@ export class CandidateService {
     userId?: string,
     role?: string,
     isPublic?: boolean,
+    jobId?: string,
+    location?: string,
   ) {
     const where: any = {};
     if (isPublic !== undefined) {
       where.isPublic = isPublic;
     }
 
-    // 1. Company User filter
-    if (role && role !== 'ADMIN' && userId) {
-      where.appliedJobs = {
-        some: {
-          job: { createdById: userId },
+    const andConditions: any[] = [];
+
+    // 1. Job Filter or Company User filter
+    if (jobId) {
+      andConditions.push({
+        appliedJobs: {
+          some: { jobId: jobId },
         },
-      };
+      });
+    } else if (role && role !== 'ADMIN' && userId) {
+      andConditions.push({
+        appliedJobs: {
+          some: {
+            job: { createdById: userId },
+          },
+        },
+      });
     }
 
     // 2. Skill Filter
     if (skill) {
-      where.skills = {
-        some: {
-          name: {
-            equals: skill,
-            mode: 'insensitive',
-          },
-        },
-      };
+      const skillList = skill.split(',').map(s => s.trim()).filter(Boolean);
+      if (skillList.length > 0) {
+        andConditions.push({
+          skills: {
+            some: {
+              skill: {
+                OR: skillList.map(s => ({
+                  name: { equals: s, mode: 'insensitive' }
+                }))
+              }
+            }
+          }
+        });
+      }
     }
 
     // 3. Experience Filter
     if (experience) {
-      if (experience === '0-2') {
-        where.yearsOfExperience = { gte: 0, lte: 2 };
+      if (experience === 'fresher') {
+        andConditions.push({ yearsOfExperience: 0 });
+      } else if (experience === '0-1') {
+        andConditions.push({ yearsOfExperience: { gte: 0, lte: 1 } });
+      } else if (experience === '1-2') {
+        andConditions.push({ yearsOfExperience: { gte: 1, lte: 2 } });
+      } else if (experience === '2-3') {
+        andConditions.push({ yearsOfExperience: { gte: 2, lte: 3 } });
       } else if (experience === '3-5') {
-        where.yearsOfExperience = { gte: 3, lte: 5 };
-      } else if (experience === '6-9') {
-        where.yearsOfExperience = { gte: 6, lte: 9 };
-      } else if (experience === '10+') {
-        where.yearsOfExperience = { gte: 10 };
+        andConditions.push({ yearsOfExperience: { gte: 3, lte: 5 } });
+      } else if (experience === '5-7') {
+        andConditions.push({ yearsOfExperience: { gte: 5, lte: 7 } });
+      } else if (experience === '7-10') {
+        andConditions.push({ yearsOfExperience: { gte: 7, lte: 10 } });
+      } else if (experience === '10-12') {
+        andConditions.push({ yearsOfExperience: { gte: 10, lte: 12 } });
+      } else if (experience === '12-15') {
+        andConditions.push({ yearsOfExperience: { gte: 12, lte: 15 } });
+      } else if (experience === '15+') {
+        andConditions.push({ yearsOfExperience: { gte: 15 } });
       }
     }
 
     // 4. Search Term Filter
     if (search && search.trim()) {
       const term = search.trim();
-      where.OR = [
+      const words = term.split(/\s+/).filter(Boolean);
+      
+      const searchConditions: any[] = [
         { firstName: { contains: term, mode: 'insensitive' } },
         { lastName: { contains: term, mode: 'insensitive' } },
         { email: { contains: term, mode: 'insensitive' } },
@@ -241,54 +310,282 @@ export class CandidateService {
         {
           skills: {
             some: {
-              name: { contains: term, mode: 'insensitive' },
+              skill: {
+                name: { contains: term, mode: 'insensitive' },
+              },
             },
           },
         },
       ];
+
+      // Support searching by full name (e.g., "Trushant Kose")
+      if (words.length > 1) {
+        searchConditions.push({
+          AND: [
+            { firstName: { contains: words[0], mode: 'insensitive' } },
+            { lastName: { contains: words.slice(1).join(' '), mode: 'insensitive' } },
+          ],
+        });
+      }
+
+      andConditions.push({
+        OR: searchConditions,
+      });
     }
 
-    const skip = page && limit ? (page - 1) * limit : undefined;
-    const take = limit ? limit : undefined;
+    // 5. Location Filter
+    if (location && location.trim() !== '') {
+      const locationList = location.split(',').map(l => l.trim().toUpperCase()).filter(Boolean);
+      if (locationList.length > 0) {
+        andConditions.push({
+          OR: [
+            ...locationList.map(loc => ({
+              currentLocation: { equals: loc, mode: 'insensitive' }
+            })),
+            {
+              preferredJobLocations: {
+                hasSome: locationList
+              }
+            }
+          ]
+        });
+      }
+    }
 
-    const [candidates, total] = await Promise.all([
+    if (andConditions.length > 0) {
+      where.AND = andConditions;
+    }
+
+    // Fetch matching Candidates (all) and candidate Users (all)
+    const [candidates, candidateUsers] = await Promise.all([
       this.prisma.candidate.findMany({
         where,
-        skip,
-        take,
         include: {
-          skills: true,
+          skills: { include: { skill: true } },
           appliedJobs: { include: { job: true } },
         },
         orderBy: {
           id: 'desc',
         },
       }),
-      this.prisma.candidate.count({ where }),
+      this.prisma.user.findMany({
+        where: { role: 'CANDIDATE' },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          createdAt: true,
+        },
+      }),
     ]);
 
+    const mappedCandidates = candidates.map((c) => this.mapCandidate(c));
+
+    // Synthesize candidates from candidateUsers who don't have a Candidate record
+    const existingEmails = new Set(mappedCandidates.map((c) => c.email.toLowerCase()));
+    const existingUserIds = new Set(mappedCandidates.map((c) => c.userId).filter(Boolean));
+
+    const synthesizedCandidates = candidateUsers
+      .filter((user) => !existingEmails.has(user.email.toLowerCase()) && !existingUserIds.has(user.id))
+      .map((user) => {
+        const parts = user.name.trim().split(/\s+/);
+        const firstName = parts[0] || 'Candidate';
+        const lastName = parts.slice(1).join(' ') || '';
+        return {
+          id: `user-${user.id}`,
+          firstName,
+          lastName,
+          email: user.email,
+          mobile: '',
+          yearsOfExperience: 0,
+          education: '',
+          noticePeriod: 0,
+          currentLocation: '',
+          preferredWorkMode: '',
+          budget: '',
+          preferredJobLocations: [],
+          expectedCtc: null,
+          currentCtc: null,
+          resume: '',
+          resumeText: '',
+          cleanedResume: null,
+          resumeJson: null,
+          editedHtml: null,
+          parsedHtml: null,
+          isPublic: false,
+          userId: user.id,
+          appliedJobs: [],
+          skills: [],
+          createdAt: user.createdAt,
+          updatedAt: user.createdAt,
+        };
+      });
+
+    // Merge both
+    let allCandidates = [...mappedCandidates, ...synthesizedCandidates];
+
+    // Filter synthesized candidates if we have filters that they wouldn't match
+    if (isPublic !== undefined) {
+      allCandidates = allCandidates.filter((c) => c.isPublic === isPublic);
+    }
+    if (jobId) {
+      allCandidates = allCandidates.filter((c) => c.appliedJobs.some((aj: any) => aj.jobId === jobId));
+    }
+    if (skill) {
+      const skillList = skill.split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
+      if (skillList.length > 0) {
+        allCandidates = allCandidates.filter((c) =>
+          c.skills.some((s: any) => skillList.includes(s.name.toLowerCase())),
+        );
+      }
+    }
+    if (experience) {
+      allCandidates = allCandidates.filter((c) => {
+        const exp = c.yearsOfExperience;
+        if (experience === 'fresher') return exp === 0;
+        if (experience === '0-1') return exp >= 0 && exp <= 1;
+        if (experience === '1-2') return exp >= 1 && exp <= 2;
+        if (experience === '2-3') return exp >= 2 && exp <= 3;
+        if (experience === '3-5') return exp >= 3 && exp <= 5;
+        if (experience === '5-7') return exp >= 5 && exp <= 7;
+        if (experience === '7-10') return exp >= 7 && exp <= 10;
+        if (experience === '10-12') return exp >= 10 && exp <= 12;
+        if (experience === '12-15') return exp >= 12 && exp <= 15;
+        if (experience === '15+') return exp >= 15;
+        return true;
+      });
+    }
+    if (search && search.trim()) {
+      const term = search.trim().toLowerCase();
+      const words = term.split(/\s+/).filter(Boolean);
+      allCandidates = allCandidates.filter((c) => {
+        const matchesField =
+          c.firstName.toLowerCase().includes(term) ||
+          c.lastName.toLowerCase().includes(term) ||
+          c.email.toLowerCase().includes(term) ||
+          (c.mobile && c.mobile.includes(term)) ||
+          (c.education && c.education.toLowerCase().includes(term)) ||
+          (c.resumeText && c.resumeText.toLowerCase().includes(term)) ||
+          c.skills.some((s: any) => s.name.toLowerCase().includes(term));
+
+        if (matchesField) return true;
+
+        if (words.length > 1) {
+          const firstWord = words[0];
+          const remaining = words.slice(1).join(' ');
+          if (
+            c.firstName.toLowerCase().includes(firstWord) &&
+            c.lastName.toLowerCase().includes(remaining)
+          ) {
+            return true;
+          }
+        }
+        return false;
+      });
+    }
+    if (location && location.trim() !== '') {
+      const locationList = location.split(',').map((l) => l.trim().toLowerCase()).filter(Boolean);
+      if (locationList.length > 0) {
+        allCandidates = allCandidates.filter((c) => {
+          const matchesCurrent =
+            c.currentLocation && locationList.includes(c.currentLocation.toLowerCase());
+          const matchesPreferred =
+            c.preferredJobLocations &&
+            c.preferredJobLocations.some((l: string) => locationList.includes(l.toLowerCase()));
+          return matchesCurrent || matchesPreferred;
+        });
+      }
+    }
+
+    // Sort by createdAt desc
+    allCandidates.sort((a, b) => {
+      const dateA = new Date(a.createdAt).getTime();
+      const dateB = new Date(b.createdAt).getTime();
+      return dateB - dateA;
+    });
+
+    const total = allCandidates.length;
+    const pageNum = page || 1;
+    const limitNum = limit || total;
+    const totalPages = Math.ceil(total / limitNum);
+
+    const paginatedCandidates = allCandidates.slice((pageNum - 1) * limitNum, pageNum * limitNum);
+
     return {
-      data: candidates,
+      data: paginatedCandidates,
       total,
-      page: page || 1,
-      limit: limit || total,
-      totalPages: limit ? Math.ceil(total / limit) : 1,
+      page: pageNum,
+      limit: limitNum,
+      totalPages,
     };
   }
 
   // Get candidate by ID
   async findOne(id: string) {
-    return await this.prisma.candidate.findUnique({
+    if (id.startsWith('user-')) {
+      const userId = id.replace('user-', '');
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+      });
+      if (!user) throw new NotFoundException(`User with ID ${userId} not found`);
+      const parts = user.name.trim().split(/\s+/);
+      const firstName = parts[0] || 'Candidate';
+      const lastName = parts.slice(1).join(' ') || '';
+      return {
+        id,
+        firstName,
+        lastName,
+        email: user.email,
+        mobile: '',
+        yearsOfExperience: 0,
+        education: '',
+        noticePeriod: 0,
+        currentLocation: '',
+        preferredWorkMode: '',
+        budget: '',
+        preferredJobLocations: [],
+        expectedCtc: null,
+        currentCtc: null,
+        resume: '',
+        resumeText: '',
+        cleanedResume: null,
+        resumeJson: null,
+        editedHtml: null,
+        parsedHtml: null,
+        isPublic: false,
+        userId: user.id,
+        appliedJobs: [],
+        skills: [],
+        createdAt: user.createdAt,
+        updatedAt: user.createdAt,
+      };
+    }
+
+    const candidate = await this.prisma.candidate.findUnique({
       where: { id },
       include: {
-        skills: true,
+        skills: { include: { skill: true } },
         appliedJobs: { include: { job: true } },
       },
     });
+    return this.mapCandidate(candidate);
   }
 
   // delete candidate by id
   async remove(id: string) {
+    if (id.startsWith('user-')) {
+      const userId = id.replace('user-', '');
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+      });
+      if (!user) {
+        throw new NotFoundException(`Candidate with ID ${id} not found`);
+      }
+      return await this.prisma.user.delete({
+        where: { id: userId },
+      });
+    }
+
     const candidate = await this.prisma.candidate.findUnique({
       where: { id },
     });
@@ -300,6 +597,33 @@ export class CandidateService {
     return await this.prisma.candidate.delete({
       where: { id },
     });
+  }
+
+  private mapCandidate(candidate: any) {
+    if (!candidate) return null;
+
+    // Calculate the LPM budget from the raw LPA string input
+    // Formula: Value LPA / 12 months = monthly amount; monthly amount + 20% margin = LPM
+    // Example: 12 LPA -> 60,000 PM + 20% = 72,000 LPM (which displays on the candidate table as 72KPM)
+    let calculatedBudget: string | null = null;
+    if (candidate.budget) {
+      const match = candidate.budget.match(/(\d+(\.\d+)?)/);
+      if (match) {
+        const val = parseFloat(match[1]);
+        const monthly = val * 5000;
+        const withTwentyPercent = monthly * 1.2;
+        calculatedBudget = `${Math.round(withTwentyPercent / 1000)}KPM`;
+      }
+    }
+
+    return {
+      ...candidate,
+      calculatedBudget,
+      skills: (candidate.skills || []).map((cs: any) => ({
+        id: cs.skill?.id || cs.skillId,
+        name: cs.skill?.name || cs.name || '',
+      })),
+    };
   }
 
   private cleanContactDetails(text: string): string {
@@ -377,25 +701,27 @@ export class CandidateService {
         cleanedResume: fileName,
       },
       include: {
-        skills: true,
+        skills: { include: { skill: true } },
       },
     });
 
-    return updatedCandidate;
+    return this.mapCandidate(updatedCandidate);
   }
 
   async findByEmail(email: string) {
     if (!email) return [];
-    return await this.prisma.candidate.findMany({
-      where: { email },
+    const emailLower = email.trim().toLowerCase();
+    const candidates = await this.prisma.candidate.findMany({
+      where: { email: emailLower },
       include: {
-        skills: true,
+        skills: { include: { skill: true } },
         appliedJobs: { include: { job: true } },
       },
       orderBy: {
         createdAt: 'desc',
       },
     });
+    return candidates.map((c) => this.mapCandidate(c));
   }
 
   async updateStatus(id: string, status: CandidateStatus) {
@@ -412,30 +738,68 @@ export class CandidateService {
       data: { status },
     });
 
-    return await this.prisma.candidate.findUnique({
+    const updated = await this.prisma.candidate.findUnique({
       where: { id },
       include: {
-        skills: true,
+        skills: { include: { skill: true } },
         appliedJobs: { include: { job: true } },
       },
     });
+    return this.mapCandidate(updated);
   }
 
   async updatePublicStatus(id: string, isPublic: boolean) {
-    const candidate = await this.prisma.candidate.findUnique({
-      where: { id },
-    });
+    let candidate: any = null;
+
+    if (id.startsWith('user-')) {
+      const userId = id.replace('user-', '');
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+      });
+      if (!user) throw new NotFoundException(`User with ID ${userId} not found`);
+
+      candidate = await this.prisma.candidate.findUnique({
+        where: { email: user.email },
+      });
+
+      if (!candidate) {
+        const parts = user.name.trim().split(/\s+/);
+        const firstName = parts[0] || 'Candidate';
+        const lastName = parts.slice(1).join(' ') || '';
+
+        candidate = await this.prisma.candidate.create({
+          data: {
+            firstName,
+            lastName,
+            email: user.email,
+            yearsOfExperience: 0,
+            noticePeriod: 0,
+            resume: '',
+            userId: user.id,
+            isPublic,
+          },
+        });
+        return this.mapCandidate(candidate);
+      }
+    } else {
+      candidate = await this.prisma.candidate.findUnique({
+        where: { id },
+      });
+    }
+
     if (!candidate) {
       throw new NotFoundException(`Candidate with ID ${id} not found`);
     }
-    return await this.prisma.candidate.update({
-      where: { id },
+
+    const updated = await this.prisma.candidate.update({
+      where: { id: candidate.id },
       data: { isPublic },
       include: {
-        skills: true,
+        skills: { include: { skill: true } },
         appliedJobs: { include: { job: true } },
       },
     });
+    return this.mapCandidate(updated);
   }
 
   async uploadCleanedResume(
@@ -563,17 +927,18 @@ export class CandidateService {
     }
 
     // Update candidate record
-    return await this.prisma.candidate.update({
+    const updated = await this.prisma.candidate.update({
       where: { id },
       data: {
         cleanedResume: file.filename,
         resumeText: extractedText || resumeText || undefined,
       },
       include: {
-        skills: true,
+        skills: { include: { skill: true } },
         appliedJobs: { include: { job: true } },
       },
     });
+    return this.mapCandidate(updated);
   }
 
   /**
@@ -592,48 +957,174 @@ export class CandidateService {
     try {
       const page = await browser.newPage();
 
-      const printFriendlyHtml = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="utf-8">
-          <style>
-            @page {
-              size: A4;
-              margin: 15mm;
-            }
-            body {
-              font-family: Arial, Helvetica, sans-serif;
-              line-height: 1.4;
-              color: #2c3e50;
-              background-color: #ffffff;
-            }
-            p { margin: 0 0 8px 0; }
-            h1, h2, h3, h4, h5, h6 { 
-              color: #2c3e50; 
-              margin-top: 15px; 
-              margin-bottom: 8px;
-              font-weight: bold;
-            }
-            h1 { font-size: 24px; text-align: center; border-bottom: 2px solid #2c3e50; padding-bottom: 5px; }
-            h2 { font-size: 18px; border-bottom: 1.5px solid #bdc3c7; padding-bottom: 3px; }
-            table { width: 100%; border-collapse: collapse; margin: 10px 0; }
-            td { padding: 4px; vertical-align: top; }
-            ul, ol { margin: 5px 0; padding-left: 20px; }
-            li { margin-bottom: 4px; }
-          </style>
-        </head>
-        <body>
-          ${htmlContent}
-        </body>
-        </html>
-      `;
+      const isFullHtml = /<!DOCTYPE html|<html/i.test(htmlContent);
+      const isAbsolute = /position:\s*absolute/i.test(htmlContent);
 
-      await page.setContent(printFriendlyHtml, { waitUntil: 'networkidle0' });
-      const pdfBuffer = await page.pdf({
-        format: 'A4',
+      let finalHtml = htmlContent;
+      let pdfOptions: any = {
         printBackground: true,
-      });
+      };
+
+      let pageWidth = 'A4';
+      let pageHeight = '';
+      let isCustomSize = false;
+
+      if (isFullHtml) {
+        if (isAbsolute) {
+          let pageDivMatch = htmlContent.match(/id="page\d+-div"[^>]+style="([^"]+)"/i);
+          if (!pageDivMatch) {
+            pageDivMatch = htmlContent.match(/<div[^>]+style="([^"]*position:\s*relative[^"]*)"/i);
+          }
+          if (pageDivMatch) {
+            const styleAttr = pageDivMatch[1];
+            const wMatch = styleAttr.match(/width:\s*(\d+)px/i);
+            const hMatch = styleAttr.match(/height:\s*(\d+)px/i);
+            if (wMatch && hMatch) {
+              const wVal = parseInt(wMatch[1], 10);
+              const hVal = parseInt(hMatch[1], 10);
+              if (wVal > 300 && hVal > 300) {
+                pageWidth = `${wVal}px`;
+                pageHeight = `${hVal}px`;
+                isCustomSize = true;
+              }
+            }
+          }
+        }
+
+        // 1. Move all style blocks to head
+        const styles: string[] = [];
+        finalHtml = finalHtml.replace(/<style[^>]*>([\s\S]*?)<\/style>/gi, (match) => {
+          styles.push(match);
+          return '';
+        });
+
+        // 2. Inject print style overrides
+        if (isAbsolute) {
+          styles.push(`
+            <style>
+              @page {
+                size: ${isCustomSize ? `${pageWidth} ${pageHeight}` : 'A4'};
+                margin: 0 !important;
+              }
+              html, body {
+                margin: 0 !important;
+                padding: 0 !important;
+                border: 0 !important;
+                overflow: hidden !important;
+                background: white !important;
+                background-color: white !important;
+              }
+              body {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+              }
+              div[id$="-div"], div[id^="page"] {
+                margin: 0 !important;
+                padding: 0 !important;
+                box-shadow: none !important;
+                border: none !important;
+                background: white !important;
+                overflow: hidden !important;
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+              }
+              div[id$="-div"]:last-child, div[id^="page"]:last-child {
+                page-break-after: avoid !important;
+                break-after: avoid !important;
+              }
+            </style>
+          `);
+        }
+
+        const stylesString = styles.join('\n');
+        if (finalHtml.includes('</head>')) {
+          finalHtml = finalHtml.replace(/<\/head>/i, `${stylesString}</head>`);
+        } else if (finalHtml.includes('<head>')) {
+          finalHtml = finalHtml.replace(/<head>/i, `<head>${stylesString}`);
+        } else {
+          finalHtml = `<head>${stylesString}</head>${finalHtml}`;
+        }
+
+        // 3. Clean body content (remove empty spacers and trim)
+        finalHtml = finalHtml.replace(/<body([^>]*)>([\s\S]*?)<\/body>/i, (match, bodyAttrs, bodyContent) => {
+          let cleanedContent = bodyContent.trim();
+          cleanedContent = cleanedContent.replace(/<!-- Page \d+ -->/g, '');
+          cleanedContent = cleanedContent.replace(/<a name="\d+"><\/a>/g, '');
+          cleanedContent = cleanedContent.trim();
+          // Remove any whitespace between page divs to prevent spacing nodes
+          cleanedContent = cleanedContent.replace(/<\/div>\s+<div/g, '</div><div');
+          return `<body${bodyAttrs}>${cleanedContent}</body>`;
+        });
+
+        if (isAbsolute) {
+          if (isCustomSize) {
+            pdfOptions.width = pageWidth;
+            pdfOptions.height = pageHeight;
+          } else {
+            pdfOptions.format = 'A4';
+          }
+          pdfOptions.margin = { top: 0, bottom: 0, left: 0, right: 0 };
+        } else {
+          pdfOptions.format = 'A4';
+        }
+      } else {
+        finalHtml = `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <meta charset="utf-8">
+            <style>
+              @page {
+                size: A4;
+                margin: 15mm;
+              }
+              body {
+                font-family: Arial, Helvetica, sans-serif;
+                line-height: 1.4;
+                color: #2c3e50;
+                background-color: #ffffff;
+              }
+              p { margin: 0 0 8px 0; }
+              h1, h2, h3, h4, h5, h6 { 
+                color: #2c3e50; 
+                margin-top: 15px; 
+                margin-bottom: 8px;
+                font-weight: bold;
+              }
+              h1 { font-size: 24px; text-align: center; border-bottom: 2px solid #2c3e50; padding-bottom: 5px; }
+              h2 { font-size: 18px; border-bottom: 1.5px solid #bdc3c7; padding-bottom: 3px; }
+              table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+              td { padding: 4px; vertical-align: top; }
+              ul, ol { margin: 5px 0; padding-left: 20px; }
+              li { margin-bottom: 4px; }
+            </style>
+          </head>
+          <body>
+            ${htmlContent}
+          </body>
+          </html>
+        `;
+        pdfOptions.format = 'A4';
+      }
+
+      if (isFullHtml && isAbsolute && isCustomSize) {
+        const widthVal = parseInt(pageWidth, 10) || 800;
+        const heightVal = parseInt(pageHeight, 10) || 1200;
+        await page.setViewport({
+          width: widthVal,
+          height: heightVal,
+          deviceScaleFactor: 1,
+        });
+      } else {
+        await page.setViewport({
+          width: 800,
+          height: 1130,
+          deviceScaleFactor: 1,
+        });
+      }
+
+      await page.setContent(finalHtml, { waitUntil: 'networkidle0' });
+      const pdfBuffer = await page.pdf(pdfOptions);
       return Buffer.from(pdfBuffer);
     } finally {
       await browser.close();
@@ -879,9 +1370,49 @@ export class CandidateService {
     file?: Express.Multer.File,
     resumeText?: string,
   ): Promise<any> {
-    const candidate = await this.prisma.candidate.findUnique({
-      where: { id },
-    });
+    let candidate: any = null;
+
+    if (id.startsWith('user-')) {
+      const userId = id.replace('user-', '');
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+      });
+      if (!user) {
+        if (file) {
+          const tempPath = join(process.cwd(), 'uploads', file.filename);
+          if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
+        }
+        throw new NotFoundException(`User with ID ${userId} not found`);
+      }
+
+      // Check if a Candidate record already exists for this email
+      candidate = await this.prisma.candidate.findUnique({
+        where: { email: user.email },
+      });
+
+      if (!candidate) {
+        const parts = user.name.trim().split(/\s+/);
+        const firstName = parts[0] || 'Candidate';
+        const lastName = parts.slice(1).join(' ') || '';
+
+        candidate = await this.prisma.candidate.create({
+          data: {
+            firstName,
+            lastName,
+            email: user.email,
+            yearsOfExperience: 0,
+            noticePeriod: 0,
+            resume: file ? file.filename : '',
+            userId: user.id,
+            isPublic: false,
+          },
+        });
+      }
+    } else {
+      candidate = await this.prisma.candidate.findUnique({
+        where: { id },
+      });
+    }
 
     if (!candidate) {
       if (file) {
@@ -1001,124 +1532,193 @@ export class CandidateService {
         }
       }
     } else if (resumeText) {
-      // Generate premium PDF directly from edited HTML using LibreOffice
-      const tempHtmlName = `temp-${id}-${Date.now()}.html`;
-      const tempHtmlPath = join(process.cwd(), 'uploads', tempHtmlName);
-
-      // Add clean styles to ensure beautiful styling when converting html to pdf
-      const styledHtml = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="utf-8">
-          <style>
-            @page {
-              size: A4;
-              margin: 1.2in 1in 1.2in 1in;
-            }
-            body {
-              font-family: Arial, Helvetica, sans-serif;
-              line-height: 1.35;
-              color: #2b2b2b;
-              font-size: 11pt;
-            }
-            p { margin-top: 0; margin-bottom: 6px; }
-            h1, h2, h3, h4, h5, h6 { 
-              margin-top: 14px; 
-              margin-bottom: 6px; 
-              color: #111111;
-              font-weight: bold;
-            }
-            h1 { font-size: 20pt; text-align: center; margin-bottom: 12px; }
-            h2 { font-size: 14pt; border-bottom: 1.5px solid #4a5568; padding-bottom: 3px; margin-top: 18px; }
-            h3 { font-size: 12pt; }
-            table { 
-              width: 100%; 
-              border-collapse: collapse; 
-              margin-top: 4px; 
-              margin-bottom: 8px; 
-              page-break-inside: avoid;
-            }
-            td { 
-              padding: 2px 4px; 
-              vertical-align: top; 
-            }
-            ul, ol { margin-top: 4px; margin-bottom: 6px; padding-left: 20px; }
-            li { margin-bottom: 3px; }
-          </style>
-        </head>
-        <body>
-          ${resumeText}
-        </body>
-        </html>
-      `;
-
-      fs.writeFileSync(tempHtmlPath, styledHtml);
-
       try {
-        const outputDir = join(process.cwd(), 'uploads');
-        const pdfFileName = `resume-${id}-${Date.now()}.pdf`;
-        const tempPdfPath = join(
-          outputDir,
-          tempHtmlName.replace(/\.html$/i, '.pdf'),
-        );
+        const pdfFileName = `resume-${candidate.id}-${Date.now()}.pdf`;
+        const finalPdfPath = join(process.cwd(), 'uploads', pdfFileName);
 
-        const command = `libreoffice --headless --convert-to pdf --outdir "${outputDir}" "${tempHtmlPath}"`;
-        execSync(command);
+        // Generate high-quality PDF using our Puppeteer function
+        const pdfBuffer = await this.generatePdfFromHtml(resumeText);
+        fs.writeFileSync(finalPdfPath, pdfBuffer);
 
-        if (fs.existsSync(tempHtmlPath)) {
-          fs.unlinkSync(tempHtmlPath);
-        }
+        resumeFilename = pdfFileName;
 
-        if (fs.existsSync(tempPdfPath)) {
-          const finalPdfPath = join(outputDir, pdfFileName);
-          fs.renameSync(tempPdfPath, finalPdfPath);
-          resumeFilename = pdfFileName;
-
-          // Delete old resume file if it exists
-          if (candidate.resume) {
-            const oldFilePath = join(
-              process.cwd(),
-              'uploads',
-              candidate.resume,
-            );
-            try {
-              if (fs.existsSync(oldFilePath)) {
-                fs.unlinkSync(oldFilePath);
-              }
-            } catch (err) {
-              console.error(
-                `Error deleting old resume file: ${candidate.resume}`,
-                err,
-              );
-            }
-          }
-          console.log(
-            `[Backend PDF Gen] PDF generated successfully for candidate ID: ${id}`,
+        // Delete old resume file if it exists
+        if (candidate.resume) {
+          const oldFilePath = join(
+            process.cwd(),
+            'uploads',
+            candidate.resume,
           );
+          try {
+            if (fs.existsSync(oldFilePath)) {
+              fs.unlinkSync(oldFilePath);
+            }
+          } catch (err) {
+            console.error(
+              `Error deleting old resume file: ${candidate.resume}`,
+              err,
+            );
+          }
         }
+        console.log(
+          `[Backend PDF Gen] Puppeteer PDF generated successfully for candidate ID: ${candidate.id}`,
+        );
       } catch (err) {
         console.error('Error generating PDF from resumeText on server:', err);
-        if (fs.existsSync(tempHtmlPath)) {
-          fs.unlinkSync(tempHtmlPath);
-        }
       }
     }
 
     // Update candidate's resume filename and text in the database
+    const updateData: any = {};
+    if (file) {
+      updateData.resume = resumeFilename;
+      updateData.resumeText = extractedText;
+      updateData.editedHtml = null; // Reset editedHtml because they uploaded a new resume
+    } else {
+      updateData.resume = resumeFilename;
+      updateData.editedHtml = resumeText; // Store edited HTML in editedHtml field
+      // Do not touch resumeText (keep original parsed HTML)
+    }
+
     const updatedCandidate = await this.prisma.candidate.update({
-      where: { id },
-      data: {
-        resume: resumeFilename,
-        resumeText: extractedText,
-      },
+      where: { id: candidate.id },
+      data: updateData,
       include: {
-        skills: true,
+        skills: { include: { skill: true } },
         appliedJobs: { include: { job: true } },
       },
     });
 
-    return updatedCandidate;
+    return this.mapCandidate(updatedCandidate);
+  }
+
+  async applyToJob(candidateId: string, jobId: string) {
+    const existing = await this.prisma.appliedJob.findUnique({
+      where: {
+        candidateId_jobId: { candidateId, jobId },
+      },
+    });
+    if (existing) {
+      return {
+        message: 'Already applied to this job',
+        statusCode: 200,
+        data: existing,
+      };
+    }
+    const applied = await this.prisma.appliedJob.create({
+      data: {
+        candidateId,
+        jobId,
+        status: 'APPLIED',
+      },
+      include: {
+        job: true,
+      },
+    });
+    return {
+      message: 'Successfully applied to the job',
+      statusCode: 201,
+      data: applied,
+    };
+  }
+
+  // ── Apply via logged-in user (resolves candidate from user email in JWT) ───
+  async applyToJobByEmail(email: string, jobId: string, userId?: string) {
+    let targetEmail: string | undefined = email;
+    if (!targetEmail && userId) {
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { email: true },
+      });
+      targetEmail = user?.email;
+    }
+
+    if (!targetEmail) {
+      throw new BadRequestException('Candidate email is required to apply');
+    }
+
+    const emailLower = targetEmail.trim().toLowerCase();
+    const candidate = await this.prisma.candidate.findUnique({
+      where: { email: emailLower },
+      select: { id: true, firstName: true, lastName: true, email: true },
+    });
+    if (!candidate) {
+      throw new NotFoundException(
+        'No candidate profile found. Please upload your resume first.',
+      );
+    }
+    return this.applyToJob(candidate.id, jobId);
+  }
+
+  async updateCandidate(id: string, data: any) {
+    const existing = await this.prisma.candidate.findUnique({
+      where: { id },
+    });
+    if (!existing) {
+      throw new NotFoundException(`Candidate not found`);
+    }
+
+    const {
+      firstName,
+      lastName,
+      email,
+      mobile,
+      yearsOfExperience,
+      education,
+      noticePeriod,
+      currentLocation,
+      preferredWorkMode,
+      budget,
+      preferredJobLocations,
+      expectedCtc,
+      currentCtc,
+      skills,
+    } = data;
+
+    let skillsUpdate = {};
+    if (skills !== undefined && Array.isArray(skills)) {
+      await this.prisma.candidateSkill.deleteMany({
+        where: { candidateId: id },
+      });
+      skillsUpdate = {
+        skills: {
+          create: skills.map((name: string) => ({
+            skill: {
+              connectOrCreate: {
+                where: { name: name.trim() },
+                create: { name: name.trim() },
+              },
+            },
+          })),
+        },
+      };
+    }
+
+    const updated = await this.prisma.candidate.update({
+      where: { id },
+      data: {
+        firstName: firstName !== undefined ? firstName : undefined,
+        lastName: lastName !== undefined ? lastName : undefined,
+        email: email !== undefined ? email.trim().toLowerCase() : undefined,
+        mobile: mobile !== undefined ? mobile : undefined,
+        yearsOfExperience: yearsOfExperience !== undefined ? parseFloat(yearsOfExperience) : undefined,
+        education: education !== undefined ? education : undefined,
+        noticePeriod: noticePeriod !== undefined ? parseInt(noticePeriod, 10) : undefined,
+        currentLocation: currentLocation !== undefined ? currentLocation : undefined,
+        preferredWorkMode: preferredWorkMode !== undefined ? preferredWorkMode : undefined,
+        budget: budget !== undefined ? budget : undefined,
+        preferredJobLocations: Array.isArray(preferredJobLocations) ? preferredJobLocations : undefined,
+        expectedCtc: expectedCtc !== undefined ? (expectedCtc !== null && expectedCtc !== "" ? parseFloat(expectedCtc) : null) : undefined,
+        currentCtc: currentCtc !== undefined ? (currentCtc !== null && currentCtc !== "" ? parseFloat(currentCtc) : null) : undefined,
+        ...skillsUpdate,
+      },
+      include: {
+        skills: { include: { skill: true } },
+        appliedJobs: { include: { job: true } },
+      },
+    });
+
+    return this.mapCandidate(updated);
   }
 }
 

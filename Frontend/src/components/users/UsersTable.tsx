@@ -7,10 +7,14 @@ import Label from "../form/Label";
 import Input from "../form/input/InputField";
 import toast from "react-hot-toast";
 import { Trash, SquarePen } from "lucide-react";
+import Select from "react-select";
+import { useTheme } from "@/context/ThemeContext";
 
 interface User {
   id: string;
   name: string;
+  firstName?: string;
+  lastName?: string;
   email: string;
   role: string;
   mobile?: string;
@@ -25,16 +29,40 @@ import {
   TableRow,
 } from "../ui/table";
 
-export default function UsersTable({ callApi }: { callApi: boolean }) {
+const ROLE_OPTIONS = [
+  { value: "ALL", label: "All Roles" },
+  { value: "HR", label: "HR" },
+  { value: "CLIENT", label: "Client" },
+];
+
+export default function UsersTable({
+  callApi,
+  setCallApi,
+}: {
+  callApi: boolean;
+  setCallApi?: React.Dispatch<React.SetStateAction<boolean>>;
+}) {
   const API_URL = process.env.NEXT_PUBLIC_API_URL;
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
+
   const [data, setData] = useState<User[]>([]);
   const { isOpen, openModal, closeModal } = useModal();
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [formData, setFormData] = useState({
-    name: "",
+    firstName: "",
+    lastName: "",
     email: "",
+    mobile: "",
+    companyName: "",
     role: "",
+    password: "",
   });
+
+  // Search & Filter states
+  const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [selectedRole, setSelectedRole] = useState<{ value: string; label: string } | null>({ value: "ALL", label: "All Roles" });
 
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
@@ -44,9 +72,24 @@ export default function UsersTable({ callApi }: { callApi: boolean }) {
   // Delete modal state
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
+  // Debounce search term
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
   const fetchData = async () => {
     const token = localStorage.getItem("token");
-    const fetchUrl = `${API_URL}/users?page=${currentPage}&limit=${ITEMS_PER_PAGE}`;
+    let fetchUrl = `${API_URL}/users?page=${currentPage}&limit=${ITEMS_PER_PAGE}`;
+
+    if (debouncedSearch.trim()) {
+      fetchUrl += `&search=${encodeURIComponent(debouncedSearch)}`;
+    }
+    if (selectedRole && selectedRole.value !== "ALL") {
+      fetchUrl += `&role=${encodeURIComponent(selectedRole.value)}`;
+    }
 
     try {
       const response = await fetch(fetchUrl, {
@@ -95,10 +138,32 @@ export default function UsersTable({ callApi }: { callApi: boolean }) {
 
   const handleForm = (user: User) => {
     setSelectedUser(user);
+    const parts = (user.name || "").trim().split(/\s+/);
+    const fName = user.firstName || parts[0] || "";
+    const lName = user.lastName || parts.slice(1).join(" ") || "";
+
     setFormData({
-      name: user.name,
+      firstName: fName,
+      lastName: lName,
       email: user.email,
+      mobile: user.mobile || "",
+      companyName: user.companyName || "",
       role: user.role,
+      password: "",
+    });
+    openModal();
+  };
+
+  const handleCreateOpen = () => {
+    setSelectedUser(null);
+    setFormData({
+      firstName: "",
+      lastName: "",
+      email: "",
+      mobile: "",
+      companyName: "",
+      role: "",
+      password: "",
     });
     openModal();
   };
@@ -107,25 +172,95 @@ export default function UsersTable({ callApi }: { callApi: boolean }) {
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    if (name === "mobile") {
+      const cleaned = value.replace(/\D/g, "").slice(0, 10);
+      setFormData(prev => ({ ...prev, [name]: cleaned }));
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
   };
 
-  const handleSaveUser = () => {
-    if (!selectedUser) return;
-    const updatedUsers = data.map((user) =>
-      user.email === selectedUser.email
-        ? { ...user, ...formData }
-        : user
-    );
+  const handleSaveUser = async () => {
+    if (!formData.firstName || !formData.email || !formData.mobile) {
+      toast.error("First Name, Email Address, and Mobile are required.");
+      return;
+    }
 
-    setData(updatedUsers);
-    closeModal();
-    toast.success("User updated successfully!");
+    if (formData.mobile.length !== 10) {
+      toast.error("Mobile number must be exactly 10 digits.");
+      return;
+    }
+
+    const token = localStorage.getItem("token");
+
+    const payload = {
+      firstName: formData.firstName,
+      lastName: formData.lastName,
+      email: formData.email,
+      mobile: formData.mobile,
+      companyName: formData.role === "CLIENT" ? formData.companyName : undefined,
+      role: formData.role,
+    };
+
+    if (selectedUser) {
+      const updateUrl = `${API_URL}/users/${selectedUser.id}`;
+      try {
+        const response = await fetch(updateUrl, {
+          method: "PUT",
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(payload),
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to update user");
+        }
+        toast.success("User updated successfully!");
+        closeModal();
+        fetchData();
+        if (setCallApi) {
+          setCallApi(prev => !prev);
+        }
+      } catch (error) {
+        console.error("Error updating user:", error);
+        toast.error("Failed to update user.");
+      }
+    } else {
+      const createUrl = `${API_URL}/users/create`;
+      try {
+        const response = await fetch(createUrl, {
+          method: "POST",
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            ...payload,
+            password: formData.password || "Password123",
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to create user");
+        }
+        toast.success("User created successfully!");
+        closeModal();
+        fetchData();
+        if (setCallApi) {
+          setCallApi(prev => !prev);
+        }
+      } catch (error) {
+        console.error("Error creating user:", error);
+        toast.error("Failed to create user.");
+      }
+    }
   };
 
   useEffect(() => {
     fetchData();
-  }, [callApi, currentPage]);
+  }, [callApi, currentPage, debouncedSearch, selectedRole]);
 
   // Dynamic initial-based avatars
   const getAvatarStyle = (name: string) => {
@@ -161,8 +296,126 @@ export default function UsersTable({ callApi }: { callApi: boolean }) {
     return 'bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-900/30';
   };
 
+  const selectStyles = {
+    control: (base: any) => ({
+      ...base,
+      backgroundColor: isDark ? '#1f2937' : '#f9fafb',
+      borderColor: isDark ? '#374151' : '#d1d5db',
+      color: isDark ? '#ffffff' : '#111827',
+      borderRadius: '0.5rem',
+      padding: '0 4px',
+      fontSize: '0.875rem',
+      boxShadow: 'none',
+      minHeight: '38px',
+      height: '38px',
+      '&:hover': {
+        borderColor: isDark ? '#4b5563' : '#9ca3af',
+      },
+    }),
+    valueContainer: (base: any) => ({
+      ...base,
+      padding: '0 8px',
+      height: '36px',
+      display: 'flex',
+      alignItems: 'center',
+    }),
+    indicatorsContainer: (base: any) => ({
+      ...base,
+      height: '36px',
+    }),
+    menu: (base: any) => ({
+      ...base,
+      backgroundColor: isDark ? '#1f2937' : '#ffffff',
+      borderRadius: '0.5rem',
+      border: isDark ? '1px solid #374151' : '1px solid #d1d5db',
+      zIndex: 9999,
+    }),
+    option: (base: any, { isFocused, isSelected }: any) => ({
+      ...base,
+      backgroundColor: isSelected
+        ? '#2563eb'
+        : isFocused
+        ? (isDark ? '#111827' : '#f3f4f6')
+        : 'transparent',
+      color: isSelected ? '#ffffff' : (isDark ? '#f9fafb' : '#111827'),
+      cursor: 'pointer',
+      padding: '8px 12px',
+      borderRadius: '0.375rem',
+    }),
+    singleValue: (base: any) => ({
+      ...base,
+      color: isDark ? '#f9fafb' : '#111827',
+    }),
+    input: (base: any) => ({
+      ...base,
+      color: isDark ? '#ffffff' : '#111827',
+    }),
+  };
+
   return (
-    <div className="min-h-[70vh] flex flex-col justify-between bg-transparent">
+    <div className="min-h-[70vh] flex flex-col gap-6 bg-transparent">
+      {/* Search, Filter and Create User in same line */}
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between p-6 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800/80 rounded-3xl shadow-xs">
+        <div>
+          <h3 className="text-xl font-bold text-gray-900 dark:text-white">Users</h3>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            Manage all user accounts and system access roles.
+          </p>
+        </div>
+
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full lg:w-auto">
+          {/* Search bar */}
+          <div className="relative w-full sm:w-72">
+            <input
+              type="text"
+              placeholder="Search by name or email..."
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 dark:bg-gray-800/80 text-gray-900 dark:text-white text-sm"
+            />
+            <svg
+              className="absolute left-3 top-2.5 h-4 w-4 text-gray-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              />
+            </svg>
+          </div>
+
+          {/* Filter Dropdown */}
+          <div className="w-full sm:w-48">
+            <Select
+              options={ROLE_OPTIONS}
+              value={selectedRole}
+              onChange={(selected: any) => {
+                setSelectedRole(selected);
+                setCurrentPage(1);
+              }}
+              styles={selectStyles}
+              placeholder="Filter by Role"
+              isSearchable
+            />
+          </div>
+
+          {/* Create User Button */}
+          <button
+            onClick={handleCreateOpen}
+            className="flex items-center justify-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition duration-200 cursor-pointer shrink-0"
+          >
+            <span>+</span> Create User
+          </button>
+        </div>
+      </div>
+
       <div className="overflow-hidden rounded-3xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-xs flex-1 flex flex-col justify-between">
         <div className="max-w-full overflow-x-auto flex-1">
           <div className="min-w-[1102px]">
@@ -171,13 +424,13 @@ export default function UsersTable({ callApi }: { callApi: boolean }) {
               <TableHeader className="border-b border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/50">
                 <TableRow className="h-14">
                   <TableCell isHeader className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-start">
-                    User Details
+                    Name
                   </TableCell>
                   <TableCell isHeader className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-start">
-                    User Role
+                    Roles
                   </TableCell>
                   <TableCell isHeader className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-start">
-                    Email Address
+                    Email
                   </TableCell>
                   <TableCell isHeader className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-center">
                     Actions
@@ -203,7 +456,7 @@ export default function UsersTable({ callApi }: { callApi: boolean }) {
                                 {user.name}
                               </span>
                               <span className="block text-xs text-gray-400 dark:text-gray-500 mt-0.5 capitalize">
-                                {user.role?.toLowerCase()} Account
+                                {user.role === 'CLIENT' && user.companyName ? user.companyName : `${user.role?.toLowerCase()} Account`}
                               </span>
                             </div>
                           </div>
@@ -228,12 +481,12 @@ export default function UsersTable({ callApi }: { callApi: boolean }) {
                             <div className="relative group">
                               <button
                                 onClick={() => handleForm(user)}
-                                className="px-4 py-2 rounded-xl text-xs font-semibold border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-205 hover:bg-gray-55 dark:hover:bg-gray-800 transition-all hover:scale-[1.01] active:scale-[0.99] shadow-xs"
+                                className="px-4 py-2 rounded-xl text-xs font-semibold border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all hover:scale-[1.01] active:scale-[0.99] shadow-xs"
                               >
                                 <SquarePen className="h-4 w-4" />
                               </button>
                               <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2.5 px-2 py-1 rounded-lg bg-gray-900 dark:bg-gray-800 text-white text-[10px] font-semibold whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 translate-y-1 group-hover:translate-y-0 transition-all duration-150 z-50 shadow-md">
-                                edit user
+                                Edit user
                                 <div className="absolute top-full left-1/2 -translate-x-1/2 border-[4px] border-transparent border-t-gray-900 dark:border-t-gray-800" />
                               </div>
                             </div>
@@ -242,12 +495,12 @@ export default function UsersTable({ callApi }: { callApi: boolean }) {
                             <div className="relative group">
                               <button
                                 onClick={() => setDeleteConfirmId(user.id)}
-                                className="px-4 py-2 rounded-xl text-xs font-semibold border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-rose-400 hover:bg-gray-55 dark:hover:bg-gray-800 transition-all hover:scale-[1.01] active:scale-[0.99] shadow-xs"
+                                className="p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-rose-600 dark:text-rose-400 bg-rose-50/50 hover:bg-rose-100/70 dark:bg-rose-950/20 dark:hover:bg-rose-950/40 transition-all shadow-xs cursor-pointer"
                               >
                                 <Trash className="h-4 w-4" />
                               </button>
                               <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2.5 px-2 py-1 rounded-lg bg-rose-600 text-white text-[10px] font-semibold whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 translate-y-1 group-hover:translate-y-0 transition-all duration-150 z-50 shadow-md">
-                                delete user
+                                Delete user
                                 <div className="absolute top-full left-1/2 -translate-x-1/2 border-[4px] border-transparent border-t-rose-600" />
                               </div>
                             </div>
@@ -308,7 +561,7 @@ export default function UsersTable({ callApi }: { callApi: boolean }) {
                       onClick={() => setCurrentPage(page)}
                       className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${currentPage === page
                         ? "bg-blue-600 border-blue-600 text-white shadow-xs"
-                        : "border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-900 hover:bg-gray-55 dark:hover:bg-gray-800"
+                        : "border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800"
                         }`}
                     >
                       {page}
@@ -333,7 +586,7 @@ export default function UsersTable({ callApi }: { callApi: boolean }) {
       <Modal isOpen={isOpen} onClose={closeModal} className="max-w-[700px] m-4">
         <div className="relative w-full max-w-[700px] rounded-3xl bg-white p-6 dark:bg-gray-900 lg:p-11">
           <h4 className="mb-2 text-2xl font-bold text-gray-900 dark:text-white">
-            Edit User Information
+            {selectedUser ? "Edit User" : "Create HR/Client"}
           </h4>
           <p className="mb-6 text-sm text-gray-500 dark:text-gray-400">
             Modify details and credentials for this portal account.
@@ -353,26 +606,38 @@ export default function UsersTable({ callApi }: { callApi: boolean }) {
                 <option value="">Select Role</option>
                 <option value="HR">HR</option>
                 <option value="CLIENT">Client</option>
-                <option value="ADMIN">Admin</option>
-                <option value="CANDIDATE">Candidate</option>
               </select>
             </div>
 
-            {/* Name and Email Fields */}
+            {/* Name Fields */}
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
               <div className="flex flex-col gap-1.5">
-                <Label>Name</Label>
+                <Label>First Name <span className="text-rose-500">*</span></Label>
                 <Input
-                  name="name"
+                  name="firstName"
                   type="text"
-                  value={formData.name}
+                  value={formData.firstName}
                   onChange={handleChange}
                   required
                 />
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <Label>Email Address</Label>
+                <Label>Last Name</Label>
+                <Input
+                  name="lastName"
+                  type="text"
+                  value={formData.lastName}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Email and Mobile Fields */}
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+              <div className="flex flex-col gap-1.5">
+                <Label>Email Address <span className="text-rose-500">*</span></Label>
                 <Input
                   name="email"
                   type="email"
@@ -381,7 +646,38 @@ export default function UsersTable({ callApi }: { callApi: boolean }) {
                   required
                 />
               </div>
+
+              <div className="flex flex-col gap-1.5">
+                <Label>Mobile <span className="text-rose-500">*</span></Label>
+                <Input
+                  name="mobile"
+                  type="text"
+                  value={formData.mobile}
+                  onChange={handleChange}
+                  placeholder="Enter 10-digit number"
+                  required
+                />
+                {formData.mobile && formData.mobile.length !== 10 && (
+                  <span className="text-xs font-semibold text-rose-500 mt-1 flex items-center gap-1 animate-pulse">
+                    ⚠️ Enter only 10 digits
+                  </span>
+                )}
+              </div>
             </div>
+
+            {/* Company Name (for CLIENT role) */}
+            {formData.role === "CLIENT" && (
+              <div className="flex flex-col gap-1.5">
+                <Label>Company Name</Label>
+                <Input
+                  name="companyName"
+                  type="text"
+                  value={formData.companyName}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+            )}
 
             {/* Footer Buttons */}
             <div className="flex justify-end gap-3 mt-6">

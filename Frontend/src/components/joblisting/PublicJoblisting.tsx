@@ -39,7 +39,7 @@ export default function PublicJoblisting() {
   // Load applied jobs from localStorage on mount
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const storedApplied = localStorage.getItem("appliedJobIds");
+      const storedApplied = sessionStorage.getItem("appliedJobIds");
       if (storedApplied) {
         try {
           setAppliedJobs(JSON.parse(storedApplied));
@@ -85,9 +85,33 @@ export default function PublicJoblisting() {
     setCurrentPage(1);
   };
 
-  const handleApply = (id: string) => {
-    setApplyingJobId(id);
-    openModal();
+  const handleApply = async (id: string) => {
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    if (!token) {
+      window.location.href = "/login";
+      return;
+    }
+
+    try {
+      const checkRes = await fetch(`${API_URL}/users/check-auth`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        }
+      });
+
+      if (!checkRes.ok) {
+        window.location.href = "/login";
+        return;
+      }
+
+      setApplyingJobId(id);
+      openModal();
+    } catch (error) {
+      console.error("Error checking auth status:", error);
+      window.location.href = "/login";
+    }
   };
 
   const handleApplySuccess = (jobId: string) => {
@@ -513,7 +537,7 @@ export default function PublicJoblisting() {
               <button
                 onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
                 disabled={currentPage === 1}
-                className="px-3.5 py-2 rounded-xl text-xs font-semibold border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-55 dark:hover:bg-gray-750 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                className="px-3.5 py-2 rounded-xl text-xs font-semibold border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-750 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
               >
                 Prev
               </button>
@@ -546,7 +570,7 @@ export default function PublicJoblisting() {
                       onClick={() => setCurrentPage(page)}
                       className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${currentPage === page
                         ? "bg-blue-600 border-blue-600 text-white shadow-xs"
-                        : "border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-900 hover:bg-gray-55 dark:hover:bg-gray-800"
+                        : "border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800"
                         }`}
                     >
                       {page}
@@ -558,7 +582,7 @@ export default function PublicJoblisting() {
               <button
                 onClick={() => setCurrentPage((prev) => Math.min(prev + 1, Math.ceil(totalCount / ITEMS_PER_PAGE)))}
                 disabled={currentPage === Math.ceil(totalCount / ITEMS_PER_PAGE)}
-                className="px-3.5 py-2 rounded-xl text-xs font-semibold border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-55 dark:hover:bg-gray-750 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                className="px-3.5 py-2 rounded-xl text-xs font-semibold border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-750 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
               >
                 Next
               </button>

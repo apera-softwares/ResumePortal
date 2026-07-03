@@ -15,8 +15,15 @@ async function bootstrap() {
     }),
   );
 
+  app.use(express.json({ limit: '50mb' }));
+  app.use(express.urlencoded({ limit: '50mb', extended: true }));
+
   app.use('/uploads', express.static('uploads'));
-  app.enableCors();
+
+  app.enableCors({
+    origin: true,
+    credentials: true,
+  });
 
   // Configure Swagger
   const config = new DocumentBuilder()
@@ -28,6 +35,6 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document);
 
-  await app.listen(process.env.PORT ?? 3003);
+  await app.listen(process.env.PORT ?? 8094);
 }
 bootstrap();

@@ -1,13 +1,26 @@
 'use client'
+import { Trash, Trash2 } from 'lucide-react';
 import React, { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
+import { useRouter } from 'next/navigation';
 
 
 const addskills = () => {
   const API_URL = process.env.NEXT_PUBLIC_API_URL;
   const [skill, setSkill] = useState('');
   const [skills, setSkills] = useState<{ id: string; name: string }[]>([]);
-  const [filteredSkills, setFilteredSkills] = useState(skills);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const router = useRouter();
+  const [authorized, setAuthorized] = useState(false);
+
+  useEffect(() => {
+    const role = localStorage.getItem("role");
+    if (role !== "ADMIN" && role !== "HR") {
+      router.replace("/dashboard");
+    } else {
+      setAuthorized(true);
+    }
+  }, [router]);
 
   useEffect(() => {
     const fetchSkills = async () => {
@@ -23,7 +36,6 @@ const addskills = () => {
 
         // since API returns an array of skill objects
         setSkills(data);
-        setFilteredSkills(data);
       } catch (error) {
         console.error("Error fetching skills:", error);
       }
@@ -58,7 +70,6 @@ const addskills = () => {
       console.log(skillsData, "im the data");
 
       setSkills(prev => [...prev, skillsData])
-      setFilteredSkills(prev => [...prev, skillsData])
       setSkill('')
       toast.success("Skill added successfully!");
 
@@ -80,7 +91,6 @@ const addskills = () => {
       });
       if (!res.ok) throw new Error("failed to Delete !");
       setSkills((prev) => prev.filter((item) => item.id !== skillID));
-      setFilteredSkills((prev) => prev.filter((item) => item.id !== skillID));
       toast.success("Skill deleted successfully!");
     } catch (error) {
       console.error("Error deleting skill:", error);
@@ -88,35 +98,7 @@ const addskills = () => {
     }
   };
 
-  const handleDelete = (skillID: string) => {
-    toast((t) => (
-      <div className="flex flex-col gap-3 p-1">
-        <p className="text-sm font-medium text-gray-900">
-          Are you sure you want to delete this skill?
-        </p>
-        <div className="flex justify-end gap-2">
-          <button
-            onClick={() => toast.dismiss(t.id)}
-            className="px-3 py-1 text-xs text-gray-500 hover:text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={async () => {
-              toast.dismiss(t.id);
-              await executeDelete(skillID);
-            }}
-            className="px-3 py-1 text-xs text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors shadow-xs"
-          >
-            Delete
-          </button>
-        </div>
-      </div>
-    ), {
-      duration: 5000,
-      position: "top-center",
-    });
-  };
+  if (!authorized) return null;
 
   return (
     <div className="w-full min-h-[80vh] flex items-center justify-center bg-gray-50 dark:bg-gray-950 transition-colors duration-300">
@@ -138,7 +120,7 @@ const addskills = () => {
           <button
             type='submit'
             className="px-6 py-2 bg-blue-600 text-white font-medium rounded-xl hover:bg-blue-700 transition-all shadow-md">
-            Add Skill
+            Add
           </button>
         </form>
 
@@ -147,14 +129,20 @@ const addskills = () => {
 
           <ul className="list-disc list-inside">
             {skills.map((s, index) => (
-              <li key={index} className="flex border border-gray-100 dark:border-gray-800 py-2 pr-10 px-4 rounded-xl justify-between items-center mb-2 bg-gray-50/50 dark:bg-gray-900/50">
+              <li key={index} className="flex border border-gray-100 dark:border-gray-800/60 py-2 pr-4 pl-4 rounded-xl justify-between items-center mb-2 bg-gray-50/50 dark:bg-gray-900/50">
                 <span className="text-gray-800 dark:text-gray-200 font-medium">{s.name}</span>
-                <button
-                  onClick={() => handleDelete(s.id)}
-                  className="text-red-500 hover:text-red-700 text-sm font-medium"
-                >
-                  Delete
-                </button>
+                <div className="relative group">
+                  <button
+                    onClick={() => setDeleteConfirmId(s.id)}
+                    className="p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-rose-600 dark:text-rose-400 bg-rose-50/50 hover:bg-rose-100/70 dark:bg-rose-950/20 dark:hover:bg-rose-950/40 transition-all shadow-xs cursor-pointer"
+                  >
+                    <Trash className="h-4 w-4" />
+                  </button>
+                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2.5 px-2 py-1 rounded-lg bg-rose-600 text-white text-[10px] font-semibold whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 translate-y-1 group-hover:translate-y-0 transition-all duration-150 z-50 shadow-md">
+                    Delete Skill
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 border-[4px] border-transparent border-t-rose-600" />
+                  </div>
+                </div>
               </li>
             ))}
           </ul>
@@ -162,8 +150,57 @@ const addskills = () => {
         </div>
       </div>
 
-    </div>
+      {/* Center Delete Confirmation Modal */}
+      {deleteConfirmId !== null && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-gray-950/60 dark:bg-black/80 backdrop-blur-xs transition-opacity duration-300"
+            onClick={() => setDeleteConfirmId(null)}
+          />
 
+          {/* Modal Container */}
+          <div className="relative w-full max-w-sm transform overflow-hidden rounded-2xl bg-white dark:bg-gray-900 p-6 text-center align-middle shadow-2xl transition-all border border-gray-100 dark:border-gray-800 scale-100 opacity-100 duration-300">
+            {/* Warning Circle Icon */}
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 mb-4">
+              <Trash2 className="h-6 w-6" />
+            </div>
+
+            {/* Title */}
+            <h3 className="text-base font-semibold text-gray-900 dark:text-white leading-6 mb-2">
+              Are you sure?
+            </h3>
+
+            {/* Message */}
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-6">
+              Do you really want to delete this skill? This action is permanent and cannot be undone.
+            </p>
+
+            {/* Action Buttons */}
+            <div className="flex justify-center gap-3">
+              <button
+                type="button"
+                onClick={() => setDeleteConfirmId(null)}
+                className="px-4 py-2 text-xs font-semibold rounded-xl border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all hover:scale-[1.01] active:scale-[0.99]"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  const id = deleteConfirmId;
+                  setDeleteConfirmId(null);
+                  await executeDelete(id);
+                }}
+                className="p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-rose-600 dark:text-rose-400 bg-rose-50/50 hover:bg-rose-100/70 dark:bg-rose-950/20 dark:hover:bg-rose-950/40 transition-all shadow-xs cursor-pointer"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
 

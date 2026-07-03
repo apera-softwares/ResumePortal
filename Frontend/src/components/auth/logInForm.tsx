@@ -6,12 +6,11 @@ import Button from "@/components/ui/button/Button";
 import { ChevronLeftIcon, EyeCloseIcon, EyeIcon } from "@/icons";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import axios from "axios";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || (typeof window !== "undefined" ? `http://${window.location.hostname}:3003` : "http://localhost:3003");
-
 export default function LogInForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [isChecked, setIsChecked] = useState(false);
@@ -59,6 +58,8 @@ export default function LogInForm() {
     return isValid;
   };
 
+
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!validate()) return;
@@ -84,11 +85,16 @@ export default function LogInForm() {
       toast.success("Login successful! Redirecting to dashboard...");
 
       if (typeof window !== "undefined") {
-        localStorage.setItem("isAuthenticated", "true");
         localStorage.setItem("token", data.data.token);
-        localStorage.setItem("role", data.data.role);
-        localStorage.setItem("name", data.data.name);
-        localStorage.setItem("userId", String(data.data.id));
+        
+        // Save complete user object to localStorage
+        const userObj = {
+          id: data.data.id,
+          name: data.data.name,
+          email: data.data.email,
+          role: data.data.role,
+        };
+        localStorage.setItem("user", JSON.stringify(userObj));
       }
 
       router.push("/dashboard");
@@ -187,6 +193,7 @@ export default function LogInForm() {
                     {isLoading ? "Logging in..." : "Log in"}
                   </Button>
                 </div>
+
                 <div className="text-center pt-2">
                   <p className="text-sm text-gray-500 dark:text-gray-400">
                     Don't have an account?{" "}
