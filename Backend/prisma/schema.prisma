@@ -84,6 +84,7 @@ model Candidate {
   resumeJson            String?
   editedHtml            String?
   parsedHtml            String?
+  adminNotes            String?
   isPublic              Boolean          @default(false)
   userId                String?
   appliedJobs           AppliedJob[]

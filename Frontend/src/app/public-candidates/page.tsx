@@ -506,7 +506,7 @@ function PublicCandidatesContent() {
 
                           {/* Notice Period */}
                           <TableCell className="px-6 py-4 text-start text-sm text-gray-700 dark:text-gray-300 font-medium">
-                            {cand.noticePeriod !== undefined && cand.noticePeriod !== null ? String(cand.noticePeriod) : "N/A"}
+                            {cand.noticePeriod !== undefined && cand.noticePeriod !== null ? (cand.noticePeriod === 0 ? "Immediate Join" : String(cand.noticePeriod)) : "N/A"}
                           </TableCell>
 
                           {/* View Resume */}

@@ -1668,6 +1668,7 @@ export class CandidateService {
       expectedCtc,
       currentCtc,
       skills,
+      adminNotes,
     } = data;
 
     let targetId = id;
@@ -1703,6 +1704,7 @@ export class CandidateService {
             currentCtc: currentCtc !== undefined && currentCtc !== null && currentCtc !== "" ? parseFloat(currentCtc) : null,
             resume: '',
             userId: user.id,
+            adminNotes: adminNotes || null,
           },
         });
       }
@@ -1751,6 +1753,7 @@ export class CandidateService {
         preferredJobLocations: Array.isArray(preferredJobLocations) ? preferredJobLocations : undefined,
         expectedCtc: expectedCtc !== undefined ? (expectedCtc !== null && expectedCtc !== "" ? parseFloat(expectedCtc) : null) : undefined,
         currentCtc: currentCtc !== undefined ? (currentCtc !== null && currentCtc !== "" ? parseFloat(currentCtc) : null) : undefined,
+        adminNotes: adminNotes !== undefined ? adminNotes : undefined,
         ...skillsUpdate,
       },
       include: {
