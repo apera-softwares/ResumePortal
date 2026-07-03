@@ -6,6 +6,7 @@ import toast from "react-hot-toast";
 import { saveAs } from "file-saver";
 import dynamic from "next/dynamic";
 import { jsPDF } from "jspdf";
+import { useRouter, usePathname } from "next/navigation";
 import {
   AlignCenter,
   AlignJustify,
@@ -336,12 +337,15 @@ interface EditResumeProps {
 }
 
 export default function EditResume({ candidate, onSave, isInline = false, onClose, initialMode, isPublicPage = false }: EditResumeProps) {
+  const router = useRouter();
+  const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(isInline);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingFile, setIsUploadingFile] = useState(false);
   const [rawHtml, setRawHtml] = useState<string>("");
   const [previewHtml, setPreviewHtml] = useState<string>("");
   const [originalParsedHtml, setOriginalParsedHtml] = useState<string>("");
+  const [isEditMode, setIsEditMode] = useState<boolean>(initialMode === "edit");
   const [viewMode, setViewMode] = useState<"preview" | "edit" | "review">(
     initialMode === "edit" ? "edit" : (initialMode === "original" || initialMode === "review" ? "review" : "preview")
   );
@@ -351,6 +355,7 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
 
   const [isPublic, setIsPublic] = useState<boolean>(candidate.isPublic || false);
   const [isTogglingPublic, setIsTogglingPublic] = useState(false);
+  const [role, setRole] = useState<string | null>(null);
 
   const isLoadedRef = useRef(false);
 
@@ -360,14 +365,48 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
     process.env.NEXT_PUBLIC_API_URL ||
     (typeof window !== "undefined" ? `http://${window.location.hostname}:3003` : "http://localhost:3003");
 
-  // Sync viewMode with initialMode when routing parameters change
+  // Get user role from local storage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setRole(localStorage.getItem("role"));
+    }
+  }, []);
+
+  // Sync viewMode and isEditMode with initialMode when routing parameters change
   useEffect(() => {
     if (initialMode) {
+      const edit = initialMode === "edit";
+      setIsEditMode(edit);
       setViewMode(
-        initialMode === "edit" ? "edit" : (initialMode === "original" || initialMode === "review" ? "review" : "preview")
+        edit ? "edit" : (initialMode === "original" || initialMode === "review" ? "review" : "preview")
       );
     }
   }, [initialMode]);
+
+  const handleEditResumeClick = () => {
+    setIsEditMode(true);
+    setViewMode("edit");
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      params.set("mode", "edit");
+      router.replace(`${pathname}?${params.toString()}`);
+    }
+  };
+
+  const handleCancel = () => {
+    if (initialMode === "edit") {
+      if (isInline) onClose?.();
+      else setIsOpen(false);
+    } else {
+      setIsEditMode(false);
+      setViewMode("review");
+      if (typeof window !== "undefined") {
+        const params = new URLSearchParams(window.location.search);
+        params.set("mode", "view");
+        router.replace(`${pathname}?${params.toString()}`);
+      }
+    }
+  };
 
   // Fetch initial content from backend on open (Load ONCE only)
   useEffect(() => {
@@ -771,10 +810,10 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
             </button>
             <div>
               <h4 className="text-xl font-bold text-gray-900 dark:text-white">
-                {initialMode === "edit" ? "Resume Visual Editor" : "View Resume"}
+                {isEditMode ? "Resume Visual Editor" : "View Resume"}
               </h4>
               <p className="text-xs text-gray-500 mt-1">
-                {initialMode === "edit" 
+                {isEditMode 
                   ? `Edit and format resume layout for ${candidate.firstName} ${candidate.lastName}` 
                   : `View resume layout for ${candidate.firstName} ${candidate.lastName}`}
               </p>
@@ -782,7 +821,19 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            {!isPublicPage && initialMode === "edit" && (
+            {!isEditMode && role !== "CLIENT" && !isPublicPage && (
+              <button
+                onClick={handleEditResumeClick}
+                className="px-3 py-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-all shadow-md flex items-center gap-1.5 cursor-pointer"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                </svg>
+                <span>Edit Resume</span>
+              </button>
+            )}
+
+            {!isPublicPage && isEditMode && (
               <button
                 onClick={togglePublicStatus}
                 disabled={isTogglingPublic || isSaving || isUploadingFile}
@@ -809,7 +860,7 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
               </button>
             )}
 
-            {initialMode === "edit" && (
+            {isEditMode && (
               <div className="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-800">
                 <button
                   onClick={() => setViewMode("review")}
@@ -848,7 +899,7 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
               </div>
             )}
 
-            {!isPublicPage && initialMode === "edit" && (
+            {!isPublicPage && isEditMode && (
               <>
                 {/* Premium Update File Button */}
                 <button
@@ -886,7 +937,7 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
               </>
             )}
 
-            {initialMode === "edit" && (
+            {isEditMode && (
               <button
                 onClick={handleExportPdf}
                 disabled={isSaving || isUploadingFile}
@@ -909,7 +960,7 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
           </div>
 
           <div className="flex justify-end gap-3">
-            {isPublicPage || initialMode !== "edit" ? (
+            {isPublicPage || !isEditMode ? (
               <button
                 onClick={onClose}
                 className="px-6 py-2.5 text-sm font-semibold bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-200 rounded-xl transition-all shadow-sm active:scale-95"
@@ -919,7 +970,7 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
             ) : (
               <>
                 <button
-                  onClick={onClose}
+                  onClick={handleCancel}
                   disabled={isSaving || isUploadingFile}
                   className="px-5 py-2.5 text-sm font-semibold bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-200 rounded-xl transition-all disabled:opacity-50"
                 >
@@ -967,17 +1018,29 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
           <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 border-b border-gray-150 dark:border-gray-800 pb-4">
             <div>
               <h4 className="text-xl font-bold text-gray-900 dark:text-white">
-                {initialMode === "edit" ? "Resume Visual Editor" : "View Resume"}
+                {isEditMode ? "Resume Visual Editor" : "View Resume"}
               </h4>
               <p className="text-xs text-gray-500 mt-1">
-                {initialMode === "edit" 
+                {isEditMode 
                   ? `Edit and format resume layout for ${candidate.firstName} ${candidate.lastName}` 
                   : `View resume layout for ${candidate.firstName} ${candidate.lastName}`}
               </p>
             </div>
 
             <div className="flex flex-wrap items-center gap-2 pr-12 sm:pr-16">
-              {!isPublicPage && initialMode === "edit" && (
+              {!isEditMode && role !== "CLIENT" && !isPublicPage && (
+                <button
+                  onClick={handleEditResumeClick}
+                  className="px-3 py-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-all shadow-md flex items-center gap-1.5 cursor-pointer"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                  </svg>
+                  <span>Edit Resume</span>
+                </button>
+              )}
+
+              {!isPublicPage && isEditMode && (
                 <button
                   onClick={togglePublicStatus}
                   disabled={isTogglingPublic || isSaving || isUploadingFile}
@@ -1004,7 +1067,7 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
                 </button>
               )}
 
-              {initialMode === "edit" && (
+              {isEditMode && (
                 <div className="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-800">
                   <button
                     onClick={() => setViewMode("review")}
@@ -1022,7 +1085,7 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
                       disabled={isSaving || isUploadingFile}
                       className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all disabled:opacity-50 ${viewMode === "preview"
                         ? "bg-white text-blue-600 shadow-xs dark:bg-gray-900 dark:text-blue-400"
-                        : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                        : "text-gray-500 hover:text-gray-705 dark:text-gray-400 dark:hover:text-gray-200"
                         }`}
                     >
                       View
@@ -1034,7 +1097,7 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
                       disabled={isSaving || isUploadingFile}
                       className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all disabled:opacity-50 ${viewMode === "edit"
                         ? "bg-white text-blue-600 shadow-xs dark:bg-gray-900 dark:text-blue-400"
-                        : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                        : "text-gray-500 hover:text-gray-705 dark:text-gray-400 dark:hover:text-gray-200"
                         }`}
                     >
                       Edit
@@ -1043,7 +1106,7 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
                 </div>
               )}
 
-              {!isPublicPage && initialMode === "edit" && (
+              {!isPublicPage && isEditMode && (
                 <>
                   {/* Premium Update File Button */}
                   <button
@@ -1081,7 +1144,7 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
                 </>
               )}
 
-              {initialMode === "edit" && (
+              {isEditMode && (
                 <button
                   onClick={handleExportPdf}
                   disabled={isSaving || isUploadingFile}
@@ -1105,7 +1168,7 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
             </div>
 
             <div className="flex justify-end gap-3">
-              {isPublicPage || initialMode !== "edit" ? (
+              {isPublicPage || !isEditMode ? (
                 <button
                   onClick={() => setIsOpen(false)}
                   className="px-6 py-2.5 text-sm font-semibold bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-200 rounded-xl transition-all shadow-sm active:scale-95"
@@ -1115,7 +1178,7 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
               ) : (
                 <>
                   <button
-                    onClick={() => setIsOpen(false)}
+                    onClick={handleCancel}
                     disabled={isSaving || isUploadingFile}
                     className="px-5 py-2.5 text-sm font-semibold bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-200 rounded-xl transition-all disabled:opacity-50"
                   >

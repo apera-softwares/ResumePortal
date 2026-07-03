@@ -779,7 +779,7 @@ function CandidatesContent() {
                         <TableCell className="px-6 py-4 text-center">
                           <div className="flex items-center justify-center gap-3">
                             {/* View Resume Tooltip Wrapper */}
-                            {/* <div className="relative group">
+                            <div className="relative group">
                               <button
                                 onClick={() => router.push(`${pathname}?candidateId=${user.id}&mode=view`)}
                                 className="p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-blue-600 dark:text-blue-400 bg-blue-50/50 hover:bg-blue-100/70 dark:bg-blue-950/20 dark:hover:bg-blue-950/40 transition-all shadow-xs cursor-pointer"
@@ -790,7 +790,7 @@ function CandidatesContent() {
                                 View Resume
                                 <div className="absolute top-full left-1/2 -translate-x-1/2 border-[4px] border-transparent border-t-gray-900 dark:border-t-gray-800" />
                               </div>
-                            </div> */}
+                            </div>
 
                             {/* Edit Resume Tooltip Wrapper */}
                             {role !== "CLIENT" && (
@@ -799,10 +799,10 @@ function CandidatesContent() {
                                   onClick={() => router.push(`${pathname}?candidateId=${user.id}&mode=edit`)}
                                   className="p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-amber-600 dark:text-amber-400 bg-amber-50/50 hover:bg-amber-100/70 dark:bg-amber-950/20 dark:hover:bg-amber-950/40 transition-all shadow-xs cursor-pointer"
                                 >
-                                  <FileText className="h-4 w-4" />
+                                  <SquarePen className="h-4 w-4" />
                                 </button>
                                 <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2.5 px-2 py-1 rounded-lg bg-gray-900 dark:bg-gray-800 text-white text-[10px] font-semibold whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 translate-y-1 group-hover:translate-y-0 transition-all duration-150 z-50 shadow-md">
-                                   View Resume
+                                  Edit Resume
                                   <div className="absolute top-full left-1/2 -translate-x-1/2 border-[4px] border-transparent border-t-gray-900 dark:border-t-gray-800" />
                                 </div>
                               </div>
