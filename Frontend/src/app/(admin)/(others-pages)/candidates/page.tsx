@@ -2,7 +2,8 @@
 
 import { Table, TableBody, TableCell, TableHeader, TableRow } from "@/components/ui/table";
 import EditResume from "@/components/UsersModels/resumeEditModel/EditResume";
-import { SquarePen, Trash, SlidersHorizontal, X, ChevronDown } from "lucide-react";
+import CandidateDetailsModal from "@/components/UsersModels/resumeEditModel/CandidateDetailsModal";
+import { SquarePen, Trash, SlidersHorizontal, X, ChevronDown, FileText, User } from "lucide-react";
 import React, { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import toast from "react-hot-toast";
@@ -199,6 +200,21 @@ function CandidatesContent() {
   const [editingCandidate, setEditingCandidate] = useState<Candidate | null>(null);
   const [totalCount, setTotalCount] = useState(0);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [viewingCandidateDetails, setViewingCandidateDetails] = useState<Candidate | null>(null);
+  const [authorized, setAuthorized] = useState(false);
+
+  useEffect(() => {
+    const localRole = localStorage.getItem("role");
+    if (localRole !== "ADMIN" && localRole !== "HR" && localRole !== "CLIENT") {
+      router.replace("/dashboard");
+    } else {
+      if (localRole === "CLIENT" && modeParam === "edit") {
+        router.replace(pathname + (candidateIdParam ? `?candidateId=${candidateIdParam}&mode=view` : ""));
+      } else {
+        setAuthorized(true);
+      }
+    }
+  }, [router, modeParam, candidateIdParam, pathname]);
 
   const [jobs, setJobs] = useState<{ id: string; title: string }[]>([]);
   const [jobFilter, setJobFilter] = useState<{ value: string; label: string } | null>(null);
@@ -206,6 +222,15 @@ function CandidatesContent() {
   const [cityOptions, setCityOptions] = useState<{ value: string; label: string }[]>(DEFAULT_CITY_OPTIONS);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isDark, setIsDark] = useState(false);
+
+  const handleCandidateSaved = (updatedCandidate: any) => {
+    setCandidatesData((prev) =>
+      prev.map((c) => (c.id === updatedCandidate.id ? updatedCandidate : c))
+    );
+    setFiltercandidates((prev) =>
+      prev.map((c) => (c.id === updatedCandidate.id ? updatedCandidate : c))
+    );
+  };
 
   const activeFiltersCount = [
     jobFilter ? 1 : 0,
@@ -443,6 +468,8 @@ function CandidatesContent() {
     return { gradient, initial };
   };
 
+  if (!authorized) return null;
+
   if (editingCandidate) {
     return (
       <div className="min-h-[80vh] w-full flex flex-col gap-6 font-outfit px-4 sm:px-6 py-6 bg-gray-50 dark:bg-gray-950 transition-colors duration-300">
@@ -488,7 +515,7 @@ function CandidatesContent() {
               placeholder="Search candidates..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 text-sm text-gray-900 bg-gray-55 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-gray-950 dark:text-white transition-all"
+              className="w-full pl-10 pr-4 py-2.5 text-sm text-gray-900 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-gray-950 dark:text-white transition-all"
             />
             <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-405">
               <svg
@@ -512,7 +539,7 @@ function CandidatesContent() {
           <div className="relative w-full sm:w-auto">
             <button
               onClick={() => setIsFilterOpen(!isFilterOpen)}
-              className="w-full sm:w-auto flex items-center justify-between sm:justify-start gap-2 px-4 py-2.5 text-sm font-semibold text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl hover:bg-gray-55 dark:hover:bg-gray-800 transition-all cursor-pointer shadow-xs"
+              className="w-full sm:w-auto flex items-center justify-between sm:justify-start gap-2 px-4 py-2.5 text-sm font-semibold text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-all cursor-pointer shadow-xs"
             >
               <div className="flex items-center gap-2">
                 <SlidersHorizontal className="h-4 w-4 text-gray-500 dark:text-gray-400" />
@@ -675,18 +702,13 @@ function CandidatesContent() {
               {/* Header */}
               <TableHeader className="border-b border-gray-200/40 dark:border-gray-800/60 bg-gray-50/50 dark:bg-gray-900/50">
                 <TableRow className="h-14">
-                  <TableCell isHeader className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-start">Candidate Name</TableCell>
+                  <TableCell isHeader className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-start">Name</TableCell>
+                  <TableCell isHeader className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-start">Experience</TableCell>
+                  <TableCell isHeader className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-start">Skills</TableCell>
                   <TableCell isHeader className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-start">Location</TableCell>
                   <TableCell isHeader className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-start">Notice Period</TableCell>
                   <TableCell isHeader className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-start">Budget</TableCell>
-                  <TableCell isHeader className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-start">Yrs of Exp</TableCell>
-                  <TableCell isHeader className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-start">Skills</TableCell>
-                  {/* <TableCell isHeader className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-start">Status</TableCell> */}
-                  <TableCell isHeader className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-center">Visibility</TableCell>
-                  <TableCell isHeader className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-center">Resume</TableCell>
-                  {role === "CLIENT" ? null : (
-                    <TableCell isHeader className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-center">Actions</TableCell>
-                  )}
+                  <TableCell isHeader className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-center">Action</TableCell>
                 </TableRow>
               </TableHeader>
 
@@ -709,21 +731,6 @@ function CandidatesContent() {
                               </span>
                             </div>
                           </div>
-                        </TableCell>
-
-                        {/* Location */}
-                        <TableCell className="px-6 py-4 text-start text-sm text-gray-750 dark:text-gray-300 font-medium capitalize">
-                          {user.currentLocation || "Remote"}
-                        </TableCell>
-
-                        {/* Notice Period */}
-                        <TableCell className="px-6 py-4 text-start text-sm text-gray-750 dark:text-gray-300 font-medium">
-                          {user.noticePeriod !== undefined && user.noticePeriod !== null ? `${user.noticePeriod} Days` : "N/A"}
-                        </TableCell>
-
-                        {/* Budget */}
-                        <TableCell className="px-6 py-4 text-start text-sm text-gray-750 dark:text-gray-300 font-semibold">
-                          {user.budget || "N/A"}
                         </TableCell>
 
                         {/* Experience */}
@@ -753,73 +760,91 @@ function CandidatesContent() {
                           </div>
                         </TableCell>
 
-                        {/* Visibility (Public vs Private) */}
-                        <TableCell className="px-6 py-4 text-center">
-                          {user.isPublic ? (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-bold rounded-lg bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/50">
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                              Public
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-bold rounded-lg bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 border border-gray-100 dark:border-gray-700">
-                              <span className="w-1.5 h-1.5 rounded-full bg-gray-400" />
-                              Private
-                            </span>
-                          )}
+                        {/* Location */}
+                        <TableCell className="px-6 py-4 text-start text-sm text-gray-750 dark:text-gray-300 font-medium capitalize">
+                          {user.currentLocation || "Remote"}
                         </TableCell>
 
-                        {/* Resume View */}
-                        <TableCell className="px-6 py-4 text-center">
-                          <div className="inline-flex justify-center">
-                            <button
-                              onClick={() => router.push(`${pathname}?candidateId=${user.id}&mode=view`)}
-                              className="px-4 py-2 rounded-xl text-xs font-semibold border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all hover:scale-[1.01] active:scale-[0.99] shadow-xs"
-                            >
-                              View
-                            </button>
-                          </div>
+                        {/* Notice Period */}
+                        <TableCell className="px-6 py-4 text-start text-sm text-gray-750 dark:text-gray-300 font-medium">
+                          {user.noticePeriod !== undefined && user.noticePeriod !== null ? `${user.noticePeriod} Days` : "N/A"}
+                        </TableCell>
+
+                        {/* Budget */}
+                        <TableCell className="px-6 py-4 text-start text-sm text-gray-755 dark:text-gray-300 font-semibold">
+                          {user.budget || "N/A"}
                         </TableCell>
 
                         {/* Actions */}
-                        {role === "CLIENT" ? null : (
-                          <TableCell className="px-6 py-4 text-center">
-                            <div className="flex items-center justify-center gap-3">
-                              {/* Edit Tooltip Wrapper */}
+                        <TableCell className="px-6 py-4 text-center">
+                          <div className="flex items-center justify-center gap-3">
+                            {/* View Resume Tooltip Wrapper */}
+                            {/* <div className="relative group">
+                              <button
+                                onClick={() => router.push(`${pathname}?candidateId=${user.id}&mode=view`)}
+                                className="p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-blue-600 dark:text-blue-400 bg-blue-50/50 hover:bg-blue-100/70 dark:bg-blue-950/20 dark:hover:bg-blue-950/40 transition-all shadow-xs cursor-pointer"
+                              >
+                                <FileText className="h-4 w-4" />
+                              </button>
+                              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2.5 px-2 py-1 rounded-lg bg-gray-900 dark:bg-gray-800 text-white text-[10px] font-semibold whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 translate-y-1 group-hover:translate-y-0 transition-all duration-150 z-50 shadow-md">
+                                View Resume
+                                <div className="absolute top-full left-1/2 -translate-x-1/2 border-[4px] border-transparent border-t-gray-900 dark:border-t-gray-800" />
+                              </div>
+                            </div> */}
+
+                            {/* Edit Resume Tooltip Wrapper */}
+                            {role !== "CLIENT" && (
                               <div className="relative group">
                                 <button
                                   onClick={() => router.push(`${pathname}?candidateId=${user.id}&mode=edit`)}
-                                  className="px-4 py-2 rounded-xl text-xs font-semibold border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all hover:scale-[1.01] active:scale-[0.99] shadow-xs"
+                                  className="p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-amber-600 dark:text-amber-400 bg-amber-50/50 hover:bg-amber-100/70 dark:bg-amber-950/20 dark:hover:bg-amber-950/40 transition-all shadow-xs cursor-pointer"
                                 >
-                                  <SquarePen className="h-4 w-4" />
+                                  <FileText className="h-4 w-4" />
                                 </button>
                                 <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2.5 px-2 py-1 rounded-lg bg-gray-900 dark:bg-gray-800 text-white text-[10px] font-semibold whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 translate-y-1 group-hover:translate-y-0 transition-all duration-150 z-50 shadow-md">
-                                  edit resume
+                                   View Resume
                                   <div className="absolute top-full left-1/2 -translate-x-1/2 border-[4px] border-transparent border-t-gray-900 dark:border-t-gray-800" />
                                 </div>
                               </div>
+                            )}
 
-                              {/* Delete Tooltip Wrapper */}
+                            {/* View Candidate Tooltip Wrapper */}
+                            <div className="relative group">
+                              <button
+                                onClick={() => setViewingCandidateDetails(user)}
+                                className="p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-emerald-600 dark:text-emerald-400 bg-emerald-50/50 hover:bg-emerald-100/70 dark:bg-emerald-950/20 dark:hover:bg-emerald-950/40 transition-all shadow-xs cursor-pointer"
+                              >
+                                <User className="h-4 w-4" />
+                              </button>
+                              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2.5 px-2 py-1 rounded-lg bg-gray-900 dark:bg-gray-800 text-white text-[10px] font-semibold whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 translate-y-1 group-hover:translate-y-0 transition-all duration-150 z-50 shadow-md">
+                                View Candidate
+                                <div className="absolute top-full left-1/2 -translate-x-1/2 border-[4px] border-transparent border-t-gray-900 dark:border-t-gray-800" />
+                              </div>
+                            </div>
+
+                            {/* Delete Candidate Tooltip Wrapper */}
+                            {role !== "CLIENT" && (
                               <div className="relative group">
                                 <button
                                   onClick={() => setDeleteConfirmId(user.id)}
-                                  className="px-4 py-2 rounded-xl text-xs font-semibold border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-rose-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all hover:scale-[1.01] active:scale-[0.99] shadow-xs"
+                                  className="p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-rose-600 dark:text-rose-400 bg-rose-50/50 hover:bg-rose-100/70 dark:bg-rose-950/20 dark:hover:bg-rose-950/40 transition-all shadow-xs cursor-pointer"
                                 >
                                   <Trash className="h-4 w-4" />
                                 </button>
                                 <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2.5 px-2 py-1 rounded-lg bg-rose-600 text-white text-[10px] font-semibold whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 translate-y-1 group-hover:translate-y-0 transition-all duration-150 z-50 shadow-md">
-                                  delete candidate
+                                  Delete Candidate
                                   <div className="absolute top-full left-1/2 -translate-x-1/2 border-[4px] border-transparent border-t-rose-600" />
                                 </div>
                               </div>
-                            </div>
-                          </TableCell>
-                        )}
+                            )}
+                          </div>
+                        </TableCell>
                       </TableRow>
                     );
                   })
                 ) : (
                   <TableRow>
-                    <td colSpan={role === "CLIENT" ? 8 : 9} className="py-36 text-center text-gray-400 dark:text-gray-500 text-sm">
+                    <td colSpan={7} className="py-36 text-center text-gray-400 dark:text-gray-500 text-sm">
                       No candidates found.
                     </td>
                   </TableRow>
@@ -939,6 +964,16 @@ function CandidatesContent() {
             </div>
           </div>
         </div>
+      )}
+
+      {viewingCandidateDetails && (
+        <CandidateDetailsModal
+          isOpen={!!viewingCandidateDetails}
+          onClose={() => setViewingCandidateDetails(null)}
+          candidate={viewingCandidateDetails}
+          onSave={handleCandidateSaved}
+          role={role}
+        />
       )}
     </div>
   );

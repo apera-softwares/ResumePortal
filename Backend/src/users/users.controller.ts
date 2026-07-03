@@ -30,9 +30,13 @@ export class UsersController {
   constructor(private usersService: UsersService) {}
 
   @Post('create')
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Create a new user' })
   @ApiResponse({ status: 201, description: 'User created successfully' })
   @ApiResponse({ status: 400, description: 'Bad Request' })
+  @UseGuards(AuthGuard)
+  @SetMetadata('roles', [Role.ADMIN])
+  @UseGuards(RoleGuard)
   async create(@Body() createDto: UsersCreateDto) {
     return this.usersService.createUser(createDto);
   }
@@ -115,16 +119,18 @@ export class UsersController {
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiQuery({ name: 'search', required: false, type: String })
+  @ApiQuery({ name: 'role', required: false, type: String })
   @ApiResponse({ status: 200, description: 'Users retrieved successfully' })
   @UseGuards(AuthGuard)
-  @SetMetadata('roles', [Role.ADMIN, Role.HR, Role.CLIENT])
+  @SetMetadata('roles', [Role.ADMIN, Role.HR])
   @UseGuards(RoleGuard)
   async getAllUsers(
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
     @Query('search') search?: string,
+    @Query('role') role?: string,
   ) {
-    return this.usersService.getAllUsers(page, limit, search);
+    return this.usersService.getAllUsers(page, limit, search, role);
   }
 
   @Get(':id')
@@ -132,7 +138,7 @@ export class UsersController {
   @ApiOperation({ summary: 'Get a user by ID' })
   @ApiResponse({ status: 200, description: 'User retrieved successfully' })
   @UseGuards(AuthGuard)
-  @SetMetadata('roles', [Role.ADMIN, Role.HR, Role.CLIENT])
+  @SetMetadata('roles', [Role.ADMIN])
   @UseGuards(RoleGuard)
   getById(@Param('id') id: string) {
     return this.usersService.getUserById(id);
@@ -143,7 +149,7 @@ export class UsersController {
   @ApiOperation({ summary: 'Update a user by ID' })
   @ApiResponse({ status: 200, description: 'User updated successfully' })
   @UseGuards(AuthGuard)
-  @SetMetadata('roles', [Role.ADMIN, Role.HR, Role.CLIENT])
+  @SetMetadata('roles', [Role.ADMIN])
   @UseGuards(RoleGuard)
   updateUser(@Param('id') id: string, @Body() usersUpdateDto: UsersUpdateDto) {
     return this.usersService.updateById(id, usersUpdateDto);
@@ -154,7 +160,7 @@ export class UsersController {
   @ApiOperation({ summary: 'Delete a user by ID' })
   @ApiResponse({ status: 200, description: 'User deleted successfully' })
   @UseGuards(AuthGuard)
-  @SetMetadata('roles', [Role.ADMIN, Role.HR, Role.CLIENT])
+  @SetMetadata('roles', [Role.ADMIN])
   @UseGuards(RoleGuard)
   delete(@Param('id') id: string) {
     return this.usersService.deleteById(id);

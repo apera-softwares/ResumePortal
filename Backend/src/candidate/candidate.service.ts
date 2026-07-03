@@ -356,14 +356,10 @@ export class CandidateService {
       where.AND = andConditions;
     }
 
-    const skip = page && limit ? (page - 1) * limit : undefined;
-    const take = limit ? limit : undefined;
-
-    const [candidates, total] = await Promise.all([
+    // Fetch matching Candidates (all) and candidate Users (all)
+    const [candidates, candidateUsers] = await Promise.all([
       this.prisma.candidate.findMany({
         where,
-        skip,
-        take,
         include: {
           skills: { include: { skill: true } },
           appliedJobs: { include: { job: true } },
@@ -372,20 +368,199 @@ export class CandidateService {
           id: 'desc',
         },
       }),
-      this.prisma.candidate.count({ where }),
+      this.prisma.user.findMany({
+        where: { role: 'CANDIDATE' },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          createdAt: true,
+        },
+      }),
     ]);
 
+    const mappedCandidates = candidates.map((c) => this.mapCandidate(c));
+
+    // Synthesize candidates from candidateUsers who don't have a Candidate record
+    const existingEmails = new Set(mappedCandidates.map((c) => c.email.toLowerCase()));
+    const existingUserIds = new Set(mappedCandidates.map((c) => c.userId).filter(Boolean));
+
+    const synthesizedCandidates = candidateUsers
+      .filter((user) => !existingEmails.has(user.email.toLowerCase()) && !existingUserIds.has(user.id))
+      .map((user) => {
+        const parts = user.name.trim().split(/\s+/);
+        const firstName = parts[0] || 'Candidate';
+        const lastName = parts.slice(1).join(' ') || '';
+        return {
+          id: `user-${user.id}`,
+          firstName,
+          lastName,
+          email: user.email,
+          mobile: '',
+          yearsOfExperience: 0,
+          education: '',
+          noticePeriod: 0,
+          currentLocation: '',
+          preferredWorkMode: '',
+          budget: '',
+          preferredJobLocations: [],
+          expectedCtc: null,
+          currentCtc: null,
+          resume: '',
+          resumeText: '',
+          cleanedResume: null,
+          resumeJson: null,
+          editedHtml: null,
+          parsedHtml: null,
+          isPublic: false,
+          userId: user.id,
+          appliedJobs: [],
+          skills: [],
+          createdAt: user.createdAt,
+          updatedAt: user.createdAt,
+        };
+      });
+
+    // Merge both
+    let allCandidates = [...mappedCandidates, ...synthesizedCandidates];
+
+    // Filter synthesized candidates if we have filters that they wouldn't match
+    if (isPublic !== undefined) {
+      allCandidates = allCandidates.filter((c) => c.isPublic === isPublic);
+    }
+    if (jobId) {
+      allCandidates = allCandidates.filter((c) => c.appliedJobs.some((aj: any) => aj.jobId === jobId));
+    }
+    if (skill) {
+      const skillList = skill.split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
+      if (skillList.length > 0) {
+        allCandidates = allCandidates.filter((c) =>
+          c.skills.some((s: any) => skillList.includes(s.name.toLowerCase())),
+        );
+      }
+    }
+    if (experience) {
+      allCandidates = allCandidates.filter((c) => {
+        const exp = c.yearsOfExperience;
+        if (experience === 'fresher') return exp === 0;
+        if (experience === '0-1') return exp >= 0 && exp <= 1;
+        if (experience === '1-2') return exp >= 1 && exp <= 2;
+        if (experience === '2-3') return exp >= 2 && exp <= 3;
+        if (experience === '3-5') return exp >= 3 && exp <= 5;
+        if (experience === '5-7') return exp >= 5 && exp <= 7;
+        if (experience === '7-10') return exp >= 7 && exp <= 10;
+        if (experience === '10-12') return exp >= 10 && exp <= 12;
+        if (experience === '12-15') return exp >= 12 && exp <= 15;
+        if (experience === '15+') return exp >= 15;
+        return true;
+      });
+    }
+    if (search && search.trim()) {
+      const term = search.trim().toLowerCase();
+      const words = term.split(/\s+/).filter(Boolean);
+      allCandidates = allCandidates.filter((c) => {
+        const matchesField =
+          c.firstName.toLowerCase().includes(term) ||
+          c.lastName.toLowerCase().includes(term) ||
+          c.email.toLowerCase().includes(term) ||
+          (c.mobile && c.mobile.includes(term)) ||
+          (c.education && c.education.toLowerCase().includes(term)) ||
+          (c.resumeText && c.resumeText.toLowerCase().includes(term)) ||
+          c.skills.some((s: any) => s.name.toLowerCase().includes(term));
+
+        if (matchesField) return true;
+
+        if (words.length > 1) {
+          const firstWord = words[0];
+          const remaining = words.slice(1).join(' ');
+          if (
+            c.firstName.toLowerCase().includes(firstWord) &&
+            c.lastName.toLowerCase().includes(remaining)
+          ) {
+            return true;
+          }
+        }
+        return false;
+      });
+    }
+    if (location && location.trim() !== '') {
+      const locationList = location.split(',').map((l) => l.trim().toLowerCase()).filter(Boolean);
+      if (locationList.length > 0) {
+        allCandidates = allCandidates.filter((c) => {
+          const matchesCurrent =
+            c.currentLocation && locationList.includes(c.currentLocation.toLowerCase());
+          const matchesPreferred =
+            c.preferredJobLocations &&
+            c.preferredJobLocations.some((l: string) => locationList.includes(l.toLowerCase()));
+          return matchesCurrent || matchesPreferred;
+        });
+      }
+    }
+
+    // Sort by createdAt desc
+    allCandidates.sort((a, b) => {
+      const dateA = new Date(a.createdAt).getTime();
+      const dateB = new Date(b.createdAt).getTime();
+      return dateB - dateA;
+    });
+
+    const total = allCandidates.length;
+    const pageNum = page || 1;
+    const limitNum = limit || total;
+    const totalPages = Math.ceil(total / limitNum);
+
+    const paginatedCandidates = allCandidates.slice((pageNum - 1) * limitNum, pageNum * limitNum);
+
     return {
-      data: candidates.map((c) => this.mapCandidate(c)),
+      data: paginatedCandidates,
       total,
-      page: page || 1,
-      limit: limit || total,
-      totalPages: limit ? Math.ceil(total / limit) : 1,
+      page: pageNum,
+      limit: limitNum,
+      totalPages,
     };
   }
 
   // Get candidate by ID
   async findOne(id: string) {
+    if (id.startsWith('user-')) {
+      const userId = id.replace('user-', '');
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+      });
+      if (!user) throw new NotFoundException(`User with ID ${userId} not found`);
+      const parts = user.name.trim().split(/\s+/);
+      const firstName = parts[0] || 'Candidate';
+      const lastName = parts.slice(1).join(' ') || '';
+      return {
+        id,
+        firstName,
+        lastName,
+        email: user.email,
+        mobile: '',
+        yearsOfExperience: 0,
+        education: '',
+        noticePeriod: 0,
+        currentLocation: '',
+        preferredWorkMode: '',
+        budget: '',
+        preferredJobLocations: [],
+        expectedCtc: null,
+        currentCtc: null,
+        resume: '',
+        resumeText: '',
+        cleanedResume: null,
+        resumeJson: null,
+        editedHtml: null,
+        parsedHtml: null,
+        isPublic: false,
+        userId: user.id,
+        appliedJobs: [],
+        skills: [],
+        createdAt: user.createdAt,
+        updatedAt: user.createdAt,
+      };
+    }
+
     const candidate = await this.prisma.candidate.findUnique({
       where: { id },
       include: {
@@ -398,6 +573,19 @@ export class CandidateService {
 
   // delete candidate by id
   async remove(id: string) {
+    if (id.startsWith('user-')) {
+      const userId = id.replace('user-', '');
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+      });
+      if (!user) {
+        throw new NotFoundException(`Candidate with ID ${id} not found`);
+      }
+      return await this.prisma.user.delete({
+        where: { id: userId },
+      });
+    }
+
     const candidate = await this.prisma.candidate.findUnique({
       where: { id },
     });
@@ -545,14 +733,50 @@ export class CandidateService {
   }
 
   async updatePublicStatus(id: string, isPublic: boolean) {
-    const candidate = await this.prisma.candidate.findUnique({
-      where: { id },
-    });
+    let candidate: any = null;
+
+    if (id.startsWith('user-')) {
+      const userId = id.replace('user-', '');
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+      });
+      if (!user) throw new NotFoundException(`User with ID ${userId} not found`);
+
+      candidate = await this.prisma.candidate.findUnique({
+        where: { email: user.email },
+      });
+
+      if (!candidate) {
+        const parts = user.name.trim().split(/\s+/);
+        const firstName = parts[0] || 'Candidate';
+        const lastName = parts.slice(1).join(' ') || '';
+
+        candidate = await this.prisma.candidate.create({
+          data: {
+            firstName,
+            lastName,
+            email: user.email,
+            yearsOfExperience: 0,
+            noticePeriod: 0,
+            resume: '',
+            userId: user.id,
+            isPublic,
+          },
+        });
+        return this.mapCandidate(candidate);
+      }
+    } else {
+      candidate = await this.prisma.candidate.findUnique({
+        where: { id },
+      });
+    }
+
     if (!candidate) {
       throw new NotFoundException(`Candidate with ID ${id} not found`);
     }
+
     const updated = await this.prisma.candidate.update({
-      where: { id },
+      where: { id: candidate.id },
       data: { isPublic },
       include: {
         skills: { include: { skill: true } },
@@ -1130,9 +1354,49 @@ export class CandidateService {
     file?: Express.Multer.File,
     resumeText?: string,
   ): Promise<any> {
-    const candidate = await this.prisma.candidate.findUnique({
-      where: { id },
-    });
+    let candidate: any = null;
+
+    if (id.startsWith('user-')) {
+      const userId = id.replace('user-', '');
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+      });
+      if (!user) {
+        if (file) {
+          const tempPath = join(process.cwd(), 'uploads', file.filename);
+          if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
+        }
+        throw new NotFoundException(`User with ID ${userId} not found`);
+      }
+
+      // Check if a Candidate record already exists for this email
+      candidate = await this.prisma.candidate.findUnique({
+        where: { email: user.email },
+      });
+
+      if (!candidate) {
+        const parts = user.name.trim().split(/\s+/);
+        const firstName = parts[0] || 'Candidate';
+        const lastName = parts.slice(1).join(' ') || '';
+
+        candidate = await this.prisma.candidate.create({
+          data: {
+            firstName,
+            lastName,
+            email: user.email,
+            yearsOfExperience: 0,
+            noticePeriod: 0,
+            resume: file ? file.filename : '',
+            userId: user.id,
+            isPublic: false,
+          },
+        });
+      }
+    } else {
+      candidate = await this.prisma.candidate.findUnique({
+        where: { id },
+      });
+    }
 
     if (!candidate) {
       if (file) {
@@ -1253,7 +1517,7 @@ export class CandidateService {
       }
     } else if (resumeText) {
       try {
-        const pdfFileName = `resume-${id}-${Date.now()}.pdf`;
+        const pdfFileName = `resume-${candidate.id}-${Date.now()}.pdf`;
         const finalPdfPath = join(process.cwd(), 'uploads', pdfFileName);
 
         // Generate high-quality PDF using our Puppeteer function
@@ -1281,7 +1545,7 @@ export class CandidateService {
           }
         }
         console.log(
-          `[Backend PDF Gen] Puppeteer PDF generated successfully for candidate ID: ${id}`,
+          `[Backend PDF Gen] Puppeteer PDF generated successfully for candidate ID: ${candidate.id}`,
         );
       } catch (err) {
         console.error('Error generating PDF from resumeText on server:', err);
@@ -1301,7 +1565,7 @@ export class CandidateService {
     }
 
     const updatedCandidate = await this.prisma.candidate.update({
-      where: { id },
+      where: { id: candidate.id },
       data: updateData,
       include: {
         skills: { include: { skill: true } },
@@ -1368,6 +1632,77 @@ export class CandidateService {
       );
     }
     return this.applyToJob(candidate.id, jobId);
+  }
+
+  async updateCandidate(id: string, data: any) {
+    const existing = await this.prisma.candidate.findUnique({
+      where: { id },
+    });
+    if (!existing) {
+      throw new NotFoundException(`Candidate not found`);
+    }
+
+    const {
+      firstName,
+      lastName,
+      email,
+      mobile,
+      yearsOfExperience,
+      education,
+      noticePeriod,
+      currentLocation,
+      preferredWorkMode,
+      budget,
+      preferredJobLocations,
+      expectedCtc,
+      currentCtc,
+      skills,
+    } = data;
+
+    let skillsUpdate = {};
+    if (skills !== undefined && Array.isArray(skills)) {
+      await this.prisma.candidateSkill.deleteMany({
+        where: { candidateId: id },
+      });
+      skillsUpdate = {
+        skills: {
+          create: skills.map((name: string) => ({
+            skill: {
+              connectOrCreate: {
+                where: { name: name.trim() },
+                create: { name: name.trim() },
+              },
+            },
+          })),
+        },
+      };
+    }
+
+    const updated = await this.prisma.candidate.update({
+      where: { id },
+      data: {
+        firstName: firstName !== undefined ? firstName : undefined,
+        lastName: lastName !== undefined ? lastName : undefined,
+        email: email !== undefined ? email.trim().toLowerCase() : undefined,
+        mobile: mobile !== undefined ? mobile : undefined,
+        yearsOfExperience: yearsOfExperience !== undefined ? parseFloat(yearsOfExperience) : undefined,
+        education: education !== undefined ? education : undefined,
+        noticePeriod: noticePeriod !== undefined ? parseInt(noticePeriod, 10) : undefined,
+        currentLocation: currentLocation !== undefined ? currentLocation : undefined,
+        preferredWorkMode: preferredWorkMode !== undefined ? preferredWorkMode : undefined,
+        budget: budget !== undefined ? budget : undefined,
+        preferredJobLocations: Array.isArray(preferredJobLocations) ? preferredJobLocations : undefined,
+        expectedCtc: expectedCtc !== undefined ? (expectedCtc !== null && expectedCtc !== "" ? parseFloat(expectedCtc) : null) : undefined,
+        currentCtc: currentCtc !== undefined ? (currentCtc !== null && currentCtc !== "" ? parseFloat(currentCtc) : null) : undefined,
+        ...skillsUpdate,
+      },
+      include: {
+        skills: { include: { skill: true } },
+        appliedJobs: { include: { job: true } },
+      },
+    });
+
+    return this.mapCandidate(updated);
   }
 }
 

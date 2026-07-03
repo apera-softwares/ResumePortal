@@ -2,6 +2,7 @@
 import { Trash, Trash2 } from 'lucide-react';
 import React, { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
+import { useRouter } from 'next/navigation';
 
 
 const addskills = () => {
@@ -9,6 +10,17 @@ const addskills = () => {
   const [skill, setSkill] = useState('');
   const [skills, setSkills] = useState<{ id: string; name: string }[]>([]);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const router = useRouter();
+  const [authorized, setAuthorized] = useState(false);
+
+  useEffect(() => {
+    const role = localStorage.getItem("role");
+    if (role !== "ADMIN" && role !== "HR") {
+      router.replace("/dashboard");
+    } else {
+      setAuthorized(true);
+    }
+  }, [router]);
 
   useEffect(() => {
     const fetchSkills = async () => {
@@ -86,6 +98,8 @@ const addskills = () => {
     }
   };
 
+  if (!authorized) return null;
+
   return (
     <div className="w-full min-h-[80vh] flex items-center justify-center bg-gray-50 dark:bg-gray-950 transition-colors duration-300">
       <div className="w-[80vw] max-w-2xl min-h-[50vh] bg-white dark:bg-gray-900 shadow-xl rounded-2xl p-8 border border-gray-200 dark:border-gray-800 overflow-hidden">
@@ -117,13 +131,18 @@ const addskills = () => {
             {skills.map((s, index) => (
               <li key={index} className="flex border border-gray-100 dark:border-gray-800/60 py-2 pr-4 pl-4 rounded-xl justify-between items-center mb-2 bg-gray-50/50 dark:bg-gray-900/50">
                 <span className="text-gray-800 dark:text-gray-200 font-medium">{s.name}</span>
-                <button
-                  onClick={() => setDeleteConfirmId(s.id)}
-                  className="p-1.5 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/30 dark:hover:bg-rose-950/50 text-rose-600 dark:text-rose-400 rounded-lg border border-rose-100/50 dark:border-rose-900/40 transition-all cursor-pointer"
-                  title="Delete Skill"
-                >
-                  <Trash className="h-3.5 w-3.5" />
-                </button>
+                <div className="relative group">
+                  <button
+                    onClick={() => setDeleteConfirmId(s.id)}
+                    className="p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-rose-600 dark:text-rose-400 bg-rose-50/50 hover:bg-rose-100/70 dark:bg-rose-950/20 dark:hover:bg-rose-950/40 transition-all shadow-xs cursor-pointer"
+                  >
+                    <Trash className="h-4 w-4" />
+                  </button>
+                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2.5 px-2 py-1 rounded-lg bg-rose-600 text-white text-[10px] font-semibold whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 translate-y-1 group-hover:translate-y-0 transition-all duration-150 z-50 shadow-md">
+                    Delete Skill
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 border-[4px] border-transparent border-t-rose-600" />
+                  </div>
+                </div>
               </li>
             ))}
           </ul>
@@ -173,7 +192,7 @@ const addskills = () => {
                   setDeleteConfirmId(null);
                   await executeDelete(id);
                 }}
-                className="px-4 py-2 text-xs font-semibold rounded-xl text-white bg-rose-600 hover:bg-rose-700 active:bg-rose-800 shadow-xs transition-all hover:scale-[1.01] active:scale-[0.99]"
+                className="p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-rose-600 dark:text-rose-400 bg-rose-50/50 hover:bg-rose-100/70 dark:bg-rose-950/20 dark:hover:bg-rose-950/40 transition-all shadow-xs cursor-pointer"
               >
                 Delete
               </button>

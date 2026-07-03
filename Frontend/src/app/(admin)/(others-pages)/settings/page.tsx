@@ -158,7 +158,7 @@ export default function SettingsPage() {
       {/* Title & Description */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Settings</h1>
-        <p className="text-sm text-gray-550 dark:text-gray-400 mt-1.5 font-medium">
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1.5 font-medium">
           Manage your personal account, system preferences, and subscription options.
         </p>
       </div>
@@ -172,7 +172,7 @@ export default function SettingsPage() {
             className={`w-full text-left flex items-center gap-3.5 p-4 rounded-2xl transition-all ${
               activeTab === "profile"
                 ? "bg-brand-500 text-white shadow-lg shadow-brand-500/25"
-                : "bg-transparent hover:bg-brand-500/[0.06] hover:text-brand-500 dark:hover:bg-brand-500/10 dark:hover:text-brand-400 text-gray-650 dark:text-gray-450"
+                : "bg-transparent hover:bg-brand-500/[0.06] hover:text-brand-500 dark:hover:bg-brand-500/10 dark:hover:text-brand-400 text-gray-600 dark:text-gray-400"
             }`}
           >
             <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -180,7 +180,7 @@ export default function SettingsPage() {
             </svg>
             <div>
               <div className="font-bold text-sm">My Profile</div>
-              <div className={`text-[10px] ${activeTab === "profile" ? "text-white/80" : "text-gray-450 dark:text-gray-500"} mt-0.5 font-medium`}>
+              <div className={`text-[10px] ${activeTab === "profile" ? "text-white/80" : "text-gray-500 dark:text-gray-400"} mt-0.5 font-medium`}>
                 Personal info & details
               </div>
             </div>
@@ -192,7 +192,7 @@ export default function SettingsPage() {
             className={`w-full text-left flex items-center gap-3.5 p-4 rounded-2xl transition-all ${
               activeTab === "preferences"
                 ? "bg-brand-500 text-white shadow-lg shadow-brand-500/25"
-                : "bg-transparent hover:bg-brand-500/[0.06] hover:text-brand-500 dark:hover:bg-brand-500/10 dark:hover:text-brand-400 text-gray-650 dark:text-gray-450"
+                : "bg-transparent hover:bg-brand-500/[0.06] hover:text-brand-500 dark:hover:bg-brand-500/10 dark:hover:text-brand-400 text-gray-600 dark:text-gray-400"
             }`}
           >
             <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -201,7 +201,7 @@ export default function SettingsPage() {
             </svg>
             <div>
               <div className="font-bold text-sm">Preferences</div>
-              <div className={`text-[10px] ${activeTab === "preferences" ? "text-white/80" : "text-gray-450 dark:text-gray-500"} mt-0.5 font-medium`}>
+              <div className={`text-[10px] ${activeTab === "preferences" ? "text-white/80" : "text-gray-500 dark:text-gray-400"} mt-0.5 font-medium`}>
                 Theme & typography
               </div>
             </div>
@@ -213,7 +213,7 @@ export default function SettingsPage() {
             className={`w-full text-left flex items-center gap-3.5 p-4 rounded-2xl transition-all ${
               activeTab === "billing"
                 ? "bg-brand-500 text-white shadow-lg shadow-brand-500/25"
-                : "bg-transparent hover:bg-brand-500/[0.06] hover:text-brand-500 dark:hover:bg-brand-500/10 dark:hover:text-brand-400 text-gray-650 dark:text-gray-455"
+                : "bg-transparent hover:bg-brand-500/[0.06] hover:text-brand-500 dark:hover:bg-brand-500/10 dark:hover:text-brand-400 text-gray-600 dark:text-gray-400"
             }`}
           >
             <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -221,7 +221,7 @@ export default function SettingsPage() {
             </svg>
             <div>
               <div className="font-bold text-sm">Plans & Billing</div>
-              <div className={`text-[10px] ${activeTab === "billing" ? "text-white/80" : "text-gray-450 dark:text-gray-500"} mt-0.5 font-medium`}>
+              <div className={`text-[10px] ${activeTab === "billing" ? "text-white/80" : "text-gray-500 dark:text-gray-400"} mt-0.5 font-medium`}>
                 Manage subscriptions
               </div>
             </div>
@@ -229,7 +229,7 @@ export default function SettingsPage() {
         </div>
 
         {/* RIGHT COLUMN: CONTENT PANELS */}
-        <div className="lg:col-span-9 bg-white dark:bg-gray-900 border border-gray-150 dark:border-gray-800/80 rounded-3xl p-6 sm:p-8 shadow-sm">
+        <div className="lg:col-span-9 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800/80 rounded-3xl p-6 sm:p-8 shadow-sm">
           {/* TAB 1: PREFERENCES (THEME & TYPOGRAPHY) */}
           {activeTab === "preferences" && (
             <div className="space-y-10">
@@ -415,48 +415,48 @@ export default function SettingsPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* First Name */}
                   <div className="space-y-2">
-                    <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-400 mb-1.5">
                       First Name
                     </label>
                     <input
                       type="text"
                       value={firstName}
                       onChange={(e) => setFirstName(e.target.value)}
-                      className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-250 dark:border-gray-800/80 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+                      className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
                       required
                     />
                   </div>
 
                   {/* Last Name */}
                   <div className="space-y-2">
-                    <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-400 mb-1.5">
                       Last Name
                     </label>
                     <input
                       type="text"
                       value={lastName}
                       onChange={(e) => setLastName(e.target.value)}
-                      className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-255 dark:border-gray-800/80 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+                      className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
                       required
                     />
                   </div>
 
                   {/* Email Address */}
                   <div className="space-y-2">
-                    <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-400 mb-1.5">
                       Email Address
                     </label>
                     <input
                       type="email"
                       value={profile.email}
                       disabled
-                      className="w-full px-4 py-3 bg-gray-100 dark:bg-gray-800/40 border border-gray-200/60 dark:border-gray-800/80 rounded-xl text-sm text-gray-450 dark:text-gray-400 cursor-not-allowed"
+                      className="w-full px-4 py-3 bg-gray-100 dark:bg-gray-800/40 border border-gray-200 dark:border-gray-850 rounded-xl text-sm text-gray-400 cursor-not-allowed"
                     />
                   </div>
 
                   {/* Phone Number */}
                   <div className="space-y-2">
-                    <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-400 mb-1.5">
                       Phone Number
                     </label>
                     <input
@@ -464,7 +464,7 @@ export default function SettingsPage() {
                       value={mobile}
                       onChange={(e) => setMobile(e.target.value)}
                       placeholder="Not specified (Managed by Workspace)"
-                      className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-250 dark:border-gray-800/80 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+                      className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
                     />
                   </div>
                 </div>
@@ -488,13 +488,13 @@ export default function SettingsPage() {
             <div className="space-y-8">
               <div>
                 <h3 className="text-lg font-bold text-gray-900 dark:text-white">Plans & Billing</h3>
-                <p className="text-sm text-gray-550 dark:text-gray-400 mt-1">
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                   Manage your subscription plans, billing periods, and invoices.
                 </p>
               </div>
 
               {/* Pricing Cards */}
-              <div className="p-6 bg-gray-55 dark:bg-gray-950/40 border border-gray-150/45 dark:border-gray-800/40 rounded-2xl space-y-6">
+              <div className="p-6 bg-gray-50 dark:bg-gray-950/40 border border-gray-200/50 dark:border-gray-800/40 rounded-2xl space-y-6">
                 <div className="flex flex-wrap items-center justify-between gap-4">
                   <div>
                     <span className="text-[10px] font-extrabold text-brand-600 dark:text-brand-400 uppercase tracking-wider bg-brand-50 dark:bg-brand-500/15 px-2.5 py-1 rounded border border-brand-500/10">
@@ -509,11 +509,11 @@ export default function SettingsPage() {
                   </div>
                   <div className="text-left md:text-right">
                     <div className="text-2xl font-black text-gray-900 dark:text-white">$149<span className="text-sm font-normal text-gray-500">/mo</span></div>
-                    <div className="text-xs text-gray-450 dark:text-gray-500 mt-0.5 font-semibold">Billed annually ($1,788)</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 font-semibold">Billed annually ($1,788)</div>
                   </div>
                 </div>
 
-                <hr className="border-gray-250/60 dark:border-gray-800" />
+                <hr className="border-gray-200 dark:border-gray-800" />
 
                 <div className="flex flex-wrap items-center justify-between gap-4">
                   <div className="flex items-center gap-2">
@@ -524,7 +524,7 @@ export default function SettingsPage() {
                       Your subscription will automatically renew on April 23, 2027
                     </span>
                   </div>
-                  <button className="px-4 py-2 bg-transparent hover:bg-brand-500/[0.04] hover:text-brand-600 dark:hover:text-brand-400 hover:border-brand-500/30 text-gray-750 dark:text-gray-200 border border-gray-300 dark:border-gray-700 rounded-xl text-xs font-bold transition-all">
+                  <button className="px-4 py-2 bg-transparent hover:bg-brand-500/[0.04] hover:text-brand-600 dark:hover:text-brand-400 hover:border-brand-500/30 text-gray-700 dark:text-gray-250 border border-gray-300 dark:border-gray-700 rounded-xl text-xs font-bold transition-all">
                     Cancel Subscription
                   </button>
                 </div>

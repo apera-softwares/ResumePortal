@@ -184,7 +184,7 @@ export default function SavedJobsPage() {
     <>
       <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 rounded-3xl mb-6 shadow-xs">
         <h2 className="text-xl font-bold text-gray-900 dark:text-white">❤️ Saved Jobs</h2>
-        <p className="text-xs text-gray-550 mt-1">View and apply to jobs you have saved for later.</p>
+        <p className="text-xs text-gray-500 mt-1">View and apply to jobs you have saved for later.</p>
       </div>
 
       <Joblisting
@@ -219,7 +219,7 @@ export default function SavedJobsPage() {
             </h3>
 
             {/* Message */}
-            <p className="text-xs text-gray-550 dark:text-gray-400 leading-relaxed mb-6">
+            <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed mb-6">
               You haven't uploaded a resume yet. To apply for this job, please submit your resume first to complete your candidate profile.
             </p>
 

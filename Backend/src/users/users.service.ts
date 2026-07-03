@@ -40,14 +40,28 @@ export class UsersService {
 
     const passwordHash = await bcrypt.hash(createDto.password, 10);
 
+    const computedName = createDto.name || `${createDto.firstName || ''} ${createDto.lastName || ''}`.trim() || 'User';
+
     await this.prisma.user.create({
       data: {
-        name: createDto.name,
+        name: computedName,
+        firstName: createDto.firstName,
+        lastName: createDto.lastName,
         email: email,
         password: passwordHash,
         role: createDto.role || 'CANDIDATE',
+        mobile: createDto.mobile,
+        companyName: createDto.companyName,
       },
     });
+
+    if (createDto.role === 'CLIENT' && createDto.companyName?.trim()) {
+      await this.prisma.client.upsert({
+        where: { name: createDto.companyName.trim() },
+        update: {},
+        create: { name: createDto.companyName.trim() },
+      });
+    }
 
     return { message: 'User created successfully', statusCode: 201 };
   }
@@ -95,23 +109,31 @@ export class UsersService {
 
 
   // ── Get All Users ──────────────────────────────────────────────────────────
-  async getAllUsers(page = 1, limit = 10, search?: string) {
+  async getAllUsers(page = 1, limit = 10, search?: string, role?: string) {
     const skip = (page - 1) * limit;
 
-    const where: any = { NOT: { role: 'ADMIN' } };
+    const where: any = {};
+    const conditions: any[] = [{ role: { in: ['HR', 'CLIENT'] } }];
+
+    if (role?.trim() && role.toUpperCase() !== 'ALL') {
+      const targetRole = role.trim().toUpperCase();
+      if (['HR', 'CLIENT'].includes(targetRole)) {
+        conditions.push({ role: targetRole });
+      } else {
+        conditions.push({ role: 'NONE' });
+      }
+    }
 
     if (search?.trim()) {
-      where.AND = [
-        { NOT: { role: 'ADMIN' } },
-        {
-          OR: [
-            { name: { contains: search.trim(), mode: 'insensitive' } },
-            { email: { contains: search.trim(), mode: 'insensitive' } },
-          ],
-        },
-      ];
-      delete where.NOT; // replaced by AND block above
+      conditions.push({
+        OR: [
+          { name: { contains: search.trim(), mode: 'insensitive' } },
+          { email: { contains: search.trim(), mode: 'insensitive' } },
+        ],
+      });
     }
+
+    where.AND = conditions;
 
     const [users, total] = await this.prisma.$transaction([
       this.prisma.user.findMany({
@@ -122,8 +144,12 @@ export class UsersService {
         select: {
           id: true,
           name: true,
+          firstName: true,
+          lastName: true,
           email: true,
           role: true,
+          mobile: true,
+          companyName: true,
           createdAt: true,
         },
       }),
@@ -145,8 +171,12 @@ export class UsersService {
       select: {
         id: true,
         name: true,
+        firstName: true,
+        lastName: true,
         email: true,
         role: true,
+        mobile: true,
+        companyName: true,
         createdAt: true,
       },
     });
@@ -164,11 +194,34 @@ export class UsersService {
       updateData.password = await bcrypt.hash(dto.password, 10);
     }
 
+    const newFirstName = dto.firstName !== undefined ? dto.firstName : exists.firstName;
+    const newLastName = dto.lastName !== undefined ? dto.lastName : exists.lastName;
+    if (dto.firstName !== undefined || dto.lastName !== undefined) {
+      updateData.name = `${newFirstName || ''} ${newLastName || ''}`.trim() || exists.name;
+    }
+
     const updated = await this.prisma.user.update({
       where: { id },
       data: updateData,
-      select: { id: true, name: true, email: true, role: true },
+      select: { 
+        id: true, 
+        name: true, 
+        firstName: true,
+        lastName: true,
+        email: true, 
+        role: true,
+        mobile: true,
+        companyName: true,
+      },
     });
+
+    if (dto.role === 'CLIENT' && dto.companyName?.trim()) {
+      await this.prisma.client.upsert({
+        where: { name: dto.companyName.trim() },
+        update: {},
+        create: { name: dto.companyName.trim() },
+      });
+    }
 
     return {
       message: 'User updated successfully',

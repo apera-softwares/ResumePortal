@@ -8,16 +8,20 @@ datasource db {
 }
 
 model User {
-  id         String      @id @default(uuid())
-  name       String
-  email      String      @unique
-  password   String
-  role       Role
-  isActive   Boolean     @default(true)
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
-  candidates Candidate[]
-  jobs       Job[]
+  id          String      @id @default(uuid())
+  name        String
+  firstName   String?
+  lastName    String?
+  email       String      @unique
+  password    String
+  role        Role
+  mobile      String?
+  companyName String?
+  isActive    Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  candidates  Candidate[]
+  jobs        Job[]
 }
 
 model Client {

@@ -631,7 +631,7 @@ export default function ResumeUploadForm({ closeModal, jobId, onApplySuccess }: 
               </div>
 
               <div className="col-span-2 lg:col-span-1">
-                <Label>Current Location</Label>
+                <Label>Prefered Loaction</Label>
                 <Select
                   name="currentLocation"
                   value={cityOptions.find(opt => opt.value.toLowerCase() === (formData.currentLocation || "").toLowerCase()) || null}
