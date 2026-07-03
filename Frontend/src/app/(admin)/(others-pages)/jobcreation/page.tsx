@@ -4,13 +4,11 @@
   import { Modal } from '@/components/ui/modal';
   import { useModal } from '@/hooks/useModal';
   import Select from 'react-select';
+  import CreatableSelect from 'react-select/creatable';
   import React, { useEffect, useState } from 'react';
   import toast from 'react-hot-toast';
   import { useTheme } from '@/context/ThemeContext';
-
-  const clients = ["CloudSphere Technologies", "PixelCraft Studio", "PeopleFirst HR"];
-  const DEFAULT_MAJOR_CITIES = ["REMOTE", "MUMBAI", "DELHI", "BANGALORE", "HYDERABAD", "CHENNAI", "PUNE"];
-  const jobTypes = ["FULL_TIME", "INTERN", "CONTRACT", "FREELANCING"]
+  import { useRouter } from 'next/navigation';
 
 
   interface Job {
@@ -29,7 +27,18 @@
   export default function JobsCreation() {
     const { theme } = useTheme();
     const isDark = theme === 'dark';
-    
+    const router = useRouter();
+    const [authorized, setAuthorized] = useState(false);
+
+    useEffect(() => {
+      const role = localStorage.getItem("role");
+      if (role !== "ADMIN" && role !== "HR") {
+        router.replace("/dashboard");
+      } else {
+        setAuthorized(true);
+      }
+    }, [router]);
+
     const selectStyles = {
       control: (base: any) => ({
         ...base,
@@ -114,10 +123,6 @@
         toast.error("Please select at least one skill.");
         return;
       }
-      if (!formData.client) {
-        toast.error("Please select a client.");
-        return;
-      }
       if (!formData.location) {
         toast.error("Please select a location.");
         return;
@@ -175,7 +180,51 @@
     const ITEMS_PER_PAGE = 8;
 
     const [skills, setSkills] = useState([])
-    const [locations, setLocations] = useState<string[]>(DEFAULT_MAJOR_CITIES);
+    const [locations, setLocations] = useState<{ value: string; label: string }[]>([]);
+    const [clients, setClients] = useState<string[]>([]);
+    const [jobTypes, setJobTypes] = useState<string[]>([]);
+
+    useEffect(() => {
+      const fetchClients = async () => {
+        try {
+          const token = localStorage.getItem("token");
+          const res = await fetch(`${API_URL}/users?limit=1000`, {
+            method: "GET",
+            headers: {
+              'Authorization': `Bearer ${token || ""}`,
+              'Content-Type': 'application/json'
+            }
+          });
+          if (res.ok) {
+            const result = await res.json();
+            const usersList = result.data || [];
+            const clientUsers = usersList.filter((u: any) => u.role === "CLIENT" || u.role === "client");
+            setClients(clientUsers.map((c: any) => c.name));
+          }
+        } catch (error) {
+          console.error("Error fetching clients:", error);
+        }
+      };
+      fetchClients();
+    }, [API_URL]);
+
+    useEffect(() => {
+      const fetchJobTypes = async () => {
+        try {
+          const res = await fetch(`${API_URL}/jobs/types`);
+          if (res.ok) {
+            const result = await res.json();
+            const types = result.data || [];
+            if (types.length > 0) {
+              setJobTypes(types);
+            }
+          }
+        } catch (error) {
+          console.error("Error fetching job types:", error);
+        }
+      };
+      fetchJobTypes();
+    }, [API_URL]);
 
     useEffect(() => {
       const fetchLocations = async () => {
@@ -184,10 +233,20 @@
           if (res.ok) {
             const result = await res.json();
             const locationsList = result.data || [];
-            const names = locationsList.map((loc: any) => loc.name.toUpperCase());
-            const unique = Array.from(new Set(names)) as string[];
-            const filtered = unique.filter((n) => n !== "REMOTE");
-            setLocations(["REMOTE", ...filtered]);
+            const mapped = locationsList
+              .filter((loc: any) => loc.name.toUpperCase() !== "REMOTE")
+              .map((loc: any) => ({
+                value: loc.name,
+                label: loc.name
+                  .toLowerCase()
+                  .split(" ")
+                  .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
+                  .join(" "),
+              }));
+            setLocations([
+              { value: "Remote", label: "Remote" },
+              ...mapped
+            ]);
           }
         } catch (error) {
           console.error("Error fetching locations:", error);
@@ -251,6 +310,8 @@
       fetchJobs();
     }, [API_URL, currentPage, searchTerm, refreshTrigger]);
 
+    if (!authorized) return null;
+
     return (
       <>
         <div className="relative">
@@ -261,7 +322,9 @@
                 <form onSubmit={handlSubmit} className="space-y-5">
                   {/* Title */}
                   <div>
-                    <label className="block mb-1 text-gray-700 dark:text-gray-300 font-medium">Job Title</label>
+                    <label className="block mb-1 text-gray-700 dark:text-gray-300 font-medium">
+                      Job Title <span className="text-red-500">*</span>
+                    </label>
                     <input
                       type="text"
                       name="title"
@@ -275,7 +338,9 @@
 
                   {/* Description */}
                   <div>
-                    <label className="block mb-1 text-gray-700 dark:text-gray-300 font-medium">Description</label>
+                    <label className="block mb-1 text-gray-700 dark:text-gray-300 font-medium">
+                      Description <span className="text-red-500">*</span>
+                    </label>
                     <textarea
                       name="description"
                       value={formData.description}
@@ -290,13 +355,14 @@
                   {/* Client */}
                   <div>
                     <label className="block mb-1 text-gray-700 dark:text-gray-300 font-medium">Client</label>
-                    <Select
+                    <CreatableSelect
                       name="client"
                       value={formData.client ? { value: formData.client, label: formData.client } : null}
                       onChange={(selected: any) => setFormData(prev => ({ ...prev, client: selected ? selected.value : "" }))}
                       options={clients.map((client) => ({ value: client, label: client }))}
                       styles={selectStyles}
-                      placeholder="Select Client"
+                      placeholder="Select or Type Client"
+                      isClearable
                     />
                   </div>
 
@@ -322,7 +388,9 @@
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block mb-1 text-gray-700 dark:text-gray-300 font-medium">Salary</label>
+                      <label className="block mb-1 text-gray-700 dark:text-gray-300 font-medium">
+                        Salary <span className="text-red-500">*</span>
+                      </label>
                       <input
                         type="number"
                         name="salary"
@@ -330,6 +398,7 @@
                         onChange={handleChnage}
                         placeholder="e.g. 80000"
                         className="w-full border border-gray-300 dark:border-gray-700 rounded-lg p-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                        required
                       />
                     </div>
                     <div>
@@ -348,11 +417,11 @@
                   {/* Location */}
                   <div>
                     <label className="block mb-1 text-gray-700 dark:text-gray-300 font-medium">Location</label>
-                    <Select
+                    <CreatableSelect
                       name="location"
                       value={formData.location ? {
                         value: formData.location,
-                        label: formData.location === "REMOTE"
+                        label: formData.location === "REMOTE" || formData.location.toUpperCase() === "REMOTE"
                           ? "Remote"
                           : formData.location
                               .toLowerCase()
@@ -361,18 +430,10 @@
                               .join(" ")
                       } : null}
                       onChange={(selected: any) => setFormData(prev => ({ ...prev, location: selected ? selected.value : "" }))}
-                      options={locations.map((city) => ({
-                        value: city,
-                        label: city === "REMOTE"
-                          ? "Remote"
-                          : city
-                              .toLowerCase()
-                              .split(" ")
-                              .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
-                              .join(" ")
-                      }))}
+                      options={locations}
                       styles={selectStyles}
-                      placeholder="Select Location"
+                      placeholder="Select or Type Location"
+                      isClearable
                     />
                   </div>
 
@@ -389,7 +450,7 @@
                       <option value="" className="text-gray-500">Select Job Type</option>
                       {jobTypes.map((type) => (
                         <option key={type} value={type}>
-                          {type}
+                          {type.replace("_", " ").toLowerCase().split(" ").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")}
                         </option>
                       ))}
                     </select>
@@ -418,6 +479,7 @@
           setSearchTerm={setSearchTerm}
           itemsPerPage={ITEMS_PER_PAGE}
           onRefresh={() => setRefreshTrigger((prev) => prev + 1)}
+          role={typeof window !== "undefined" ? localStorage.getItem("role") || undefined : undefined}
         />
       </>
     )

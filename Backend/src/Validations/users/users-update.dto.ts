@@ -14,6 +14,16 @@ export class UsersUpdateDto {
   @IsString()
   name?: string;
 
+  @ApiProperty({ description: 'The first name of the user', required: false, example: 'John' })
+  @IsOptional()
+  @IsString()
+  firstName?: string;
+
+  @ApiProperty({ description: 'The last name of the user', required: false, example: 'Doe' })
+  @IsOptional()
+  @IsString()
+  lastName?: string;
+
   @ApiProperty({ description: 'The email address of the user', required: false, example: 'john@example.com' })
   @IsOptional()
   @IsEmail()
@@ -29,4 +39,14 @@ export class UsersUpdateDto {
   @IsString()
   @MinLength(6)
   password?: string;
+
+  @ApiProperty({ description: 'The mobile number of the user', required: false, example: '1234567890' })
+  @IsOptional()
+  @IsString()
+  mobile?: string;
+
+  @ApiProperty({ description: 'The company name of the user (for client)', required: false, example: 'Google' })
+  @IsOptional()
+  @IsString()
+  companyName?: string;
 }

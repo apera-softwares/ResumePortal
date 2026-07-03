@@ -60,6 +60,20 @@ export class JobsController {
     return this.jobsService.findAll(pageNum, limitNum, search, location, type);
   }
 
+  @Get('clients')
+  @ApiOperation({ summary: 'Get all unique clients' })
+  @ApiResponse({ status: 200, description: 'List of unique clients' })
+  async getClients() {
+    return this.jobsService.getClients();
+  }
+
+  @Get('types')
+  @ApiOperation({ summary: 'Get all job types' })
+  @ApiResponse({ status: 200, description: 'List of job types' })
+  getJobTypes() {
+    return this.jobsService.getJobTypes();
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get a single job by ID' })
   @ApiResponse({ status: 200, description: 'Job retrieved successfully' })

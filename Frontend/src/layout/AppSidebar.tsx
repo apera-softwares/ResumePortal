@@ -91,9 +91,13 @@ const AppSidebar: React.FC = () => {
 
   switch (role) {
     case "ADMIN":
-    case "HR":
-    case "CLIENT":
       routes = AdminRoute;
+      break;
+    case "HR":
+      routes = AdminRoute.filter(r => r.name !== "Users");
+      break;
+    case "CLIENT":
+      routes = AdminRoute.filter(r => r.name !== "Users" && r.name !== "Jobs" && r.name !== "Skills");
       break;
     case "CANDIDATE":
       routes = candidateRoutes;

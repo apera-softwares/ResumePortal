@@ -341,7 +341,7 @@ export default function ProfilePage() {
                 <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">
                   Upload Your Resume
                 </h3>
-                <p className="text-xs text-gray-550 dark:text-gray-400 max-w-sm mb-4 leading-relaxed">
+                <p className="text-xs text-gray-500 dark:text-gray-400 max-w-sm mb-4 leading-relaxed">
                   Drag & drop your resume file here, or <span className="text-brand-600 dark:text-brand-400 font-semibold underline">browse local files</span>.
                   We support PDF, DOC, and DOCX formats.
                 </p>

@@ -8,6 +8,7 @@ import {
 import { CreateJobDto } from 'src/Validations/job/create-job.dto';
 import { UpdateJobDto } from 'src/Validations/job/update-job.dto';
 import { PrismaService } from 'src/prisma.service';
+import { JobType } from '@prisma/client';
 
 @Injectable()
 export class JobsService {
@@ -251,5 +252,30 @@ export class JobsService {
     } catch (error) {
       throw new HttpException('Failed to delete job', HttpStatus.BAD_REQUEST);
     }
+  }
+
+  async getClients() {
+    const clients = await this.prisma.client.findMany({
+      select: {
+        id: true,
+        name: true,
+      },
+      orderBy: {
+        name: 'asc',
+      },
+    });
+    return {
+      message: 'Clients fetched successfully',
+      statusCode: 200,
+      data: clients,
+    };
+  }
+
+  getJobTypes() {
+    return {
+      message: 'Job types fetched successfully',
+      statusCode: 200,
+      data: Object.values(JobType),
+    };
   }
 }

@@ -11,6 +11,8 @@ import {
   Query,
   Res,
   BadRequestException,
+  UseGuards,
+  SetMetadata,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiConsumes, ApiBody, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -19,6 +21,9 @@ import { diskStorage } from 'multer';
 import type { Express } from 'express';
 import { extname } from 'path';
 import { CandidateDto } from 'src/Validations/candidate/create-candidate.dto';
+import { Role } from '@prisma/client';
+import { AuthGuard } from 'src/guards/auth.guard';
+import { RoleGuard } from 'src/guards/role.guard';
 import { $Enums } from '@prisma/client';
 
 type CandidateStatus = $Enums.CandidateStatus;
@@ -70,7 +75,11 @@ export class CandidateController {
 
   // ── Get all candidates ─────────────────────────────────────────────────────
   @Get()
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all candidates with filters' })
+  @UseGuards(AuthGuard)
+  @SetMetadata('roles', [Role.ADMIN, Role.HR, Role.CLIENT])
+  @UseGuards(RoleGuard)
   @ApiQuery({ name: 'page', required: false, type: String })
   @ApiQuery({ name: 'limit', required: false, type: String })
   @ApiQuery({ name: 'search', required: false, type: String })
@@ -125,7 +134,11 @@ export class CandidateController {
 
   // ── Update candidate status ────────────────────────────────────────────────
   @Put(':id/status')
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Update candidate application status' })
+  @UseGuards(AuthGuard)
+  @SetMetadata('roles', [Role.ADMIN, Role.HR])
+  @UseGuards(RoleGuard)
   @ApiBody({ schema: { type: 'object', properties: { status: { type: 'string' } } } })
   @ApiResponse({ status: 200, description: 'Status updated' })
   async updateStatus(
@@ -137,7 +150,11 @@ export class CandidateController {
 
   // ── Toggle public visibility ───────────────────────────────────────────────
   @Put(':id/public')
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Toggle public visibility of candidate' })
+  @UseGuards(AuthGuard)
+  @SetMetadata('roles', [Role.ADMIN, Role.HR])
+  @UseGuards(RoleGuard)
   @ApiBody({ schema: { type: 'object', properties: { isPublic: { type: 'boolean' } } } })
   @ApiResponse({ status: 200, description: 'Visibility updated' })
   async updatePublicStatus(
@@ -149,15 +166,38 @@ export class CandidateController {
 
   // ── Get candidate by ID ────────────────────────────────────────────────────
   @Get(':id')
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get candidate by ID' })
+  @UseGuards(AuthGuard)
+  @SetMetadata('roles', [Role.ADMIN, Role.HR, Role.CLIENT])
+  @UseGuards(RoleGuard)
   @ApiResponse({ status: 200, description: 'Candidate data' })
   async getById(@Param('id') id: string) {
     return this.candidateService.findOne(id);
   }
 
+  // ── Update candidate details by ID ─────────────────────────────────────────
+  @Put(':id')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update candidate profile details' })
+  @UseGuards(AuthGuard)
+  @SetMetadata('roles', [Role.ADMIN, Role.HR])
+  @UseGuards(RoleGuard)
+  @ApiResponse({ status: 200, description: 'Candidate details updated successfully' })
+  async updateCandidate(
+    @Param('id') id: string,
+    @Body() data: any,
+  ) {
+    return this.candidateService.updateCandidate(id, data);
+  }
+
   // ── Delete candidate by ID ─────────────────────────────────────────────────
   @Delete(':id')
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete candidate by ID' })
+  @UseGuards(AuthGuard)
+  @SetMetadata('roles', [Role.ADMIN, Role.HR])
+  @UseGuards(RoleGuard)
   @ApiResponse({ status: 200, description: 'Candidate deleted' })
   async deleteById(@Param('id') id: string) {
     return this.candidateService.remove(id);
@@ -165,7 +205,11 @@ export class CandidateController {
 
   // ── Generate AI-cleaned resume doc ─────────────────────────────────────────
   @Post(':id/clean-resume')
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Generate AI-cleaned resume doc' })
+  @UseGuards(AuthGuard)
+  @SetMetadata('roles', [Role.ADMIN, Role.HR])
+  @UseGuards(RoleGuard)
   @ApiResponse({ status: 200, description: 'Cleaned resume doc details' })
   async cleanResume(@Param('id') id: string) {
     return this.candidateService.generateCleanedDoc(id);
@@ -173,6 +217,7 @@ export class CandidateController {
 
   // ── Upload cleaned resume file ─────────────────────────────────────────────
   @Post(':id/upload-cleaned')
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Upload a manually cleaned resume file' })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
@@ -185,6 +230,9 @@ export class CandidateController {
     },
   })
   @UseInterceptors(FileInterceptor('file', { storage }))
+  @UseGuards(AuthGuard)
+  @SetMetadata('roles', [Role.ADMIN, Role.HR])
+  @UseGuards(RoleGuard)
   async uploadCleanedResume(
     @Param('id') id: string,
     @UploadedFile() file: Express.Multer.File,
@@ -195,6 +243,7 @@ export class CandidateController {
 
   // ── Update resume file or HTML ─────────────────────────────────────────────
   @Post(':id/update-resume')
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Update resume file or HTML text' })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
@@ -207,6 +256,9 @@ export class CandidateController {
     },
   })
   @UseInterceptors(FileInterceptor('file', { storage }))
+  @UseGuards(AuthGuard)
+  @SetMetadata('roles', [Role.ADMIN, Role.HR])
+  @UseGuards(RoleGuard)
   async updateResumeFile(
     @Param('id') id: string,
     @UploadedFile() file?: Express.Multer.File,
@@ -217,7 +269,11 @@ export class CandidateController {
 
   // ── Export resume as PDF ───────────────────────────────────────────────────
   @Post('export-pdf')
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Export resume HTML as PDF' })
+  @UseGuards(AuthGuard)
+  @SetMetadata('roles', [Role.ADMIN, Role.HR, Role.CLIENT])
+  @UseGuards(RoleGuard)
   @ApiBody({ schema: { type: 'object', properties: { html: { type: 'string' } } } })
   @ApiResponse({ status: 200, description: 'PDF file stream' })
   async exportPdf(@Body('html') html: string, @Res() res: any) {
@@ -238,7 +294,11 @@ export class CandidateController {
 
   // ── Export resume as Word ──────────────────────────────────────────────────
   @Post('export-docx')
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Export resume HTML as DOCX' })
+  @UseGuards(AuthGuard)
+  @SetMetadata('roles', [Role.ADMIN, Role.HR, Role.CLIENT])
+  @UseGuards(RoleGuard)
   @ApiBody({ schema: { type: 'object', properties: { html: { type: 'string' } } } })
   @ApiResponse({ status: 200, description: 'DOCX file stream' })
   async exportDocx(@Body('html') html: string, @Res() res: any) {
