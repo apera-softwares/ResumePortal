@@ -168,6 +168,14 @@ interface Candidate {
   calculatedBudget?: string;
 }
 
+const formatLocation = (loc: string) => {
+  if (!loc) return "";
+  return loc
+    .split(/\s+/)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
+};
+
 function CandidatesContent() {
   const API_URL = process.env.NEXT_PUBLIC_API_URL || (typeof window !== "undefined" ? `http://${window.location.hostname}:3003` : "http://localhost:3003");
   const router = useRouter();
@@ -225,12 +233,15 @@ function CandidatesContent() {
   const [isDark, setIsDark] = useState(false);
 
   const handleCandidateSaved = (updatedCandidate: any) => {
-    setCandidatesData((prev) =>
-      prev.map((c) => (c.id === updatedCandidate.id ? updatedCandidate : c))
-    );
-    setFiltercandidates((prev) =>
-      prev.map((c) => (c.id === updatedCandidate.id ? updatedCandidate : c))
-    );
+    const updateFunc = (prev: any[]) =>
+      prev.map((c) => {
+        const isMatch =
+          c.id === updatedCandidate.id ||
+          (c.id.startsWith("user-") && c.id.replace("user-", "") === updatedCandidate.userId);
+        return isMatch ? updatedCandidate : c;
+      });
+    setCandidatesData(updateFunc);
+    setFiltercandidates(updateFunc);
   };
 
   const activeFiltersCount = [
@@ -707,8 +718,8 @@ function CandidatesContent() {
                   <TableCell isHeader className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-start">Experience</TableCell>
                   <TableCell isHeader className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-start">Skills</TableCell>
                   <TableCell isHeader className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-start">Location</TableCell>
-                  <TableCell isHeader className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-start">Notice Period</TableCell>
-                  <TableCell isHeader className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-start">Budget</TableCell>
+                  <TableCell isHeader className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-start">Notice Period (Days)</TableCell>
+                  <TableCell isHeader className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-start">Budget (Per month)</TableCell>
                   <TableCell isHeader className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-center">Action</TableCell>
                 </TableRow>
               </TableHeader>
@@ -762,20 +773,20 @@ function CandidatesContent() {
                         </TableCell>
 
                         {/* Location */}
-                        <TableCell className="px-6 py-4 text-start text-sm text-gray-750 dark:text-gray-300 font-medium capitalize">
+                        <TableCell className="px-6 py-4 text-start text-sm text-gray-755 dark:text-gray-300 font-medium">
                           {user.preferredJobLocations && user.preferredJobLocations.length > 0
-                            ? user.preferredJobLocations.join(", ")
-                            : (user.currentLocation || "Remote")}
+                            ? user.preferredJobLocations.map(formatLocation).join(", ")
+                            : formatLocation(user.currentLocation || "Remote")}
                         </TableCell>
 
                         {/* Notice Period */}
                         <TableCell className="px-6 py-4 text-start text-sm text-gray-755 dark:text-gray-300 font-medium">
-                          {user.noticePeriod !== undefined && user.noticePeriod !== null ? `${user.noticePeriod} Days` : "N/A"}
+                          {user.noticePeriod !== undefined && user.noticePeriod !== null ? String(user.noticePeriod) : "N/A"}
                         </TableCell>
 
                         {/* Budget */}
                         <TableCell className="px-6 py-4 text-start text-sm text-gray-755 dark:text-gray-300 font-semibold">
-                          {user.calculatedBudget || user.budget || "N/A"}
+                          {user.calculatedBudget || (user.budget ? user.budget.replace(/\/month/gi, "").replace(/month/gi, "").trim() : "N/A")}
                         </TableCell>
 
                         {/* Actions */}

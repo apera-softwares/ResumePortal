@@ -7,6 +7,91 @@ import { Modal } from "@/components/ui/modal";
 import { useModal } from "@/hooks/useModal";
 import React, { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Select from "react-select";
+
+const formatLocation = (loc: string) => {
+  if (!loc) return "";
+  return loc
+    .split(/\s+/)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
+};
+
+const getCustomSelectStyles = (isDark: boolean) => ({
+  control: (provided: any, state: any) => ({
+    ...provided,
+    backgroundColor: isDark ? '#0b0a19' : '#ffffff',
+    borderColor: state.isFocused
+      ? isDark
+        ? '#8b5cf6'
+        : '#3b82f6'
+      : isDark
+        ? '#222138'
+        : '#e5e7eb',
+    borderRadius: '1rem',
+    padding: '2px 4px',
+    fontSize: '0.875rem',
+    fontWeight: '600',
+    minWidth: '180px',
+    boxShadow: state.isFocused
+      ? isDark
+        ? '0 0 0 2px rgba(139, 92, 246, 0.2)'
+        : '0 0 0 2px rgba(59, 130, 246, 0.2)'
+      : 'none',
+    '&:hover': {
+      borderColor: isDark ? '#353354' : '#d1d5db',
+    },
+    transition: 'all 0.2s ease',
+  }),
+  menu: (provided: any) => ({
+    ...provided,
+    backgroundColor: isDark ? '#121124' : '#ffffff',
+    borderRadius: '0.75rem',
+    border: isDark ? '1px solid #222138' : '1px solid #e5e7eb',
+    boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+    overflow: 'hidden',
+    zIndex: 9999,
+  }),
+  singleValue: (provided: any) => ({
+    ...provided,
+    color: isDark ? '#e2e8f0' : '#111827',
+  }),
+  placeholder: (provided: any) => ({
+    ...provided,
+    color: isDark ? '#9ca3af' : '#6b7280',
+  }),
+  option: (provided: any, state: any) => ({
+    ...provided,
+    backgroundColor: state.isSelected
+      ? isDark
+        ? '#8b5cf6'
+        : '#3b82f6'
+      : state.isFocused
+        ? isDark
+          ? '#1c1b35'
+          : '#f3f4f6'
+        : 'transparent',
+    color: state.isSelected
+      ? '#ffffff'
+      : isDark
+        ? '#e2e8f0'
+        : '#111827',
+    padding: '8px 12px',
+    borderRadius: '0.5rem',
+    fontSize: '0.875rem',
+    cursor: 'pointer',
+    '&:active': {
+      backgroundColor: isDark ? '#8b5cf6' : '#3b82f6',
+    },
+  }),
+});
+
+const EXP_OPTIONS = [
+  { value: "0-2", label: "0 - 2 Years" },
+  { value: "3-5", label: "3 - 5 Years" },
+  { value: "6-9", label: "6 - 9 Years" },
+  { value: "10+", label: "10+ Years" },
+];
 
 interface Candidate {
   id: string;
@@ -22,6 +107,8 @@ interface Candidate {
   cleanedResume?: string;
   isPublic?: boolean;
   skills: { name: string }[];
+  currentLocation?: string;
+  preferredJobLocations?: string[];
   job?: {
     id: string;
     title: string;
@@ -301,32 +388,30 @@ function PublicCandidatesContent() {
               </p>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+            <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto items-center">
               {/* Skill Filter */}
-              <select
-                value={skillFilter}
-                onChange={(e) => setSkillFilter(e.target.value)}
-                onFocus={fetchAvailableSkills}
-                className="px-3 py-2.5 text-sm text-gray-900 bg-gray-50 dark:bg-[#0b0a19] border border-gray-200 dark:border-[#222138] rounded-2xl focus:outline-none dark:text-gray-200 transition-all cursor-pointer font-semibold"
-              >
-                <option value="">All Skills</option>
-                {availableSkills.map((skill) => (
-                  <option key={skill} value={skill}>{skill}</option>
-                ))}
-              </select>
+              <div className="w-full sm:w-48">
+                <Select
+                  value={skillFilter ? { value: skillFilter, label: skillFilter } : null}
+                  onChange={(selected: any) => setSkillFilter(selected ? selected.value : "")}
+                  options={availableSkills.map((skill) => ({ value: skill, label: skill }))}
+                  isClearable
+                  placeholder="All Skills"
+                  styles={getCustomSelectStyles(isDarkMode)}
+                />
+              </div>
 
               {/* Experience Filter */}
-              <select
-                value={expFilter}
-                onChange={(e) => setExpFilter(e.target.value)}
-                className="px-3 py-2.5 text-sm text-gray-900 bg-gray-50 dark:bg-[#0b0a19] border border-gray-200 dark:border-[#222138] rounded-2xl focus:outline-none dark:text-gray-200 transition-all cursor-pointer font-semibold"
-              >
-                <option value="">All Experience</option>
-                <option value="0-2">0 - 2 Years</option>
-                <option value="3-5">3 - 5 Years</option>
-                <option value="6-9">6 - 9 Years</option>
-                <option value="10+">10+ Years</option>
-              </select>
+              <div className="w-full sm:w-48">
+                <Select
+                  value={expFilter ? EXP_OPTIONS.find(opt => opt.value === expFilter) : null}
+                  onChange={(selected: any) => setExpFilter(selected ? selected.value : "")}
+                  options={EXP_OPTIONS}
+                  isClearable
+                  placeholder="All Experience"
+                  styles={getCustomSelectStyles(isDarkMode)}
+                />
+              </div>
 
               {/* Search Box */}
               <div className="relative w-full sm:w-80">
@@ -352,14 +437,12 @@ function PublicCandidatesContent() {
               <Table>
                 <TableHeader className="sticky top-0 z-10 backdrop-blur-md bg-white/95 dark:bg-[#121124]/95 border-b border-gray-200/40 dark:border-[#222138]/60">
                   <TableRow className="h-14">
-                    <TableCell isHeader className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-start">Id</TableCell>
                     <TableCell isHeader className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-start">First Name</TableCell>
-                    <TableCell isHeader className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-center">View Resume</TableCell>
+                    <TableCell isHeader className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-start">Experience</TableCell>
                     <TableCell isHeader className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-start">Skills</TableCell>
                     <TableCell isHeader className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-start">Location</TableCell>
-                    <TableCell isHeader className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-start">Notice Period</TableCell>
-                    <TableCell isHeader className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-start">Budget</TableCell>
-                    <TableCell isHeader className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-start">Yrs of Exp</TableCell>
+                    <TableCell isHeader className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-start">Notice Period (Days)</TableCell>
+                    <TableCell isHeader className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-center">View Resume</TableCell>
                   </TableRow>
                 </TableHeader>
 
@@ -375,11 +458,6 @@ function PublicCandidatesContent() {
                       
                       return (
                         <TableRow key={cand.id} className="hover:bg-gray-50/50 dark:hover:bg-[#1c1b35]/20 transition-all border-b border-gray-200/40 dark:border-[#222138]/60">
-                          {/* Id */}
-                          <TableCell className="px-6 py-4 text-start text-sm font-semibold text-gray-500 dark:text-gray-400">
-                            {serialNumber}
-                          </TableCell>
-
                           {/* First Name & Avatar */}
                           <TableCell className="px-6 py-4 text-start">
                             <div className="flex items-center gap-3">
@@ -392,14 +470,16 @@ function PublicCandidatesContent() {
                             </div>
                           </TableCell>
 
-                          {/* View Resume */}
-                          <TableCell className="px-6 py-4 text-center">
-                            <button
-                              onClick={() => router.push(`/public-candidates?candidateId=${cand.id}`)}
-                              className="px-4 py-1.5 rounded-xl text-xs font-semibold border border-gray-200 dark:border-[#2d2c4b] text-gray-700 dark:text-gray-200 bg-white dark:bg-[#121124] hover:bg-gray-50 dark:hover:bg-[#1c1b35] transition-all shadow-xs"
-                            >
-                              View
-                            </button>
+                          {/* Experience */}
+                          <TableCell className="px-6 py-4 text-start text-sm text-gray-700 dark:text-gray-300">
+                            <span className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-blue-50 dark:bg-[#1a233d]/50 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-[#23315a]/50">
+                              {(() => {
+                                const exp = cand.yearsOfExperience;
+                                if (!exp || exp === 0) return "Fresher";
+                                const formatted = parseFloat(Number(exp).toFixed(1));
+                                return `${formatted} ${formatted === 1 ? "Yr" : "Yrs"}`;
+                              })()}
+                            </span>
                           </TableCell>
 
                           {/* Skills */}
@@ -419,33 +499,31 @@ function PublicCandidatesContent() {
 
                           {/* Location */}
                           <TableCell className="px-6 py-4 text-start text-sm text-gray-700 dark:text-gray-300 font-medium">
-                            <span className="capitalize">
-                              {displayLocation.toLowerCase()}
-                            </span>
+                            {cand.preferredJobLocations && cand.preferredJobLocations.length > 0
+                              ? cand.preferredJobLocations.map(formatLocation).join(", ")
+                              : formatLocation(cand.currentLocation || "Remote")}
                           </TableCell>
 
                           {/* Notice Period */}
-                          <TableCell className="px-6 py-4 text-start text-sm text-gray-700 dark:text-gray-300">
-                            {cand.noticePeriod} days
-                          </TableCell>
-
-                          {/* Budget */}
                           <TableCell className="px-6 py-4 text-start text-sm text-gray-700 dark:text-gray-300 font-medium">
-                            {displayBudget}
+                            {cand.noticePeriod !== undefined && cand.noticePeriod !== null ? String(cand.noticePeriod) : "N/A"}
                           </TableCell>
 
-                          {/* Years of Experience */}
-                          <TableCell className="px-6 py-4 text-start text-sm text-gray-700 dark:text-gray-300">
-                            <span className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-blue-50 dark:bg-[#1a233d]/50 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-[#23315a]/50">
-                              {cand.yearsOfExperience} Yrs
-                            </span>
+                          {/* View Resume */}
+                          <TableCell className="px-6 py-4 text-center">
+                            <button
+                              onClick={() => router.push(`/public-candidates?candidateId=${cand.id}`)}
+                              className="px-4 py-1.5 rounded-xl text-xs font-semibold border border-gray-200 dark:border-[#2d2c4b] text-gray-700 dark:text-gray-200 bg-white dark:bg-[#121124] hover:bg-gray-50 dark:hover:bg-[#1c1b35] transition-all shadow-xs"
+                            >
+                              View
+                            </button>
                           </TableCell>
                         </TableRow>
                       );
                     })
                   ) : (
                     <TableRow>
-                      <td colSpan={8} className="py-24 text-center text-gray-400 dark:text-gray-500 text-sm">
+                      <td colSpan={6} className="py-24 text-center text-gray-400 dark:text-gray-500 text-sm">
                         No candidates found.
                       </td>
                     </TableRow>
