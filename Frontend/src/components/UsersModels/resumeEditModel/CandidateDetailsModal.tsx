@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { Modal } from "../../ui/modal";
 import toast from "react-hot-toast";
-import Select from "react-select";
+import Select, { components } from "react-select";
 import {
   X,
   User,
@@ -303,6 +303,37 @@ export default function CandidateDetailsModal({
     }),
   };
 
+  const locationSelectStyles = {
+    ...customSelectStyles,
+    option: (provided: any, state: any) => ({
+      ...provided,
+      backgroundColor: state.isFocused
+        ? isDark
+          ? "#1f2937"
+          : "#f3f4f6"
+        : "transparent",
+      color: isDark ? "#f9fafb" : "#111827",
+      cursor: "pointer",
+      padding: "8px 12px",
+    }),
+  };
+
+  const OptionWithCheckbox = (props: any) => {
+    return (
+      <components.Option {...props}>
+        <div className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={props.isSelected}
+            onChange={() => {}}
+            className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500 cursor-pointer"
+          />
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-200">{props.label}</span>
+        </div>
+      </components.Option>
+    );
+  };
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} className="max-w-[800px] m-4">
       <div className="w-full rounded-3xl bg-white dark:bg-gray-900 p-6 lg:p-10 border border-gray-100 dark:border-gray-800 shadow-xl max-h-[85vh] overflow-y-auto custom-scrollbar">
@@ -397,7 +428,7 @@ export default function CandidateDetailsModal({
                 placeholder="Enter 10-digit mobile number"
                 className="w-full border border-gray-200 dark:border-gray-700 rounded-xl p-3 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white text-sm transition-all disabled:opacity-75 disabled:cursor-not-allowed"
               />
-              {isEditable && formData.mobile && formData.mobile.length !== 10 && (
+              {isEditable && formData.mobile && formData.mobile.length > 10 && (
                 <p className="text-xs text-amber-500 font-semibold mt-1">Must be exactly 10 digits</p>
               )}
             </div>
@@ -449,32 +480,6 @@ export default function CandidateDetailsModal({
               />
             </div>
 
-            {/* Location */}
-            <div>
-              <label className="block mb-1.5 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-1">
-                <MapPin className="w-3.5 h-3.5 text-gray-400" />
-                <span>Location</span>
-              </label>
-              <Select
-                name="currentLocation"
-                value={
-                  formData.currentLocation
-                    ? { value: formData.currentLocation, label: formData.currentLocation }
-                    : null
-                }
-                onChange={(selected: any) => {
-                  setFormData(prev => ({ ...prev, currentLocation: selected ? selected.value : "" }));
-                }}
-                options={[
-                  { value: "Remote", label: "Remote" },
-                  ...availableLocations.map((l: any) => ({ value: l.name, label: l.name })),
-                ]}
-                isDisabled={!isEditable}
-                styles={customSelectStyles}
-                placeholder="Select location..."
-              />
-            </div>
-
             {/* Preferred Locations */}
             <div>
               <label className="block mb-1.5 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-1">
@@ -494,7 +499,10 @@ export default function CandidateDetailsModal({
                 ]}
                 isMulti
                 isDisabled={!isEditable}
-                styles={customSelectStyles}
+                styles={locationSelectStyles}
+                components={{ Option: OptionWithCheckbox }}
+                closeMenuOnSelect={false}
+                hideSelectedOptions={false}
                 placeholder="Select preferred locations..."
               />
             </div>
