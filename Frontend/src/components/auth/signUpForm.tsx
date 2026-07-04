@@ -80,6 +80,10 @@ export default function SignUpForm() {
     setIsLoading(true);
     const signupUrl = `${API_URL}/users/signup`;
 
+    const nameParts = formData.name.trim().split(/\s+/);
+    const firstName = nameParts[0] || "";
+    const lastName = nameParts.slice(1).join(" ") || firstName;
+
     try {
       const response = await fetch(signupUrl, {
         method: "POST",
@@ -88,6 +92,8 @@ export default function SignUpForm() {
         },
         body: JSON.stringify({
           name: formData.name,
+          firstName,
+          lastName,
           email: formData.email,
           password: formData.password,
           role: "CANDIDATE",
