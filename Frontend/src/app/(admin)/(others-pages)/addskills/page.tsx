@@ -102,24 +102,24 @@ const addskills = () => {
 
   return (
     <div className="w-full min-h-[80vh] flex items-center justify-center bg-gray-50 dark:bg-gray-950 transition-colors duration-300">
-      <div className="w-[80vw] max-w-2xl min-h-[50vh] bg-white dark:bg-gray-900 shadow-xl rounded-2xl p-8 border border-gray-200 dark:border-gray-800 overflow-hidden">
+      <div className="w-full max-w-2xl mx-4 sm:mx-0 min-h-[50vh] bg-white dark:bg-gray-900 shadow-xl rounded-2xl p-5 sm:p-8 border border-gray-200 dark:border-gray-800 overflow-hidden">
         <h2 className="text-2xl font-semibold text-gray-800 dark:text-white mb-6 text-center">
           Add Skills
         </h2>
 
-        <form onSubmit={handleSubmit} className="flex gap-4">
+        <form onSubmit={handleSubmit} className="flex gap-3">
           <input
             name='skill'
             value={skill}
             onChange={handleChange}
             type="text"
             placeholder="Enter a skill..."
-            className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-xl outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+            className="flex-1 min-w-0 px-4 py-2 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-xl outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
           />
 
           <button
             type='submit'
-            className="px-6 py-2 bg-blue-600 text-white font-medium rounded-xl hover:bg-blue-700 transition-all shadow-md">
+            className="px-4 sm:px-6 py-2 bg-blue-600 text-white font-medium rounded-xl hover:bg-blue-700 transition-all shadow-md flex-shrink-0 cursor-pointer">
             Add
           </button>
         </form>
@@ -192,7 +192,7 @@ const addskills = () => {
                   setDeleteConfirmId(null);
                   await executeDelete(id);
                 }}
-                className="p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-rose-600 dark:text-rose-400 bg-rose-50/50 hover:bg-rose-100/70 dark:bg-rose-950/20 dark:hover:bg-rose-950/40 transition-all shadow-xs cursor-pointer"
+                className="px-4 py-2 text-xs font-semibold rounded-xl text-white bg-rose-600 hover:bg-rose-700 active:bg-rose-800 shadow-xs transition-all hover:scale-[1.01] active:scale-[0.99]"
               >
                 Delete
               </button>

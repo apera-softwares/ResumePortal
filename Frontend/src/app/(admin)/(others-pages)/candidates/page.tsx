@@ -9,6 +9,8 @@ import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import toast from "react-hot-toast";
 import Select, { components } from "react-select";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { Modal } from "@/components/ui/modal";
+
 
 const getCustomSelectStyles = (isDark: boolean) => ({
   control: (provided: any, state: any) => ({
@@ -890,12 +892,12 @@ function CandidatesContent() {
 
         {/* Premium Pagination Bar */}
         {totalCount > 0 && (
-          <div className="flex flex-col sm:flex-row justify-end items-center border-t border-gray-200/40 dark:border-gray-800/60 bg-white dark:bg-gray-900 pt-6 mt-6">
-            <div className="flex items-center gap-2">
+          <div className="flex justify-center items-center border-t border-gray-200/40 dark:border-gray-800/60 bg-white dark:bg-gray-900 p-5 sm:p-6">
+            <div className="flex items-center gap-1.5">
               <button
                 onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
                 disabled={currentPage === 1}
-                className="px-3.5 py-2 rounded-xl text-xs font-semibold border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-750 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                className="h-9 px-3 rounded-xl text-xs font-bold border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center cursor-pointer select-none"
               >
                 Prev
               </button>
@@ -907,17 +909,17 @@ function CandidatesContent() {
                   for (let i = 1; i <= totalPages; i++) pages.push(i);
                 } else {
                   pages.push(1);
-                  if (currentPage > 3) pages.push("... ");
+                  if (currentPage > 3) pages.push("...");
                   const start = Math.max(2, currentPage - 1);
                   const end = Math.min(totalPages - 1, currentPage + 1);
                   for (let i = start; i <= end; i++) pages.push(i);
-                  if (currentPage < totalPages - 2) pages.push(" ...");
+                  if (currentPage < totalPages - 2) pages.push("...");
                   pages.push(totalPages);
                 }
                 return pages.map((page, idx) => {
                   if (typeof page === "string") {
                     return (
-                      <span key={`ellipse-${idx}`} className="text-gray-400 dark:text-gray-600 px-1.5 font-semibold text-xs select-none">
+                      <span key={`ellipse-${idx}`} className="w-9 h-9 flex items-center justify-center text-gray-400 dark:text-gray-600 font-semibold text-xs select-none">
                         ...
                       </span>
                     );
@@ -926,8 +928,8 @@ function CandidatesContent() {
                     <button
                       key={page}
                       onClick={() => setCurrentPage(page)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${currentPage === page
-                        ? "bg-blue-600 border-blue-600 text-white shadow-xs"
+                      className={`w-9 h-9 rounded-xl text-xs font-bold border transition-all flex items-center justify-center cursor-pointer select-none ${currentPage === page
+                        ? "bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-500/10 dark:shadow-none"
                         : "border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800"
                         }`}
                     >
@@ -940,7 +942,7 @@ function CandidatesContent() {
               <button
                 onClick={() => setCurrentPage((prev) => Math.min(prev + 1, Math.ceil(totalCount / ITEMS_PER_PAGE)))}
                 disabled={currentPage === Math.ceil(totalCount / ITEMS_PER_PAGE)}
-                className="px-3.5 py-2 rounded-xl text-xs font-semibold border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-750 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                className="h-9 px-3 rounded-xl text-xs font-bold border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center cursor-pointer select-none"
               >
                 Next
               </button>
@@ -1034,6 +1036,16 @@ const NotesPopover: React.FC<NotesPopoverProps> = ({
   const [originalNotes, setOriginalNotes] = useState(user.adminNotes || "");
   const [loading, setLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 640);
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   useEffect(() => {
     if (isOpen) {
@@ -1090,11 +1102,82 @@ const NotesPopover: React.FC<NotesPopoverProps> = ({
     }
   };
 
+  if (isMobile) {
+    return (
+      <>
+        <button
+          onClick={() => onOpenChange(true)}
+          className="p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-violet-600 dark:text-violet-400 bg-violet-50/50 hover:bg-violet-100/70 dark:bg-violet-950/20 dark:hover:bg-violet-950/40 transition-all shadow-xs cursor-pointer animate-fade-in"
+        >
+          <Notebook className="h-4 w-4" />
+        </button>
+        <Modal isOpen={isOpen} onClose={() => onOpenChange(false)} showCloseButton={true} className="max-w-md">
+          <div className="p-5">
+            {/* Header */}
+            <div className="flex items-start gap-2.5 pb-3 border-b border-gray-200/50 dark:border-gray-800/50">
+              <div className="p-1.5 rounded-lg bg-violet-50 dark:bg-violet-950/30 text-violet-600 dark:text-violet-400">
+                <Notebook className="h-4 w-4" />
+              </div>
+              <div className="text-left">
+                <h4 className="text-sm font-bold text-gray-900 dark:text-white">Admin Notes</h4>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                  Candidate: <span className="font-semibold text-gray-700 dark:text-gray-300">{user.firstName} {user.lastName}</span>
+                </p>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="py-4 text-left">
+              {loading ? (
+                <div className="flex items-center justify-center h-[220px]">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-violet-500" />
+                </div>
+              ) : (
+                <textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  className="w-full h-[220px] rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/30 dark:bg-gray-950/20 p-3 text-sm text-gray-850 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all resize-none overflow-y-auto"
+                  placeholder="Write private notes about this candidate..."
+                />
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-gray-200/50 dark:border-gray-800/50">
+              <button
+                type="button"
+                onClick={handleCancel}
+                className="px-4 py-2 rounded-xl text-xs font-semibold border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={notes === originalNotes || isSaving || loading}
+                className="px-4 py-2 rounded-xl text-xs font-semibold bg-violet-600 hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed text-white shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
+              >
+                {isSaving ? (
+                  <>
+                    <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  "Save Notes"
+                )}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      </>
+    );
+  }
+
   return (
     <Popover open={isOpen} onOpenChange={onOpenChange}>
       <PopoverTrigger asChild>
         <button
-          className="p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-violet-600 dark:text-violet-400 bg-violet-50/50 hover:bg-violet-100/70 dark:bg-violet-950/20 dark:hover:bg-violet-950/40 transition-all shadow-xs cursor-pointer"
+          className="p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-violet-600 dark:text-violet-400 bg-violet-50/50 hover:bg-violet-100/70 dark:bg-violet-950/20 dark:hover:bg-violet-950/40 transition-all shadow-xs cursor-pointer animate-fade-in"
         >
           <Notebook className="h-4 w-4" />
         </button>

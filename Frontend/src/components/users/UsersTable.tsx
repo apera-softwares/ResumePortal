@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useModal } from "../../hooks/useModal";
 import { Modal } from "../ui/modal";
 import Label from "../form/Label";
@@ -71,6 +71,16 @@ export default function UsersTable({
 
   // Delete modal state
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [showMobileWarning, setShowMobileWarning] = useState(false);
+  const warningTimeoutRef = useRef<any>(null);
+
+  useEffect(() => {
+    return () => {
+      if (warningTimeoutRef.current) {
+        clearTimeout(warningTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Debounce search term
   useEffect(() => {
@@ -151,6 +161,7 @@ export default function UsersTable({
       role: user.role,
       password: "",
     });
+    setShowMobileWarning(false);
     openModal();
   };
 
@@ -165,6 +176,7 @@ export default function UsersTable({
       role: "",
       password: "",
     });
+    setShowMobileWarning(false);
     openModal();
   };
 
@@ -173,8 +185,19 @@ export default function UsersTable({
   ) => {
     const { name, value } = e.target;
     if (name === "mobile") {
-      const cleaned = value.replace(/\D/g, "").slice(0, 10);
-      setFormData(prev => ({ ...prev, [name]: cleaned }));
+      const cleaned = value.replace(/\D/g, "");
+      if (cleaned.length > 10) {
+        setShowMobileWarning(true);
+        if (warningTimeoutRef.current) {
+          clearTimeout(warningTimeoutRef.current);
+        }
+        warningTimeoutRef.current = setTimeout(() => {
+          setShowMobileWarning(false);
+        }, 2000);
+      } else {
+        setShowMobileWarning(false);
+      }
+      setFormData(prev => ({ ...prev, [name]: cleaned.slice(0, 10) }));
     } else {
       setFormData(prev => ({ ...prev, [name]: value }));
     }
@@ -297,15 +320,19 @@ export default function UsersTable({
   };
 
   const selectStyles = {
-    control: (base: any) => ({
+    control: (base: any, state: any) => ({
       ...base,
-      backgroundColor: isDark ? '#1f2937' : '#f9fafb',
-      borderColor: isDark ? '#374151' : '#d1d5db',
+      backgroundColor: isDark ? '#111827' : '#ffffff',
+      borderColor: state.isFocused
+        ? '#2563eb'
+        : isDark
+          ? '#374151'
+          : '#d1d5db',
       color: isDark ? '#ffffff' : '#111827',
       borderRadius: '0.5rem',
       padding: '0 4px',
       fontSize: '0.875rem',
-      boxShadow: 'none',
+      boxShadow: state.isFocused ? '0 0 0 2px rgba(37, 99, 235, 0.2)' : 'none',
       minHeight: '38px',
       height: '38px',
       '&:hover': {
@@ -325,22 +352,31 @@ export default function UsersTable({
     }),
     menu: (base: any) => ({
       ...base,
-      backgroundColor: isDark ? '#1f2937' : '#ffffff',
+      backgroundColor: isDark ? '#111827' : '#ffffff',
       borderRadius: '0.5rem',
       border: isDark ? '1px solid #374151' : '1px solid #d1d5db',
       zIndex: 9999,
+    }),
+    menuList: (base: any) => ({
+      ...base,
+      backgroundColor: isDark ? '#111827' : '#ffffff',
+      padding: '4px',
+      borderRadius: '0.5rem',
     }),
     option: (base: any, { isFocused, isSelected }: any) => ({
       ...base,
       backgroundColor: isSelected
         ? '#2563eb'
         : isFocused
-        ? (isDark ? '#111827' : '#f3f4f6')
-        : 'transparent',
+        ? (isDark ? '#1f2937' : '#f3f4f6')
+        : (isDark ? '#111827' : '#ffffff'),
       color: isSelected ? '#ffffff' : (isDark ? '#f9fafb' : '#111827'),
       cursor: 'pointer',
       padding: '8px 12px',
       borderRadius: '0.375rem',
+      '&:active': {
+        backgroundColor: isSelected ? '#2563eb' : (isDark ? '#1f2937' : '#e5e7eb'),
+      }
     }),
     singleValue: (base: any) => ({
       ...base,
@@ -657,7 +693,7 @@ export default function UsersTable({
                   placeholder="Enter 10-digit number"
                   required
                 />
-                {formData.mobile && formData.mobile.length !== 10 && (
+                {showMobileWarning && (
                   <span className="text-xs font-semibold text-rose-500 mt-1 flex items-center gap-1 animate-pulse">
                     ⚠️ Enter only 10 digits
                   </span>
