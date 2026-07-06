@@ -897,7 +897,7 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            {!isEditMode && role !== "CLIENT" && !isPublicPage && (
+            {!isEditMode && role !== "CLIENT" && role !== "CANDIDATE" && !isPublicPage && (
               <button
                 onClick={handleEditResumeClick}
                 className="px-3 py-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-all shadow-md flex items-center gap-1.5 cursor-pointer"
@@ -975,13 +975,13 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
               </div>
             )}
 
-            {!isPublicPage && isEditMode && (
+            {!isPublicPage && (
               <>
                 {/* Premium Update File Button */}
                 <button
                   onClick={() => fileInputRef.current?.click()}
                   disabled={isSaving || isUploadingFile}
-                  className="px-3 py-1.5 text-xs font-bold text-violet-600 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-955/40 rounded-lg transition-all disabled:opacity-50 flex items-center gap-1.5"
+                  className="px-3 py-1.5 text-xs font-bold text-violet-600 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-955/40 border border-violet-200 dark:border-violet-800/40 rounded-lg transition-all disabled:opacity-50 flex items-center gap-1.5 shadow-xs"
                 >
                   {isUploadingFile ? (
                     <svg className="animate-spin h-3.5 w-3.5" fill="none" viewBox="0 0 24 24">
@@ -993,7 +993,7 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
                       <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                     </svg>
                   )}
-                  {isUploadingFile ? "Uploading..." : "Update File"}
+                  {isUploadingFile ? "Uploading..." : "Replace Resume"}
                 </button>
                 <input
                   type="file"
@@ -1002,15 +1002,17 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
                   accept=".pdf,.docx,.doc"
                   className="hidden"
                 />
-
-                <button
-                  onClick={handleExportWord}
-                  disabled={isSaving || isUploadingFile}
-                  className="px-3 py-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 rounded-lg transition-all disabled:opacity-50"
-                >
-                  Export Word
-                </button>
               </>
+            )}
+
+            {!isPublicPage && isEditMode && (
+              <button
+                onClick={handleExportWord}
+                disabled={isSaving || isUploadingFile}
+                className="px-3 py-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 rounded-lg transition-all disabled:opacity-50"
+              >
+                Export Word
+              </button>
             )}
 
             {isEditMode && (
@@ -1104,7 +1106,7 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
             </div>
 
             <div className="flex flex-wrap items-center gap-2 pr-12 sm:pr-16">
-              {!isEditMode && role !== "CLIENT" && !isPublicPage && (
+              {!isEditMode && role !== "CLIENT" && role !== "CANDIDATE" && !isPublicPage && (
                 <button
                   onClick={handleEditResumeClick}
                   className="px-3 py-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-all shadow-md flex items-center gap-1.5 cursor-pointer"
@@ -1182,13 +1184,13 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
                 </div>
               )}
 
-              {!isPublicPage && isEditMode && (
+              {!isPublicPage && (
                 <>
                   {/* Premium Update File Button */}
                   <button
                     onClick={() => fileInputRef.current?.click()}
                     disabled={isSaving || isUploadingFile}
-                    className="px-3 py-1.5 text-xs font-bold text-violet-600 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-955/40 rounded-lg transition-all disabled:opacity-50 flex items-center gap-1.5"
+                    className="px-3 py-1.5 text-xs font-bold text-violet-600 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-955/40 border border-violet-200 dark:border-violet-800/40 rounded-lg transition-all disabled:opacity-50 flex items-center gap-1.5 shadow-xs"
                   >
                     {isUploadingFile ? (
                       <svg className="animate-spin h-3.5 w-3.5" fill="none" viewBox="0 0 24 24">
@@ -1200,7 +1202,7 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
                         <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                       </svg>
                     )}
-                    {isUploadingFile ? "Uploading..." : "Update File"}
+                    {isUploadingFile ? "Uploading..." : "Replace Resume"}
                   </button>
                   <input
                     type="file"
@@ -1209,15 +1211,17 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
                     accept=".pdf,.docx,.doc"
                     className="hidden"
                   />
-
-                  <button
-                    onClick={handleExportWord}
-                    disabled={isSaving || isUploadingFile}
-                    className="px-3 py-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-955/40 rounded-lg transition-all disabled:opacity-50"
-                  >
-                    Export Word
-                  </button>
                 </>
+              )}
+
+              {!isPublicPage && isEditMode && (
+                <button
+                  onClick={handleExportWord}
+                  disabled={isSaving || isUploadingFile}
+                  className="px-3 py-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-955/40 rounded-lg transition-all disabled:opacity-50"
+                >
+                  Export Word
+                </button>
               )}
 
               {isEditMode && (

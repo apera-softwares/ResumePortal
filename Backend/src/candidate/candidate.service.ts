@@ -72,6 +72,12 @@ export class CandidateService {
     }
 
     const emailLower = candidateData.email.trim().toLowerCase();
+    
+    // Check if user with this email exists to link candidate profile
+    const associatedUser = await this.prisma.user.findUnique({
+      where: { email: emailLower },
+    });
+
     // Check if candidate with this email already exists to avoid unique constraint violations
     const existingCandidate = await this.prisma.candidate.findUnique({
       where: { email: emailLower },
@@ -118,6 +124,7 @@ export class CandidateService {
           currentCtc,
           resume: file.filename,
           resumeText: '', // reset and parse asynchronously via event
+          userId: associatedUser ? associatedUser.id : (existingCandidate.userId || null),
           skills: {
             deleteMany: {}, // clear existing skills associations
             create: skillsArray.map((name) => ({
@@ -180,6 +187,7 @@ export class CandidateService {
         currentCtc,
         resume: file.filename,
         resumeText: '', // initially empty, parsed in event handler
+        userId: associatedUser ? associatedUser.id : null,
         skills: {
           create: skillsArray.map((name) => ({
             skill: {

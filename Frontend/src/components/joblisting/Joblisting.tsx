@@ -168,12 +168,14 @@ export default function Joblisting({
             </svg>
           </div>
 
-          <button
-            onClick={onCreateJob}
-            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition duration-200 cursor-pointer shrink-0"
-          >
-            <span>+</span> Create Job
-          </button>
+          {role !== "CANDIDATE" && (
+            <button
+              onClick={onCreateJob}
+              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition duration-200 cursor-pointer shrink-0"
+            >
+              <span>+</span> Create Job
+            </button>
+          )}
 
           {/* Grid/List View Toggles */}
           <div className="flex items-center gap-1 border border-gray-200 dark:border-gray-800 p-1 rounded-xl bg-white dark:bg-gray-900 shadow-sm shrink-0">

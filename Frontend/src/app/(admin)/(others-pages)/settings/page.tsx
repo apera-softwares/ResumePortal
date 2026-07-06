@@ -4,8 +4,10 @@ import React, { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { useTheme } from "@/context/ThemeContext";
 import { useFont, AVAILABLE_FONTS } from "@/context/FontContext";
+import { useRouter } from "next/navigation";
 
 export default function SettingsPage() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<"profile" | "preferences" | "billing">("preferences");
   
   // User profile state
@@ -31,6 +33,13 @@ export default function SettingsPage() {
 
   // Load profile from local storage and backend if needed
   useEffect(() => {
+    const role = localStorage.getItem("role");
+    if (role !== "ADMIN") {
+      toast.error("Access denied. Settings are only accessible by Administrators.");
+      router.replace("/dashboard");
+      return;
+    }
+
     const storedUser = localStorage.getItem("user");
     if (storedUser) {
       try {

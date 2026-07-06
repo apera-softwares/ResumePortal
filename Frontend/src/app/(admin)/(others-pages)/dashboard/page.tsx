@@ -277,12 +277,14 @@ export default function DashboardPage() {
             Upload Resume
           </button>
 
-          <button
-            onClick={() => router.push('/jobcreation')}
-            className="bg-blue-900/30 hover:bg-blue-900/50 border border-white/20 text-white px-4 py-2 rounded-xl text-xs sm:text-sm font-bold hover:scale-[1.01] active:scale-[0.99] transition-all"
-          >
-            Post a Job
-          </button>
+          {role !== 'CANDIDATE' && (
+            <button
+              onClick={() => router.push('/jobcreation')}
+              className="bg-blue-900/30 hover:bg-blue-900/50 border border-white/20 text-white px-4 py-2 rounded-xl text-xs sm:text-sm font-bold hover:scale-[1.01] active:scale-[0.99] transition-all"
+            >
+              Post a Job
+            </button>
+          )}
         </div>
       </div>
 

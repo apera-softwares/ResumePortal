@@ -85,6 +85,11 @@ const AppSidebar: React.FC = () => {
       name: "Jobs",
       path: "/dashboard/jobs",
     },
+    {
+      icon: <UserCircleIcon />,
+      name: "My Resume",
+      path: "/my-resume",
+    },
   ];
 
   let routes: NavItem[] = [];
