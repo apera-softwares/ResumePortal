@@ -196,10 +196,9 @@ function CandidatesContent() {
     }
     return null;
   });
-  const [userId, setUserId] = useState<number | null>(() => {
+  const [userId, setUserId] = useState<string | null>(() => {
     if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("userId");
-      return stored ? Number(stored) : null;
+      return localStorage.getItem("userId");
     }
     return null;
   });
@@ -231,7 +230,15 @@ function CandidatesContent() {
   }, [router, modeParam, candidateIdParam, pathname]);
 
   const [jobs, setJobs] = useState<{ id: string; title: string }[]>([]);
-  const [jobFilter, setJobFilter] = useState<{ value: string; label: string } | null>(null);
+  const [jobFilter, setJobFilter] = useState<{ value: string; label: string } | null>(() => {
+    if (jobIdParam) {
+      return {
+        value: jobIdParam,
+        label: jobTitleParam ? decodeURIComponent(jobTitleParam) : "Filtered Job",
+      };
+    }
+    return null;
+  });
   const [locationFilter, setLocationFilter] = useState<{ value: string; label: string }[]>([]);
   const [cityOptions, setCityOptions] = useState<{ value: string; label: string }[]>(DEFAULT_CITY_OPTIONS);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -402,6 +409,8 @@ function CandidatesContent() {
   }, [searchTerm, expFilter, skillFilter, jobFilter, locationFilter]);
 
   useEffect(() => {
+    let active = true;
+
     const isCompanyUser = role && role !== "ADMIN";
     if (isCompanyUser && userId === null) {
       return;
@@ -428,6 +437,8 @@ function CandidatesContent() {
           throw new Error("Something went wrong while fetching candidates");
         }
         const data = await res.json();
+        if (!active) return;
+
         if (data && typeof data.total === "number") {
           setCandidatesData(data.data || []);
           setFiltercandidates(data.data || []);
@@ -444,6 +455,10 @@ function CandidatesContent() {
     };
 
     fetchData();
+
+    return () => {
+      active = false;
+    };
   }, [API_URL, currentPage, searchTerm, expFilter, skillFilter, role, userId, jobFilter, locationFilter]);
 
   const executeDelete = async (candidatesID: string) => {

@@ -32,7 +32,7 @@ export class UsersService {
 
     const computedName = createDto.name || `${createDto.firstName || ''} ${createDto.lastName || ''}`.trim() || 'User';
 
-    await this.prisma.user.create({
+    const newUser = await this.prisma.user.create({
       data: {
         name: computedName,
         firstName: createDto.firstName,
@@ -44,6 +44,18 @@ export class UsersService {
         companyName: createDto.companyName,
       },
     });
+
+    if (newUser.role === 'CANDIDATE') {
+      const existingCandidate = await this.prisma.candidate.findUnique({
+        where: { email },
+      });
+      if (existingCandidate) {
+        await this.prisma.candidate.update({
+          where: { id: existingCandidate.id },
+          data: { userId: newUser.id },
+        });
+      }
+    }
 
     if (createDto.role === 'CLIENT' && createDto.companyName?.trim()) {
       await this.prisma.client.upsert({
@@ -247,12 +259,29 @@ export class UsersService {
     }
 
     if (user.role === 'CANDIDATE') {
-      const candidate = await this.prisma.candidate.findFirst({
+      let candidate = await this.prisma.candidate.findFirst({
         where: { userId: user.id },
         include: {
           skills: { include: { skill: true } },
         },
       });
+
+      // Self-healing: if no candidate is linked by userId, search by email and link it!
+      if (!candidate) {
+        const candidateByEmail = await this.prisma.candidate.findFirst({
+          where: { email: user.email },
+        });
+        if (candidateByEmail) {
+          candidate = await this.prisma.candidate.update({
+            where: { id: candidateByEmail.id },
+            data: { userId: user.id },
+            include: {
+              skills: { include: { skill: true } },
+            },
+          });
+        }
+      }
+
       return {
         statusCode: 200,
         data: {

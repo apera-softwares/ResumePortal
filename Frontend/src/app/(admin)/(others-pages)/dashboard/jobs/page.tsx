@@ -40,10 +40,16 @@ export default function BrowseJobsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const ITEMS_PER_PAGE = 8;
+  const [role, setRole] = useState("");
 
   const [appliedJobIds, setAppliedJobIds] = useState<Set<string>>(new Set());
   const [isResumeAlertOpen, setIsResumeAlertOpen] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setRole(localStorage.getItem("role") || "CANDIDATE");
+  }, []);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -158,6 +164,7 @@ export default function BrowseJobsPage() {
         });
       } else {
         if (res.status === 404 || data.message?.toLowerCase().includes("resume") || data.message?.toLowerCase().includes("profile")) {
+          setSelectedJobId(jobId);
           setIsResumeAlertOpen(true);
         } else {
           toast.error(data.message || "Failed to submit application.");
@@ -182,7 +189,7 @@ export default function BrowseJobsPage() {
         setSearchTerm={setSearchTerm}
         itemsPerPage={ITEMS_PER_PAGE}
         onRefresh={() => setRefreshTrigger((prev) => prev + 1)}
-        role="CANDIDATE"
+        role={role}
         appliedJobIds={appliedJobIds}
         onApply={handleApplyClick}
       />
@@ -236,8 +243,15 @@ export default function BrowseJobsPage() {
       )}
 
       {/* Upload Resume Modal */}
-      <Modal isOpen={isUploadModalOpen} onClose={() => setIsUploadModalOpen(false)} className="max-w-[700px] m-4">
-        <ResumeUploadForm closeModal={() => { setIsUploadModalOpen(false); setRefreshTrigger((prev) => prev + 1); }} />
+      <Modal isOpen={isUploadModalOpen} onClose={() => { setIsUploadModalOpen(false); setSelectedJobId(null); }} className="max-w-[700px] m-4">
+        <ResumeUploadForm 
+          jobId={selectedJobId} 
+          closeModal={() => { 
+            setIsUploadModalOpen(false); 
+            setSelectedJobId(null); 
+            setRefreshTrigger((prev) => prev + 1); 
+          }} 
+        />
       </Modal>
     </>
   );

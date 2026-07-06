@@ -13,6 +13,8 @@ import {
   BadRequestException,
   UseGuards,
   SetMetadata,
+  Req,
+  ForbiddenException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiConsumes, ApiBody, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -153,14 +155,20 @@ export class CandidateController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Toggle public visibility of candidate' })
   @UseGuards(AuthGuard)
-  @SetMetadata('roles', [Role.ADMIN, Role.HR])
+  @SetMetadata('roles', [Role.ADMIN, Role.HR, Role.CANDIDATE])
   @UseGuards(RoleGuard)
   @ApiBody({ schema: { type: 'object', properties: { isPublic: { type: 'boolean' } } } })
   @ApiResponse({ status: 200, description: 'Visibility updated' })
   async updatePublicStatus(
     @Param('id') id: string,
     @Body('isPublic') isPublic: boolean,
+    @Req() req: any,
   ) {
+    const user = req.user;
+    if (user.role === Role.CANDIDATE) {
+      const candidate = await this.candidateService.findOne(id);
+      await this.validateCandidateAccess(candidate, user);
+    }
     return this.candidateService.updatePublicStatus(id, isPublic);
   }
 
@@ -169,10 +177,16 @@ export class CandidateController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get candidate by ID' })
   @UseGuards(AuthGuard)
-  @SetMetadata('roles', [Role.ADMIN, Role.HR, Role.CLIENT])
+  @SetMetadata('roles', [Role.ADMIN, Role.HR, Role.CLIENT, Role.CANDIDATE])
   @UseGuards(RoleGuard)
   @ApiResponse({ status: 200, description: 'Candidate data' })
-  async getById(@Param('id') id: string) {
+  async getById(@Param('id') id: string, @Req() req: any) {
+    const user = req.user;
+    if (user.role === Role.CANDIDATE) {
+      const candidate = await this.candidateService.findOne(id);
+      await this.validateCandidateAccess(candidate, user);
+      return candidate;
+    }
     return this.candidateService.findOne(id);
   }
 
@@ -181,13 +195,19 @@ export class CandidateController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update candidate profile details' })
   @UseGuards(AuthGuard)
-  @SetMetadata('roles', [Role.ADMIN, Role.HR])
+  @SetMetadata('roles', [Role.ADMIN, Role.HR, Role.CANDIDATE])
   @UseGuards(RoleGuard)
   @ApiResponse({ status: 200, description: 'Candidate details updated successfully' })
   async updateCandidate(
     @Param('id') id: string,
     @Body() data: any,
+    @Req() req: any,
   ) {
+    const user = req.user;
+    if (user.role === Role.CANDIDATE) {
+      const candidate = await this.candidateService.findOne(id);
+      await this.validateCandidateAccess(candidate, user);
+    }
     return this.candidateService.updateCandidate(id, data);
   }
 
@@ -257,13 +277,19 @@ export class CandidateController {
   })
   @UseInterceptors(FileInterceptor('file', { storage }))
   @UseGuards(AuthGuard)
-  @SetMetadata('roles', [Role.ADMIN, Role.HR])
+  @SetMetadata('roles', [Role.ADMIN, Role.HR, Role.CANDIDATE])
   @UseGuards(RoleGuard)
   async updateResumeFile(
     @Param('id') id: string,
+    @Req() req: any,
     @UploadedFile() file?: Express.Multer.File,
     @Body('resumeText') resumeText?: string,
   ) {
+    const user = req.user;
+    if (user.role === Role.CANDIDATE) {
+      const candidate = await this.candidateService.findOne(id);
+      await this.validateCandidateAccess(candidate, user);
+    }
     return this.candidateService.updateResumeFile(id, file, resumeText);
   }
 
@@ -327,5 +353,26 @@ export class CandidateController {
     @Body('jobId') jobId: string,
   ) {
     return this.candidateService.applyToJob(id, jobId);
+  }
+
+  private async validateCandidateAccess(candidate: any, user: any): Promise<void> {
+    if (!candidate) return;
+    
+    // 1. Matches by userId directly
+    if (candidate.userId === user.id) return;
+    
+    // 2. Fallback: Matches by email address
+    if (candidate.email && user.email && candidate.email.toLowerCase() === user.email.toLowerCase()) {
+      // Auto-heal/sync the link in the database!
+      if (!candidate.id.startsWith('user-')) {
+        await this.candidateService.updateCandidate(candidate.id, { userId: user.id });
+      }
+      return;
+    }
+    
+    // 3. Fallback: If it's a "user-" prepended mock candidate ID
+    if (candidate.id === `user-${user.id}`) return;
+    
+    throw new ForbiddenException('Access denied. You can only view or modify your own candidate profile.');
   }
 }
