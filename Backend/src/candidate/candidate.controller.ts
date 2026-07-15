@@ -19,7 +19,8 @@ import {
 import { ApiTags, ApiOperation, ApiResponse, ApiConsumes, ApiBody, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { CandidateService } from './candidate.service';
-import { diskStorage } from 'multer';
+import { diskStorage, memoryStorage } from 'multer';
+
 import type { Express } from 'express';
 import { extname } from 'path';
 import { CandidateDto } from 'src/Validations/candidate/create-candidate.dto';
@@ -30,13 +31,9 @@ import { $Enums } from '@prisma/client';
 
 type CandidateStatus = $Enums.CandidateStatus;
 
-const storage = diskStorage({
-  destination: './uploads',
-  filename: (_req, file, cb) => {
-    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-    cb(null, `${file.fieldname}-${uniqueSuffix}${extname(file.originalname)}`);
-  },
-});
+// Use memoryStorage so file.buffer is available for S3/R2 upload
+const storage = memoryStorage();
+
 
 @ApiTags('Candidates')
 @Controller('candidates')
@@ -182,12 +179,7 @@ export class CandidateController {
   @ApiResponse({ status: 200, description: 'Candidate data' })
   async getById(@Param('id') id: string, @Req() req: any) {
     const user = req.user;
-    if (user.role === Role.CANDIDATE) {
-      const candidate = await this.candidateService.findOne(id);
-      await this.validateCandidateAccess(candidate, user);
-      return candidate;
-    }
-    return this.candidateService.findOne(id);
+    return this.candidateService.findOne(id, user.id, user.role);
   }
 
   // ── Update candidate details by ID ─────────────────────────────────────────

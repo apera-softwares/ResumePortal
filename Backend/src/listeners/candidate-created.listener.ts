@@ -6,6 +6,25 @@ import { join, extname } from 'path';
 import * as fs from 'fs';
 import * as mammoth from 'mammoth';
 import { execSync } from 'child_process';
+import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
+
+const client = new S3Client({
+  region: "auto",
+  endpoint: process.env.S3_ENPOINT,
+  credentials: {
+    accessKeyId: process.env.ACCESS_KEY_ID!,
+    secretAccessKey: process.env.SECRET_ACCESS_KEY!,
+  },
+});
+
+async function streamToBuffer(stream: any): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    const chunks: any[] = [];
+    stream.on('data', (chunk) => chunks.push(chunk));
+    stream.on('error', reject);
+    stream.on('end', () => resolve(Buffer.concat(chunks)));
+  });
+}
 
 @Injectable()
 export class CandidateCreatedListener {
@@ -33,6 +52,30 @@ export class CandidateCreatedListener {
       const uniqueFileName = candidate.resume;
       const fileExtension = extname(uniqueFileName).toLowerCase();
       const filePath = join(process.cwd(), 'uploads', uniqueFileName);
+
+      let tempFileCreated = false;
+      if (!fs.existsSync(filePath)) {
+        console.log(`[Event Handler] File not found locally, attempting to fetch from R2/S3: ${uniqueFileName}`);
+        try {
+          const getCommand = new GetObjectCommand({
+            Bucket: process.env.S3_BUCKET!,
+            Key: uniqueFileName,
+          });
+          const s3Response = await client.send(getCommand);
+          const responseBuffer = await streamToBuffer(s3Response.Body);
+          
+          // Ensure directory exists
+          const dir = join(process.cwd(), 'uploads');
+          if (!fs.existsSync(dir)) {
+            fs.mkdirSync(dir, { recursive: true });
+          }
+          fs.writeFileSync(filePath, responseBuffer);
+          tempFileCreated = true;
+          console.log(`[Event Handler] Successfully downloaded file from R2/S3 to temp local path: ${filePath}`);
+        } catch (s3Error) {
+          console.error(`[Event Handler] Failed to fetch file from R2/S3:`, s3Error);
+        }
+      }
 
       let resumeText = '';
 
@@ -108,6 +151,16 @@ export class CandidateCreatedListener {
         console.log(
           `[Event Handler] Text extraction completed successfully for candidate ID: ${candidateId}`,
         );
+
+        // Clean up temporary local file if it was created from R2/S3
+        if (tempFileCreated && fs.existsSync(filePath)) {
+          try {
+            fs.unlinkSync(filePath);
+            console.log(`[Event Handler] Cleaned up temporary local file: ${filePath}`);
+          } catch (err) {
+            console.error(`[Event Handler] Error cleaning up temporary file:`, err);
+          }
+        }
       } else {
         console.error(
           `[Event Handler] Resume file does not exist on disk: ${filePath}`,

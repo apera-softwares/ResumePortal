@@ -3,6 +3,7 @@ import {
   HttpStatus,
   Injectable,
   NotFoundException,
+  ForbiddenException,
 } from '@nestjs/common';
 
 import { CreateJobDto } from 'src/Validations/job/create-job.dto';
@@ -16,13 +17,23 @@ export class JobsService {
 
   // ── Helpers ────────────────────────────────────────────────────────────────
 
-  /** Resolve a client name → clientId via upsert, returns undefined if no name given */
+  /** Resolve a client name → clientId, returns undefined if no name given. Case-insensitive. */
   private async resolveClientId(name?: string): Promise<string | undefined> {
     if (!name?.trim()) return undefined;
-    const clientObj = await this.prisma.client.upsert({
-      where: { name: name.trim() },
-      update: {},
-      create: { name: name.trim() },
+    const trimmedName = name.trim();
+    const existingClient = await this.prisma.client.findFirst({
+      where: {
+        name: {
+          equals: trimmedName,
+          mode: 'insensitive',
+        },
+      },
+    });
+    if (existingClient) {
+      return existingClient.id;
+    }
+    const clientObj = await this.prisma.client.create({
+      data: { name: trimmedName },
     });
     return clientObj.id;
   }
@@ -55,7 +66,17 @@ export class JobsService {
     try {
       const { client, skills, location, ...jobData } = createJobDto;
 
-      const clientId = await this.resolveClientId(client);
+      let clientId = await this.resolveClientId(client);
+      const user = await this.prisma.user.findUnique({
+        where: { id: createdById },
+      });
+      if (user?.role === 'CLIENT') {
+        if (!user.clientId) {
+          throw new ForbiddenException('Access denied. No company associated with your client account.');
+        }
+        clientId = user.clientId;
+      }
+
       const locationId = await this.resolveLocationId(location);
 
       const job = await this.prisma.job.create({
@@ -105,8 +126,22 @@ export class JobsService {
     search?: string,
     location?: string,
     type?: string,
+    userId?: string,
+    role?: string,
   ) {
     const where: any = {};
+
+    const roleUpper = role?.toUpperCase();
+    if (roleUpper === 'CLIENT' && userId) {
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+      });
+      if (user?.clientId) {
+        where.clientId = user.clientId;
+      } else {
+        where.id = 'none';
+      }
+    }
 
     if (search?.trim()) {
       const term = search.trim();
@@ -192,14 +227,32 @@ export class JobsService {
 
   // ── Update ─────────────────────────────────────────────────────────────────
 
-  async update(id: string, updateJobDto: UpdateJobDto) {
+  async update(id: string, updateJobDto: UpdateJobDto, userId?: string, role?: string) {
     const existingJob = await this.prisma.job.findUnique({ where: { id } });
     if (!existingJob)
       throw new NotFoundException(`Job not found with id: ${id}`);
 
+    const roleUpper = role?.toUpperCase();
+    if (roleUpper === 'CLIENT' && userId) {
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+      });
+      if (existingJob.clientId !== user?.clientId) {
+        throw new ForbiddenException('Access denied. You do not own this job.');
+      }
+    }
+
     const { client, skills, location, ...jobData } = updateJobDto;
 
-    const clientId = await this.resolveClientId(client);
+    let clientId = await this.resolveClientId(client);
+    if (roleUpper === 'CLIENT' && userId) {
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+      });
+      if (user?.clientId) {
+        clientId = user.clientId;
+      }
+    }
     const locationId = await this.resolveLocationId(location);
 
     const updatedJob = await this.prisma.job.update({
@@ -245,7 +298,21 @@ export class JobsService {
 
   // ── Delete ─────────────────────────────────────────────────────────────────
 
-  async jobDeleteById(id: string) {
+  async jobDeleteById(id: string, userId?: string, role?: string) {
+    const existingJob = await this.prisma.job.findUnique({ where: { id } });
+    if (!existingJob)
+      throw new NotFoundException(`Job not found with id: ${id}`);
+
+    const roleUpper = role?.toUpperCase();
+    if (roleUpper === 'CLIENT' && userId) {
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+      });
+      if (existingJob.clientId !== user?.clientId) {
+        throw new ForbiddenException('Access denied. You do not own this job.');
+      }
+    }
+
     try {
       await this.prisma.job.delete({ where: { id } });
       return { message: 'Job deleted successfully', statusCode: 200 };

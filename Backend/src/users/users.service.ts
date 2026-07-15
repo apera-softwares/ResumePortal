@@ -11,6 +11,17 @@ import { LoginDto } from 'src/Validations/users/login.dto';
 import { UsersUpdateDto } from 'src/Validations/users/users-update.dto';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
+import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+
+const client = new S3Client({
+  region: "auto",
+  endpoint: process.env.S3_ENPOINT,
+  credentials: {
+    accessKeyId: process.env.ACCESS_KEY_ID!,
+    secretAccessKey: process.env.SECRET_ACCESS_KEY!,
+  },
+});
 
 @Injectable()
 export class UsersService {
@@ -32,6 +43,27 @@ export class UsersService {
 
     const computedName = createDto.name || `${createDto.firstName || ''} ${createDto.lastName || ''}`.trim() || 'User';
 
+    let clientId: string | null = null;
+    if (createDto.role === 'CLIENT' && createDto.companyName?.trim()) {
+      const trimmedName = createDto.companyName.trim();
+      const existingClient = await this.prisma.client.findFirst({
+        where: {
+          name: {
+            equals: trimmedName,
+            mode: 'insensitive',
+          },
+        },
+      });
+      if (existingClient) {
+        clientId = existingClient.id;
+      } else {
+        const client = await this.prisma.client.create({
+          data: { name: trimmedName },
+        });
+        clientId = client.id;
+      }
+    }
+
     const newUser = await this.prisma.user.create({
       data: {
         name: computedName,
@@ -41,7 +73,7 @@ export class UsersService {
         password: passwordHash,
         role: createDto.role || 'CANDIDATE',
         mobile: createDto.mobile,
-        companyName: createDto.companyName,
+        clientId: clientId,
       },
     });
 
@@ -55,14 +87,6 @@ export class UsersService {
           data: { userId: newUser.id },
         });
       }
-    }
-
-    if (createDto.role === 'CLIENT' && createDto.companyName?.trim()) {
-      await this.prisma.client.upsert({
-        where: { name: createDto.companyName.trim() },
-        update: {},
-        create: { name: createDto.companyName.trim() },
-      });
     }
 
     return { message: 'User created successfully', statusCode: 201 };
@@ -143,25 +167,29 @@ export class UsersService {
         skip,
         take: limit,
         orderBy: { createdAt: 'desc' },
-        select: {
-          id: true,
-          name: true,
-          firstName: true,
-          lastName: true,
-          email: true,
-          role: true,
-          mobile: true,
-          companyName: true,
-          createdAt: true,
+        include: {
+          client: true,
         },
       }),
       this.prisma.user.count({ where }),
     ]);
 
+    const mappedUsers = users.map((u) => ({
+      id: u.id,
+      name: u.name,
+      firstName: u.firstName,
+      lastName: u.lastName,
+      email: u.email,
+      role: u.role,
+      mobile: u.mobile,
+      companyName: u.client?.name || null,
+      createdAt: u.createdAt,
+    }));
+
     return {
       statusCode: 200,
       message: 'Users fetched successfully',
-      data: users,
+      data: mappedUsers,
       pagination: { total, page, limit, totalPages: Math.ceil(total / limit) },
     };
   }
@@ -170,20 +198,23 @@ export class UsersService {
   async getUserById(id: string) {
     const user = await this.prisma.user.findUnique({
       where: { id },
-      select: {
-        id: true,
-        name: true,
-        firstName: true,
-        lastName: true,
-        email: true,
-        role: true,
-        mobile: true,
-        companyName: true,
-        createdAt: true,
+      include: {
+        client: true,
       },
     });
     if (!user) throw new NotFoundException('User not found');
-    return { statusCode: 200, data: user };
+    const mapped = {
+      id: user.id,
+      name: user.name,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      role: user.role,
+      mobile: user.mobile,
+      companyName: user.client?.name || null,
+      createdAt: user.createdAt,
+    };
+    return { statusCode: 200, data: mapped };
   }
 
   // ── Update By ID ───────────────────────────────────────────────────────────
@@ -191,7 +222,41 @@ export class UsersService {
     const exists = await this.prisma.user.findUnique({ where: { id } });
     if (!exists) throw new NotFoundException('User not found');
 
+    let clientId: string | null | undefined = undefined;
+    if (dto.role && dto.role !== 'CLIENT') {
+      clientId = null;
+    } else {
+      const isClient = dto.role === 'CLIENT' || (!dto.role && exists.role === 'CLIENT');
+      if (isClient) {
+        if (dto.companyName?.trim()) {
+          const trimmedName = dto.companyName.trim();
+          const existingClient = await this.prisma.client.findFirst({
+            where: {
+              name: {
+                equals: trimmedName,
+                mode: 'insensitive',
+              },
+            },
+          });
+          if (existingClient) {
+            clientId = existingClient.id;
+          } else {
+            const client = await this.prisma.client.create({
+              data: { name: trimmedName },
+            });
+            clientId = client.id;
+          }
+        } else if (dto.companyName === '') {
+          clientId = null;
+        }
+      }
+    }
+
     const updateData: any = { ...dto };
+    delete updateData.companyName;
+    if (clientId !== undefined) {
+      updateData.clientId = clientId;
+    }
     if (dto.password) {
       updateData.password = await bcrypt.hash(dto.password, 10);
     }
@@ -205,30 +270,26 @@ export class UsersService {
     const updated = await this.prisma.user.update({
       where: { id },
       data: updateData,
-      select: { 
-        id: true, 
-        name: true, 
-        firstName: true,
-        lastName: true,
-        email: true, 
-        role: true,
-        mobile: true,
-        companyName: true,
+      include: {
+        client: true,
       },
     });
 
-    if (dto.role === 'CLIENT' && dto.companyName?.trim()) {
-      await this.prisma.client.upsert({
-        where: { name: dto.companyName.trim() },
-        update: {},
-        create: { name: dto.companyName.trim() },
-      });
-    }
+    const mapped = {
+      id: updated.id,
+      name: updated.name,
+      firstName: updated.firstName,
+      lastName: updated.lastName,
+      email: updated.email,
+      role: updated.role,
+      mobile: updated.mobile,
+      companyName: updated.client?.name || null,
+    };
 
     return {
       message: 'User updated successfully',
       statusCode: 200,
-      data: updated,
+      data: mapped,
     };
   }
 
@@ -282,11 +343,19 @@ export class UsersService {
         }
       }
 
+      const command = new GetObjectCommand({
+        Bucket: process.env.S3_BUCKET,
+        Key: candidate?.resume,
+      });
+
+      const presignedUrl = await getSignedUrl(client, command, { expiresIn: 3600 });
+
       return {
         statusCode: 200,
         data: {
           user,
           candidate,
+          resumePdf: presignedUrl
         },
       };
     }

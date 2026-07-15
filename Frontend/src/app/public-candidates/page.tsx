@@ -102,6 +102,8 @@ interface Candidate {
   yearsOfExperience: number;
   education?: string;
   noticePeriod: number;
+  budget?: string;
+  calculatedBudget?: string;
   resume: string;
   resumeText?: string;
   cleanedResume?: string;
@@ -442,6 +444,7 @@ function PublicCandidatesContent() {
                     <TableCell isHeader className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-start">Skills</TableCell>
                     <TableCell isHeader className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-start">Location</TableCell>
                     <TableCell isHeader className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-start">Notice Period (Days)</TableCell>
+                    <TableCell isHeader className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-start">Budget</TableCell>
                     <TableCell isHeader className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-center">View Resume</TableCell>
                   </TableRow>
                 </TableHeader>
@@ -509,6 +512,11 @@ function PublicCandidatesContent() {
                             {cand.noticePeriod !== undefined && cand.noticePeriod !== null ? (cand.noticePeriod === 0 ? "Immediate Join" : String(cand.noticePeriod)) : "N/A"}
                           </TableCell>
 
+                          {/* Budget */}
+                          <TableCell className="px-6 py-4 text-start text-sm text-gray-700 dark:text-gray-300 font-medium">
+                            {cand.calculatedBudget || (cand.budget ? cand.budget.replace(/\/month/gi, "").replace(/month/gi, "").trim() : "N/A")}
+                          </TableCell>
+
                           {/* View Resume */}
                           <TableCell className="px-6 py-4 text-center">
                             <button
@@ -523,7 +531,7 @@ function PublicCandidatesContent() {
                     })
                   ) : (
                     <TableRow>
-                      <td colSpan={6} className="py-24 text-center text-gray-400 dark:text-gray-500 text-sm">
+                      <td colSpan={7} className="py-24 text-center text-gray-400 dark:text-gray-500 text-sm">
                         No candidates found.
                       </td>
                     </TableRow>

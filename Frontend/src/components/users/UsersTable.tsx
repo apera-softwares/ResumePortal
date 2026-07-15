@@ -665,7 +665,6 @@ export default function UsersTable({
                   type="text"
                   value={formData.lastName}
                   onChange={handleChange}
-                  required
                 />
               </div>
             </div>
@@ -710,7 +709,6 @@ export default function UsersTable({
                   type="text"
                   value={formData.companyName}
                   onChange={handleChange}
-                  required
                 />
               </div>
             )}
