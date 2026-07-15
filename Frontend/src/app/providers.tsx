@@ -5,6 +5,7 @@ import { ThemeProvider } from '@/context/ThemeContext';
 import { FontProvider } from '@/context/FontContext';
 import { Toaster } from 'react-hot-toast';
 import axios from 'axios';
+import SmoothScroll from '@/components/SmoothScroll';
 
 axios.defaults.withCredentials = true;
 
@@ -45,6 +46,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <ThemeProvider>
       <FontProvider>
         <SidebarProvider>
+          <SmoothScroll />
           {children}
           <Toaster position="top-center" containerStyle={{ zIndex: 9999999 }} />
         </SidebarProvider>

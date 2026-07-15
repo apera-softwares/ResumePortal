@@ -5,7 +5,7 @@ import toast from 'react-hot-toast'
 import { useRouter } from 'next/navigation';
 
 
-const addskills = () => {
+const AddSkills = () => {
   const API_URL = process.env.NEXT_PUBLIC_API_URL;
   const [skill, setSkill] = useState('');
   const [skills, setSkills] = useState<{ id: string; name: string }[]>([]);
@@ -204,4 +204,4 @@ const addskills = () => {
   )
 }
 
-export default addskills
+export default AddSkills

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useModal } from "../../hooks/useModal";
+import { gsap } from "gsap";
 import { Modal } from "../ui/modal";
 import ResumeUploadForm from "../ResumeUploadForm/ResumeUploadForm";
 
@@ -147,6 +148,43 @@ export default function PublicJoblisting() {
   const uniqueLocations = ["REMOTE", "MUMBAI", "DELHI", "BANGALORE", "HYDERABAD", "CHENNAI", "PUNE"];
   const uniqueTypes = ["FULL_TIME", "INTERN", "CONTRACT", "FREELANCING"];
 
+  // GSAP animation on mount
+  useEffect(() => {
+    const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
+    tl.fromTo(".hero-title", 
+      { opacity: 0, y: 40 }, 
+      { opacity: 1, y: 0, duration: 1.0, delay: 0.1 }
+    )
+    .fromTo(".hero-description", 
+      { opacity: 0, y: 25 }, 
+      { opacity: 1, y: 0, duration: 0.8 }, 
+      "-=0.7"
+    )
+    .fromTo(".search-console", 
+      { opacity: 0, scale: 0.96, y: 20 }, 
+      { opacity: 1, scale: 1, y: 0, duration: 0.8 }, 
+      "-=0.6"
+    )
+    .fromTo(".quick-filters button", 
+      { opacity: 0, y: 15 }, 
+      { opacity: 1, y: 0, duration: 0.5, stagger: 0.08 }, 
+      "-=0.5"
+    );
+  }, []);
+
+  // GSAP animation when jobList changes
+  useEffect(() => {
+    if (jobList.length > 0) {
+      const timer = setTimeout(() => {
+        gsap.fromTo(".job-card-item", 
+          { opacity: 0, y: 25, scale: 0.97 }, 
+          { opacity: 1, y: 0, scale: 1, duration: 0.6, stagger: 0.06, ease: "power2.out" }
+        );
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [jobList, viewMode]);
+
   return (
     <div className="w-full bg-gray-50 dark:bg-gray-950 min-h-screen font-outfit transition-colors duration-300">
       {/* Premium Hero Section with Ambient Lights */}
@@ -156,15 +194,15 @@ export default function PublicJoblisting() {
         <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-blue-600/5 dark:bg-blue-600/5 rounded-full blur-[120px] pointer-events-none"></div>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
-          <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight text-gray-900 dark:text-white mb-6">
+          <h1 className="hero-title text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight text-gray-900 dark:text-white mb-6">
             Find Your Next <span className="bg-gradient-to-r from-blue-600 to-blue-500 bg-clip-text text-transparent">Dream Career</span>
           </h1>
-          <p className="text-base sm:text-lg md:text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto mb-10 leading-relaxed">
+          <p className="hero-description text-base sm:text-lg md:text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto mb-10 leading-relaxed">
             Discover thousands of high-paying opportunities from leading companies. Refine by title, location, or type, and apply instantly.
           </p>
 
           {/* Premium Multi-Field Search Console */}
-          <div className="max-w-4xl mx-auto bg-white dark:bg-gray-900 rounded-2xl md:rounded-full p-2.5 sm:p-3 shadow-xl border border-gray-100 dark:border-gray-800 flex flex-col md:flex-row items-stretch md:items-center gap-2 md:gap-0">
+          <div className="search-console max-w-4xl mx-auto bg-white dark:bg-gray-900 rounded-2xl md:rounded-full p-2.5 sm:p-3 shadow-xl border border-gray-100 dark:border-gray-800 flex flex-col md:flex-row items-stretch md:items-center gap-2 md:gap-0">
             {/* Field 1: What (Job Title / Skill / Company) */}
             <div className="flex-1 flex items-center gap-3 px-4 py-2 border-b md:border-b-0 md:border-r border-gray-100 dark:border-gray-800">
               <svg className="w-5 h-5 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -232,7 +270,7 @@ export default function PublicJoblisting() {
           </div>
 
           {/* Quick Filter Badges */}
-          <div className="flex flex-wrap items-center justify-center gap-2.5 mt-8 text-sm">
+          <div className="quick-filters flex flex-wrap items-center justify-center gap-2.5 mt-8 text-sm">
             <span className="text-gray-500 font-medium">Quick Filters:</span>
             <button 
               onClick={() => handleBadgeClick('All')}
@@ -299,7 +337,7 @@ export default function PublicJoblisting() {
                   return (
                     <div
                       key={job.id}
-                      className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800/80 rounded-2xl p-4.5 shadow-sm hover:shadow-xl hover:-translate-y-1 dark:hover:border-blue-500/30 transition-all duration-300 flex flex-col justify-between group"
+                      className="job-card-item bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800/80 rounded-2xl p-4.5 shadow-sm hover:shadow-xl hover:-translate-y-1 dark:hover:border-blue-500/30 transition-all duration-300 flex flex-col justify-between group"
                     >
                       <div>
                         {/* Top Row: Logo & Job Type */}
@@ -391,11 +429,11 @@ export default function PublicJoblisting() {
               </div>
             ) : (
               /* LIST VIEW */
-              <div className="flex flex-col justify-between overflow-hidden rounded-3xl border border-gray-200 dark:border-[#222138] bg-white dark:bg-[#121124] shadow-xs">
+              <div className="flex flex-col justify-between overflow-hidden rounded-3xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-sm">
                 <div className="max-w-full overflow-x-auto">
                   <table className="w-full text-left border-collapse">
                     <thead>
-                      <tr className="h-14 border-b border-gray-200/40 dark:border-[#222138]/60 bg-gray-50/50 dark:bg-[#0b0a19]/40">
+                      <tr className="h-14 border-b border-gray-100 dark:border-gray-800 bg-gray-50/60 dark:bg-gray-900/60">
                         <th className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-start">Job Details</th>
                         <th className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-start">Job Type</th>
                         <th className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-start">Location & Salary</th>
@@ -403,12 +441,12 @@ export default function PublicJoblisting() {
                         <th className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-center">Actions</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-200/40 dark:divide-[#222138]/60">
+                    <tbody className="divide-y divide-gray-100 dark:divide-gray-800/60">
                       {jobList.map((job) => {
                         const { gradient, initial } = getAvatarStyle(job.client);
                         const isApplied = appliedJobs.includes(job.id);
                         return (
-                          <tr key={job.id} className="hover:bg-gray-50/50 dark:hover:bg-[#1c1b35]/20 transition-all">
+                          <tr key={job.id} className="job-card-item hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition-all">
                             {/* Job Details */}
                             <td className="px-6 py-4 text-start">
                               <div className="flex items-center gap-3">
@@ -452,7 +490,7 @@ export default function PublicJoblisting() {
                                   job.skills.map((skill, index) => (
                                     <span
                                       key={index}
-                                      className="bg-gray-100 dark:bg-[#1c1b35] text-gray-600 dark:text-gray-300 px-2 py-0.5 rounded-md text-xs border border-gray-200/50 dark:border-[#2d2c4b]"
+                                      className="bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300 px-2 py-0.5 rounded-md text-xs border border-gray-200/50 dark:border-gray-700"
                                     >
                                       {skill}
                                     </span>
@@ -469,7 +507,7 @@ export default function PublicJoblisting() {
                                 onClick={() => handleApply(job.id)}
                                 className={`px-4 py-1.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all duration-200 mx-auto ${
                                   isApplied
-                                    ? "bg-gray-100 dark:bg-[#1a2333] text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-800 cursor-default"
+                                    ? "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-700 cursor-default"
                                     : "bg-blue-600 hover:bg-blue-700 text-white hover:scale-[1.01] active:scale-[0.99] shadow-xs"
                                 }`}
                               >

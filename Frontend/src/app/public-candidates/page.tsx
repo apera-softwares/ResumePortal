@@ -20,13 +20,13 @@ const formatLocation = (loc: string) => {
 const getCustomSelectStyles = (isDark: boolean) => ({
   control: (provided: any, state: any) => ({
     ...provided,
-    backgroundColor: isDark ? '#0b0a19' : '#ffffff',
+    backgroundColor: isDark ? '#030712' : '#ffffff',
     borderColor: state.isFocused
       ? isDark
-        ? '#8b5cf6'
-        : '#3b82f6'
+        ? '#6366f1'
+        : '#4f46e5'
       : isDark
-        ? '#222138'
+        ? '#1f2937'
         : '#e5e7eb',
     borderRadius: '1rem',
     padding: '2px 4px',
@@ -35,19 +35,19 @@ const getCustomSelectStyles = (isDark: boolean) => ({
     minWidth: '180px',
     boxShadow: state.isFocused
       ? isDark
-        ? '0 0 0 2px rgba(139, 92, 246, 0.2)'
-        : '0 0 0 2px rgba(59, 130, 246, 0.2)'
+        ? '0 0 0 2px rgba(99, 102, 241, 0.2)'
+        : '0 0 0 2px rgba(79, 70, 229, 0.2)'
       : 'none',
     '&:hover': {
-      borderColor: isDark ? '#353354' : '#d1d5db',
+      borderColor: isDark ? '#374151' : '#d1d5db',
     },
     transition: 'all 0.2s ease',
   }),
   menu: (provided: any) => ({
     ...provided,
-    backgroundColor: isDark ? '#121124' : '#ffffff',
+    backgroundColor: isDark ? '#111827' : '#ffffff',
     borderRadius: '0.75rem',
-    border: isDark ? '1px solid #222138' : '1px solid #e5e7eb',
+    border: isDark ? '1px solid #1f2937' : '1px solid #e5e7eb',
     boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
     overflow: 'hidden',
     zIndex: 9999,
@@ -64,11 +64,11 @@ const getCustomSelectStyles = (isDark: boolean) => ({
     ...provided,
     backgroundColor: state.isSelected
       ? isDark
-        ? '#8b5cf6'
-        : '#3b82f6'
+        ? '#6366f1'
+        : '#4f46e5'
       : state.isFocused
         ? isDark
-          ? '#1c1b35'
+          ? '#1f2937'
           : '#f3f4f6'
         : 'transparent',
     color: state.isSelected
@@ -81,7 +81,7 @@ const getCustomSelectStyles = (isDark: boolean) => ({
     fontSize: '0.875rem',
     cursor: 'pointer',
     '&:active': {
-      backgroundColor: isDark ? '#8b5cf6' : '#3b82f6',
+      backgroundColor: isDark ? '#6366f1' : '#4f46e5',
     },
   }),
 });
@@ -312,9 +312,9 @@ function PublicCandidatesContent() {
   }
 
   return (
-    <div className="min-h-screen w-full flex flex-col relative bg-gray-50 dark:bg-[#0b0a19] transition-colors duration-300">
+    <div className="min-h-screen w-full flex flex-col relative bg-gray-50 dark:bg-gray-950 transition-colors duration-300">
       {/* Premium Glassmorphic Header */}
-      <header className="sticky top-0 z-50 w-full backdrop-blur-md bg-white/80 dark:bg-[#0b0a19]/80 border-b border-gray-100 dark:border-[#1c1b2e] transition-all duration-300">
+      <header className="sticky top-0 z-50 w-full backdrop-blur-md bg-white/80 dark:bg-gray-950/80 border-b border-gray-100 dark:border-gray-900 transition-all duration-300">
         <div className="max-w-7xl mx-auto flex justify-between items-center px-4 sm:px-6 lg:px-8 h-16 sm:h-20">
           <div className="flex items-center gap-4">
             <img 
@@ -325,7 +325,7 @@ function PublicCandidatesContent() {
             />
             <button 
               onClick={() => router.push("/")}
-              className="px-3.5 py-2 sm:px-4.5 sm:py-2.5 text-xs sm:text-sm font-semibold rounded-xl border border-gray-200 dark:border-[#222138] bg-white dark:bg-[#121124] hover:bg-gray-50 dark:hover:bg-[#1c1b35]/80 text-gray-700 dark:text-gray-200 shadow-sm transition-all"
+              className="px-3.5 py-2 sm:px-4.5 sm:py-2.5 text-xs sm:text-sm font-semibold rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-850/80 text-gray-700 dark:text-gray-200 shadow-sm transition-all"
             >
               Home
             </button>
@@ -334,7 +334,7 @@ function PublicCandidatesContent() {
           <div className="flex items-center gap-2.5 sm:gap-3.5">
             <button
               onClick={toggleTheme}
-              className="p-2 sm:p-2.5 rounded-xl border border-gray-200 dark:border-[#222138] bg-white dark:bg-[#121124] text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-[#1c1b35] transition-all shadow-sm"
+              className="p-2 sm:p-2.5 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-850 transition-all shadow-sm"
               aria-label="Toggle Theme"
             >
               {isDarkMode ? (
@@ -357,7 +357,7 @@ function PublicCandidatesContent() {
 
             <button 
               onClick={openModal} 
-              className="group flex items-center gap-2 px-3.5 py-2 sm:px-4.5 sm:py-2.5 text-xs sm:text-sm font-semibold rounded-xl border border-gray-200 dark:border-[#222138] bg-white dark:bg-[#121124] hover:bg-gray-50 dark:hover:bg-[#1c1b35]/80 text-gray-700 dark:text-gray-200 shadow-sm transition-all"
+              className="group flex items-center gap-2 px-3.5 py-2 sm:px-4.5 sm:py-2.5 text-xs sm:text-sm font-semibold rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-850/80 text-gray-700 dark:text-gray-200 shadow-sm transition-all"
             >
               <svg className="w-4 h-4 text-gray-500 dark:text-gray-400 group-hover:text-blue-500 dark:group-hover:text-blue-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
@@ -380,7 +380,7 @@ function PublicCandidatesContent() {
         <div className="flex flex-col gap-6">
           
           {/* Header Section */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 bg-white dark:bg-[#121124] border border-gray-200 dark:border-[#222138] rounded-3xl shadow-xs">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-3xl shadow-xs">
             <div>
               <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
                 Public Candidate Database
@@ -422,7 +422,7 @@ function PublicCandidatesContent() {
                   placeholder="Search candidates..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 text-sm text-gray-900 bg-gray-50 dark:bg-[#0b0a19] border border-gray-200 dark:border-[#222138] rounded-2xl focus:outline-none focus:bg-white dark:focus:bg-[#0b0a19] dark:text-gray-200 transition-all"
+                  className="w-full pl-10 pr-4 py-2.5 text-sm text-gray-900 bg-gray-50 dark:bg-gray-950 border border-gray-150 dark:border-gray-800 rounded-2xl focus:outline-none focus:bg-white dark:focus:bg-gray-950 dark:text-gray-200 transition-all"
                 />
                 <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -434,10 +434,10 @@ function PublicCandidatesContent() {
           </div>
 
           {/* Table Container */}
-          <div className="flex flex-col justify-between overflow-hidden rounded-3xl border border-gray-200 dark:border-[#222138] bg-white dark:bg-[#121124] shadow-xs">
+          <div className="flex flex-col justify-between overflow-hidden rounded-3xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-sm">
             <div className="max-w-full overflow-x-auto h-[70vh] overflow-y-auto relative scrollbar-thin">
               <Table>
-                <TableHeader className="sticky top-0 z-10 backdrop-blur-md bg-white/95 dark:bg-[#121124]/95 border-b border-gray-200/40 dark:border-[#222138]/60">
+                <TableHeader className="sticky top-0 z-10 backdrop-blur-md bg-white/95 dark:bg-gray-900/95 border-b border-gray-100 dark:border-gray-800/60">
                   <TableRow className="h-14">
                     <TableCell isHeader className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-start">First Name</TableCell>
                     <TableCell isHeader className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-start">Experience</TableCell>
@@ -449,7 +449,7 @@ function PublicCandidatesContent() {
                   </TableRow>
                 </TableHeader>
 
-                <TableBody className="divide-y divide-gray-200/40 dark:divide-[#222138]/60">
+                <TableBody className="divide-y divide-gray-100 dark:divide-gray-800/60">
                   {candidatesData.length > 0 ? (
                     candidatesData.map((cand, index) => {
                       const avatar = getAvatarStyle(cand.firstName, cand.lastName);
@@ -460,7 +460,7 @@ function PublicCandidatesContent() {
                       const serialNumber = (currentPage - 1) * ITEMS_PER_PAGE + index + 1;
                       
                       return (
-                        <TableRow key={cand.id} className="hover:bg-gray-50/50 dark:hover:bg-[#1c1b35]/20 transition-all border-b border-gray-200/40 dark:border-[#222138]/60">
+                        <TableRow key={cand.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition-all border-b border-gray-100 dark:border-gray-800/60">
                           {/* First Name & Avatar */}
                           <TableCell className="px-6 py-4 text-start">
                             <div className="flex items-center gap-3">
@@ -475,7 +475,7 @@ function PublicCandidatesContent() {
 
                           {/* Experience */}
                           <TableCell className="px-6 py-4 text-start text-sm text-gray-700 dark:text-gray-300">
-                            <span className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-blue-50 dark:bg-[#1a233d]/50 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-[#23315a]/50">
+                            <span className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-100 dark:border-gray-700">
                               {(() => {
                                 const exp = cand.yearsOfExperience;
                                 if (!exp || exp === 0) return "Fresher";
@@ -490,7 +490,7 @@ function PublicCandidatesContent() {
                             <div className="flex flex-wrap gap-1.5">
                               {cand.skills && cand.skills.length > 0 ? (
                                 cand.skills.map((s, i) => (
-                                  <span key={i} className="bg-gray-100 dark:bg-[#1c1b35] text-gray-600 dark:text-gray-300 px-2 py-0.5 rounded-md text-xs border border-gray-200/50 dark:border-[#2d2c4b]">
+                                  <span key={i} className="bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300 px-2 py-0.5 rounded-md text-xs border border-gray-150 dark:border-gray-750">
                                     {s.name}
                                   </span>
                                 ))
@@ -521,7 +521,7 @@ function PublicCandidatesContent() {
                           <TableCell className="px-6 py-4 text-center">
                             <button
                               onClick={() => router.push(`/public-candidates?candidateId=${cand.id}`)}
-                              className="px-4 py-1.5 rounded-xl text-xs font-semibold border border-gray-200 dark:border-[#2d2c4b] text-gray-700 dark:text-gray-200 bg-white dark:bg-[#121124] hover:bg-gray-50 dark:hover:bg-[#1c1b35] transition-all shadow-xs"
+                              className="px-4 py-1.5 rounded-xl text-xs font-semibold border border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all shadow-xs"
                             >
                               View
                             </button>
@@ -531,7 +531,7 @@ function PublicCandidatesContent() {
                     })
                   ) : (
                     <TableRow>
-                      <td colSpan={7} className="py-24 text-center text-gray-400 dark:text-gray-500 text-sm">
+                      <td colSpan={7} className="py-24 text-center text-gray-400 dark:text-gray-550 text-sm">
                         No candidates found.
                       </td>
                     </TableRow>
@@ -542,7 +542,7 @@ function PublicCandidatesContent() {
 
             {/* Pagination Controls */}
             {totalCount > 0 && (
-              <div className="flex flex-col sm:flex-row justify-between items-center gap-4 px-6 py-4 border-t border-gray-200/40 dark:border-[#222138]/60 bg-gray-50/50 dark:bg-[#0b0a19]/40">
+              <div className="flex flex-col sm:flex-row justify-between items-center gap-4 px-6 py-4 border-t border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-950/40">
                 <span className="text-xs text-gray-500 dark:text-gray-400">
                   Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1} to {Math.min(currentPage * ITEMS_PER_PAGE, totalCount)} of {totalCount} candidates
                 </span>
@@ -551,7 +551,7 @@ function PublicCandidatesContent() {
                   <button
                     onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
                     disabled={currentPage === 1}
-                    className="px-3 py-1.5 rounded-xl text-xs font-semibold border border-gray-200 dark:border-[#222138] text-gray-700 dark:text-gray-200 bg-white dark:bg-[#121124] hover:bg-gray-50 dark:hover:bg-[#1c1b35] disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                    className="px-3 py-1.5 rounded-xl text-xs font-semibold border border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
                   >
                     Prev
                   </button>
@@ -585,8 +585,8 @@ function PublicCandidatesContent() {
                           onClick={() => setCurrentPage(page)}
                           className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
                             currentPage === page
-                              ? "bg-gradient-to-r from-violet-600 to-indigo-650 text-white border-0"
-                              : "border border-gray-200 dark:border-[#222138] text-gray-700 dark:text-gray-200 bg-white dark:bg-[#121124] hover:bg-gray-50 dark:hover:bg-[#1c1b35]"
+                              ? "bg-gradient-to-r from-indigo-600 to-indigo-650 text-white border-0"
+                              : "border border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800"
                           }`}
                         >
                           {page}
@@ -598,7 +598,7 @@ function PublicCandidatesContent() {
                   <button
                     onClick={() => setCurrentPage((prev) => Math.min(prev + 1, Math.ceil(totalCount / ITEMS_PER_PAGE)))}
                     disabled={currentPage === Math.ceil(totalCount / ITEMS_PER_PAGE)}
-                    className="px-3 py-1.5 rounded-xl text-xs font-semibold border border-gray-200 dark:border-[#222138] text-gray-700 dark:text-gray-200 bg-white dark:bg-[#121124] hover:bg-gray-50 dark:hover:bg-[#1c1b35] disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                    className="px-3 py-1.5 rounded-xl text-xs font-semibold border border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
                   >
                     Next
                   </button>
