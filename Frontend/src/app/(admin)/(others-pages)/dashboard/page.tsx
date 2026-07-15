@@ -365,7 +365,7 @@ export default function DashboardPage() {
     <div className="space-y-6 max-w-[1600px] mx-auto">
       
       {/* ── Welcome & Interactive Header ── */}
-      <div className="relative flex flex-col md:flex-row justify-between items-start md:items-center bg-gradient-to-br from-slate-850 via-indigo-900 to-indigo-950 text-white rounded-3xl p-6 md:p-8 shadow-md overflow-hidden transition-all border border-slate-800/40">
+      <div className="relative flex flex-col md:flex-row justify-between items-start md:items-center bg-gradient-to-br from-slate-900 via-indigo-900 to-indigo-950 text-white rounded-3xl p-6 md:p-8 shadow-md overflow-hidden transition-all border border-indigo-950/15 dark:border-slate-800/40">
         <div className="absolute -right-10 -bottom-10 w-60 h-60 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none"></div>
         <div className="absolute left-1/3 top-0 w-32 h-32 bg-white/5 rounded-full blur-2xl pointer-events-none"></div>
         
@@ -375,7 +375,7 @@ export default function DashboardPage() {
             {role} Workspace
           </div>
           <h1 className="text-2xl md:text-3xl font-black tracking-tight">Welcome back, {userName}!</h1>
-          <p className="text-indigo-150 text-xs md:text-sm max-w-xl leading-relaxed">
+          <p className="text-indigo-100 text-xs md:text-sm max-w-xl leading-relaxed opacity-90">
             Here's the current overview of your recruitment metrics, active schedules, and talent pipeline data.
           </p>
         </div>
@@ -580,7 +580,7 @@ export default function DashboardPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="border-b border-gray-50 dark:border-gray-850 text-xs font-bold text-gray-400 dark:text-gray-500 uppercase">
+                  <tr className="border-b border-gray-100 dark:border-gray-800 text-xs font-bold text-gray-400 dark:text-gray-550 uppercase">
                     <th className="pb-3 pr-2">Candidate</th>
                     <th className="pb-3">Hiring Client</th>
                     <th className="pb-3">Assigned Recruiter</th>
@@ -588,7 +588,7 @@ export default function DashboardPage() {
                     <th className="pb-3">Activity Date</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-50 dark:divide-gray-850/60">
+                <tbody className="divide-y divide-gray-100 dark:divide-gray-800/60">
                   {pipelineCandidates.map((cand) => (
                     <tr key={cand.id} className="text-xs sm:text-sm hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition-all">
                       <td className="py-4 pr-2">
@@ -615,7 +615,7 @@ export default function DashboardPage() {
                           {cand.stage}
                         </span>
                       </td>
-                      <td className="py-4 text-xs font-medium text-gray-450 dark:text-gray-500">
+                      <td className="py-4 text-xs font-medium text-gray-450 dark:text-gray-550">
                         {cand.date}
                       </td>
                     </tr>
@@ -700,7 +700,7 @@ export default function DashboardPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="border-b border-gray-50 dark:border-gray-850 text-xs font-bold text-gray-400 dark:text-gray-550 uppercase">
+                  <tr className="border-b border-gray-100 dark:border-gray-800 text-xs font-bold text-gray-400 dark:text-gray-555 uppercase">
                     <th className="pb-3">Close Date</th>
                     <th className="pb-3">Candidate</th>
                     <th className="pb-3">Hiring Partner</th>
@@ -708,7 +708,7 @@ export default function DashboardPage() {
                     <th className="pb-3">Compensation</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-50 dark:divide-gray-850/60">
+                <tbody className="divide-y divide-gray-100 dark:divide-gray-800/60">
                   {placements.map((plc) => (
                     <tr key={plc.id} className="text-xs sm:text-sm hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition-all">
                       <td className="py-4 font-semibold text-gray-900 dark:text-white">
