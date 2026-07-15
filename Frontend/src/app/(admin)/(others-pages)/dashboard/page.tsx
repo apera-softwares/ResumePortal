@@ -8,6 +8,26 @@ import ResumeUploadForm from "@/components/ResumeUploadForm/ResumeUploadForm";
 import toast from "react-hot-toast";
 import dynamic from 'next/dynamic';
 import { useTheme } from '@/context/ThemeContext';
+import {
+  Users,
+  Briefcase,
+  Cpu,
+  FileText,
+  TrendingUp,
+  TrendingDown,
+  Calendar,
+  CheckSquare,
+  UserCheck,
+  Plus,
+  ChevronRight,
+  Clock,
+  MapPin,
+  ClipboardList,
+  Target,
+  Award,
+  Zap,
+  Activity
+} from 'lucide-react';
 
 const Chart = dynamic(() => import('react-apexcharts'), { ssr: false });
 
@@ -46,20 +66,57 @@ export default function DashboardPage() {
   const [candidateApps, setCandidateApps] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Recruiter checklist tasks state
+  const [tasks, setTasks] = useState([
+    { id: 1, text: "Review new resume queue on R2/S3", date: "15 Jul", status: "In Progress", checked: false },
+    { id: 2, text: "Send cleaned developer PDF to Client Review", date: "16 Jul", status: "Pending", checked: false },
+    { id: 3, text: "Setup technical screening interview for Janish", date: "16 Jul", status: "Completed", checked: true },
+    { id: 4, text: "Integrate latest AI parser skills taxonomy", date: "17 Jul", status: "Completed", checked: true },
+    { id: 5, text: "Update candidate profiles notice period values", date: "18 Jul", status: "Pending", checked: false },
+  ]);
+
+  // High-fidelity pipeline database mock (CRM Deals Status)
+  const [pipelineCandidates, setPipelineCandidates] = useState([
+    { id: 1, name: "Sophia Cunha", targetJob: "Lead Frontend Engineer", stage: "Offer Sent", stageColor: "bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400", recruiter: "Donald Risher", avatarBg: "bg-indigo-500", date: "Sep 20, 2026", client: "Abstergo LLC" },
+    { id: 2, name: "Janish Brown", targetJob: "Senior Node.js Developer", stage: "Technical Interview", stageColor: "bg-amber-500/10 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400", recruiter: "Sofia Cunha", avatarBg: "bg-purple-500", date: "Sep 23, 2026", client: "Raitech Soft" },
+    { id: 3, name: "Luis Rocha", targetJob: "UX Architect", stage: "Screening", stageColor: "bg-indigo-500/10 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400", recruiter: "Luis Rocha", avatarBg: "bg-emerald-500", date: "Sep 27, 2026", client: "William PVT" },
+    { id: 4, name: "Vitoria Rodrigues", targetJob: "Fullstack Engineer", stage: "Hired", stageColor: "bg-teal-500/10 text-teal-600 dark:bg-teal-500/20 dark:text-teal-400", recruiter: "Donald Risher", avatarBg: "bg-indigo-500", date: "Sep 30, 2026", client: "Lolusee LLP" },
+    { id: 5, name: "Marcus Aurelius", targetJob: "Database Administrator", stage: "Awaiting Clean", stageColor: "bg-rose-500/10 text-rose-600 dark:bg-rose-500/20 dark:text-rose-400", recruiter: "Sofia Cunha", avatarBg: "bg-purple-500", date: "Sep 30, 2026", client: "Apple Inc" },
+  ]);
+
+  // Recruiter activities list (Upcoming Activities)
+  const [activities, setActivities] = useState([
+    { id: 1, time: "10:00 AM - 11:30 AM", title: "Technical round interview with Janish Brown", date: "16 Wed", teamCount: 3, avatarBg: "bg-indigo-500" },
+    { id: 2, time: "02:00 PM - 02:45 PM", title: "Review newly parsed CV queues from Cloudflare R2", date: "16 Wed", teamCount: 2, avatarBg: "bg-purple-500" },
+    { id: 3, time: "04:30 PM - 05:15 PM", title: "Client call with Abstergo LLC hiring team", date: "17 Thu", teamCount: 4, avatarBg: "bg-emerald-500" },
+    { id: 4, time: "11:00 AM - 12:00 PM", title: "Feedback evaluation session for Sophia Cunha", date: "18 Fri", teamCount: 5, avatarBg: "bg-amber-500" },
+  ]);
+
+  // Recent placements / Hired (Closing Deals)
+  const [placements, setPlacements] = useState([
+    { id: 1, date: "Today", candidate: "Vitoria Rodrigues", client: "Lolusee LLP", compensation: "₹24,00,000", recruiter: "Donald Risher" },
+    { id: 2, date: "Dec 30", candidate: "Janish Brown", client: "Raitech Soft", compensation: "₹18,50,000", recruiter: "Sofia Cunha" },
+    { id: 3, date: "Nov 25", candidate: "William PVT", client: "William PVT", compensation: "₹22,00,000", recruiter: "Luis Rocha" },
+    { id: 4, date: "Sep 20", candidate: "Julia William", client: "Raitech Soft", compensation: "₹16,80,000", recruiter: "Donald Risher" },
+    { id: 5, date: "Sep 15", candidate: "Vitoria Rodrigues", client: "Abstergo LLC", compensation: "₹21,00,000", recruiter: "Sofia Cunha" },
+  ]);
+
+  const toggleTask = (id: number) => {
+    setTasks(prev => prev.map(t => t.id === id ? { ...t, checked: !t.checked, status: !t.checked ? "Completed" : "In Progress" } : t));
+  };
+
   const fetchDashboardData = async () => {
     try {
       const userRole = localStorage.getItem("role") || "USER";
       const userEmail = localStorage.getItem("email") || "";
 
       if (userRole === 'CANDIDATE' && userEmail) {
-        // Fetch candidate-specific applications
         const res = await fetch(`${API_URL}/candidates/my-applications?email=${encodeURIComponent(userEmail)}`);
         if (!res.ok) throw new Error("Failed to fetch applications");
         const data = await res.json();
         const apps = Array.isArray(data) ? data : [];
         setCandidateApps(apps);
 
-        // Process candidate stats
         let totalJobsApplied = 0;
         const uniqueSkills = new Set<string>();
         
@@ -87,13 +144,12 @@ export default function DashboardPage() {
         });
 
         setStats({
-          candidatesCount: apps.length, // Number of resumes
-          jobsCount: totalJobsApplied,  // Jobs applied
-          skillsCount: uniqueSkills.size, // Unique skills parsed
-          cleanedResumesCount: apps.filter((c: any) => c.cleanedResume).length, // Cleaned resumes
+          candidatesCount: apps.length,
+          jobsCount: totalJobsApplied,
+          skillsCount: uniqueSkills.size,
+          cleanedResumesCount: apps.filter((c: any) => c.cleanedResume).length,
         });
 
-        // Set application status distribution
         setJobTypeChartData({
           labels: Object.keys(statusCounts),
           series: Object.values(statusCounts),
@@ -115,19 +171,16 @@ export default function DashboardPage() {
           queryParams.append("userId", localUserId);
         }
 
-        // 1. Fetch Candidates
         const cRes = await fetch(`${API_URL}/candidates?${queryParams.toString()}`);
         if (!cRes.ok) throw new Error("Failed to fetch candidates");
         const cData = await cRes.json();
         const candidates = Array.isArray(cData) ? cData : (cData.data || []);
 
-        // 2. Fetch Jobs
         const jRes = await fetch(`${API_URL}/jobs?${queryParams.toString()}`);
         if (!jRes.ok) throw new Error("Failed to fetch jobs");
         const jData = await jRes.json();
         const jobs = jData.data || [];
 
-        // 3. Fetch Skills
         const sRes = await fetch(`${API_URL}/skills`);
         if (!sRes.ok) throw new Error("Failed to fetch skills");
         const sData = await sRes.json();
@@ -145,8 +198,6 @@ export default function DashboardPage() {
         setRecentCandidates(candidates.slice(-5).reverse());
         setRecentJobs(jobs.slice(-5).reverse());
 
-        // Prepare Charts data
-        // Location distribution of jobs
         const locationCounts: { [key: string]: number } = {};
         jobs.forEach((job: any) => {
           const loc = job.location || 'UNKNOWN';
@@ -157,7 +208,6 @@ export default function DashboardPage() {
           data: Object.values(locationCounts),
         });
 
-        // Job Type distribution
         const typeCounts: { [key: string]: number } = {};
         jobs.forEach((job: any) => {
           const type = job.type ? job.type.replace('_', ' ') : 'OTHER';
@@ -182,7 +232,101 @@ export default function DashboardPage() {
     fetchDashboardData();
   }, []);
 
-  // ApexCharts Options
+  // Line / Area overview chart (Balance Overview)
+  const pipelineOverviewOptions = {
+    chart: {
+      type: 'area' as const,
+      toolbar: { show: false },
+      fontFamily: 'Inter, sans-serif',
+      background: 'transparent',
+    },
+    colors: ['#4F46E5', '#10B981'],
+    dataLabels: { enabled: false },
+    stroke: { curve: 'smooth' as const, width: 2 },
+    xaxis: {
+      categories: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+      labels: { style: { colors: isDark ? '#9CA3AF' : '#4B5563' } },
+      axisBorder: { show: false },
+      axisTicks: { show: false }
+    },
+    yaxis: {
+      labels: { style: { colors: isDark ? '#9CA3AF' : '#4B5563' } }
+    },
+    grid: {
+      borderColor: isDark ? '#374151' : '#E5E7EB',
+      strokeDashArray: 4,
+      xaxis: { lines: { show: false } },
+      yaxis: { lines: { show: true } }
+    },
+    fill: {
+      type: 'gradient',
+      gradient: {
+        shadeIntensity: 1,
+        opacityFrom: 0.35,
+        opacityTo: 0.05,
+        stops: [0, 90, 100]
+      }
+    },
+    legend: {
+      position: 'top' as const,
+      horizontalAlign: 'right' as const,
+      labels: { colors: isDark ? '#9CA3AF' : '#4B5563' }
+    },
+    theme: { mode: isDark ? ('dark' as const) : ('light' as const) }
+  };
+
+  const pipelineOverviewSeries = [
+    {
+      name: 'Resumes Uploaded',
+      data: [45, 52, 38, 65, 78, 92, 110, 85, 120, 105, 95, 130]
+    },
+    {
+      name: 'Candidates Hired',
+      data: [15, 24, 18, 30, 42, 50, 62, 48, 70, 58, 52, 75]
+    }
+  ];
+
+  // Sourcing radar chart (Deal Type Radar Chart)
+  const sourcingRadarOptions = {
+    chart: {
+      type: 'radar' as const,
+      toolbar: { show: false },
+      fontFamily: 'Inter, sans-serif',
+      background: 'transparent',
+    },
+    colors: ['#6366F1', '#10B981', '#F59E0B'],
+    labels: ['LinkedIn', 'Direct Application', 'Portal Search', 'Recruiters Referral', 'Hiring Agencies'],
+    legend: {
+      position: 'bottom' as const,
+      labels: { colors: isDark ? '#9CA3AF' : '#4B5563' }
+    },
+    plotOptions: {
+      radar: {
+        polygons: {
+          strokeColors: isDark ? '#374151' : '#E5E7EB',
+          connectorColors: isDark ? '#374151' : '#E5E7EB',
+          fill: {
+            colors: isDark ? ['#1f2937', '#111827'] : ['#f9fafb', '#ffffff']
+          }
+        }
+      }
+    },
+    yaxis: { show: false },
+    theme: { mode: isDark ? ('dark' as const) : ('light' as const) }
+  };
+
+  const sourcingRadarSeries = [
+    {
+      name: 'Active Pipeline',
+      data: [90, 70, 85, 60, 50]
+    },
+    {
+      name: 'Hired Candidates',
+      data: [50, 40, 65, 55, 30]
+    }
+  ];
+
+  // Location bar chart options
   const locationBarOptions = {
     chart: {
       type: 'bar' as const,
@@ -190,107 +334,65 @@ export default function DashboardPage() {
       fontFamily: 'Inter, sans-serif',
       background: 'transparent',
     },
-    colors: ['#4F46E5'],
+    colors: ['#3B82F6'],
     plotOptions: {
       bar: {
-        borderRadius: 6,
-        horizontal: true,
-        barHeight: '50%',
+        borderRadius: 4,
+        horizontal: false,
+        columnWidth: '45%',
       }
     },
     dataLabels: { enabled: false },
     xaxis: {
       categories: locationChartData.categories,
-      labels: {
-        style: { colors: isDark ? '#9CA3AF' : '#4B5563' }
-      },
+      labels: { style: { colors: isDark ? '#9CA3AF' : '#4B5563' } },
       axisBorder: { show: false },
       axisTicks: { show: false }
     },
     yaxis: {
-      labels: {
-        style: { colors: isDark ? '#9CA3AF' : '#4B5563' }
-      }
+      labels: { style: { colors: isDark ? '#9CA3AF' : '#4B5563' } }
     },
     grid: {
       borderColor: isDark ? '#374151' : '#E5E7EB',
       strokeDashArray: 4,
-      xaxis: { lines: { show: true } },
-      yaxis: { lines: { show: false } }
-    },
-    theme: { mode: isDark ? ('dark' as const) : ('light' as const) }
-  };
-
-  const jobTypeDonutOptions = {
-    chart: {
-      type: 'donut' as const,
-      fontFamily: 'Inter, sans-serif',
-      background: 'transparent',
-    },
-    labels: jobTypeChartData.labels,
-    colors: ['#4F46E5', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'],
-    legend: {
-      position: 'bottom' as const,
-      labels: { colors: isDark ? '#9CA3AF' : '#4B5563' }
-    },
-    dataLabels: { enabled: false },
-    stroke: {
-      show: true,
-      colors: isDark ? ['#111827'] : ['#ffffff'],
-      width: 2,
-    },
-    plotOptions: {
-      pie: {
-        donut: {
-          size: '72%',
-          labels: {
-            show: true,
-            total: {
-              show: true,
-              label: 'Total Jobs',
-              color: isDark ? '#9CA3AF' : '#4B5563',
-              formatter: () => stats.jobsCount.toString()
-            },
-            value: {
-              show: true,
-              color: isDark ? '#ffffff' : '#111827',
-              fontWeight: 800,
-            }
-          }
-        }
-      }
+      xaxis: { lines: { show: false } },
+      yaxis: { lines: { show: true } }
     },
     theme: { mode: isDark ? ('dark' as const) : ('light' as const) }
   };
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6 max-w-[1600px] mx-auto">
       
-      {/* Welcome & Intro Section */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 text-white rounded-2xl p-5 md:p-6 shadow-sm relative overflow-hidden">
-        <div className="absolute right-0 bottom-0 top-0 w-1/3 opacity-10 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-white via-transparent to-transparent pointer-events-none"></div>
-        <div className="space-y-1.5 z-10">
-          <span className="bg-white/20 text-white text-[10px] px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider">
+      {/* ── Welcome & Interactive Header ── */}
+      <div className="relative flex flex-col md:flex-row justify-between items-start md:items-center bg-gradient-to-br from-slate-850 via-indigo-900 to-indigo-950 text-white rounded-3xl p-6 md:p-8 shadow-md overflow-hidden transition-all border border-slate-800/40">
+        <div className="absolute -right-10 -bottom-10 w-60 h-60 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div className="absolute left-1/3 top-0 w-32 h-32 bg-white/5 rounded-full blur-2xl pointer-events-none"></div>
+        
+        <div className="space-y-2 z-10">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 text-white text-xs font-semibold tracking-wider uppercase backdrop-blur-xs">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
             {role} Workspace
-          </span>
-          <h1 className="text-xl md:text-2xl font-extrabold">Welcome back, {userName}!</h1>
-          <p className="text-blue-100 text-xs md:text-sm max-w-lg">
-            Here's the current overview of your talent pipeline, active jobs, and resume parsing records.
+          </div>
+          <h1 className="text-2xl md:text-3xl font-black tracking-tight">Welcome back, {userName}!</h1>
+          <p className="text-indigo-150 text-xs md:text-sm max-w-xl leading-relaxed">
+            Here's the current overview of your recruitment metrics, active schedules, and talent pipeline data.
           </p>
         </div>
 
-        <div className="flex gap-2.5 mt-4 md:mt-0 z-10">
+        <div className="flex flex-wrap gap-3 mt-5 md:mt-0 z-10">
           <button
             onClick={openModal}
-            className="bg-white hover:bg-blue-50 text-blue-700 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold shadow-xs hover:scale-[1.01] active:scale-[0.99] transition-all"
+            className="flex items-center gap-2 bg-white hover:bg-indigo-50 text-indigo-900 px-5 py-2.5 rounded-2xl text-xs sm:text-sm font-bold shadow-md hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer"
           >
+            <Plus className="w-4 h-4" />
             Upload Resume
           </button>
 
           {role !== 'CANDIDATE' && (
             <button
               onClick={() => router.push('/jobcreation')}
-              className="bg-blue-900/30 hover:bg-blue-900/50 border border-white/20 text-white px-4 py-2 rounded-xl text-xs sm:text-sm font-bold hover:scale-[1.01] active:scale-[0.99] transition-all"
+              className="flex items-center gap-2 bg-indigo-600/30 hover:bg-indigo-600/50 border border-white/20 text-white px-5 py-2.5 rounded-2xl text-xs sm:text-sm font-bold hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer"
             >
               Post a Job
             </button>
@@ -298,397 +400,399 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Metrics Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {role === 'CANDIDATE' ? (
-          <>
-            {/* My Resumes */}
-            <div className="bg-white dark:bg-gray-800 border border-gray-150 dark:border-gray-700 rounded-2xl p-5 hover:shadow-md transition-all duration-300 relative overflow-hidden group">
-              <div className="absolute top-0 right-0 w-20 h-20 bg-blue-500/5 rounded-full -mr-5 -mt-5 group-hover:scale-125 transition-transform duration-300"></div>
-              <div className="flex justify-between items-center mb-3">
-                <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">My Resumes</span>
-                <div className="w-9 h-9 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 rounded-lg flex items-center justify-center">
-                  <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12" />
-                  </svg>
-                </div>
-              </div>
-              <h2 className="text-2xl font-extrabold text-gray-900 dark:text-white">
-                {loading ? "..." : stats.candidatesCount}
-              </h2>
-              <p className="text-[11px] text-gray-500 mt-1.5">Resumes uploaded</p>
-            </div>
-
-            {/* My Applications */}
-            <div className="bg-white dark:bg-gray-800 border border-gray-150 dark:border-gray-700 rounded-2xl p-5 hover:shadow-md transition-all duration-300 relative overflow-hidden group">
-              <div className="absolute top-0 right-0 w-20 h-20 bg-emerald-500/5 rounded-full -mr-5 -mt-5 group-hover:scale-125 transition-transform duration-300"></div>
-              <div className="flex justify-between items-center mb-3">
-                <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Applied Jobs</span>
-                <div className="w-9 h-9 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 rounded-lg flex items-center justify-center">
-                  <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-              </div>
-              <h2 className="text-2xl font-extrabold text-gray-900 dark:text-white">
-                {loading ? "..." : stats.jobsCount}
-              </h2>
-              <p className="text-[11px] text-gray-500 mt-1.5">Active applications</p>
-            </div>
-
-            {/* Skills Profile */}
-            <div className="bg-white dark:bg-gray-800 border border-gray-150 dark:border-gray-700 rounded-2xl p-5 hover:shadow-md transition-all duration-300 relative overflow-hidden group">
-              <div className="absolute top-0 right-0 w-20 h-20 bg-amber-500/5 rounded-full -mr-5 -mt-5 group-hover:scale-125 transition-transform duration-300"></div>
-              <div className="flex justify-between items-center mb-3">
-                <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Extracted Skills</span>
-                <div className="w-9 h-9 bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 rounded-lg flex items-center justify-center">
-                  <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M17.25 6.75L22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3l-4.5 16.5" />
-                  </svg>
-                </div>
-              </div>
-              <h2 className="text-2xl font-extrabold text-gray-900 dark:text-white">
-                {loading ? "..." : stats.skillsCount}
-              </h2>
-              <p className="text-[11px] text-gray-500 mt-1.5">Skills in your profile</p>
-            </div>
-
-            {/* Cleaned Resume Status */}
-            <div className="bg-white dark:bg-gray-800 border border-gray-150 dark:border-gray-700 rounded-2xl p-5 hover:shadow-md transition-all duration-300 relative overflow-hidden group">
-              <div className="absolute top-0 right-0 w-20 h-20 bg-purple-500/5 rounded-full -mr-5 -mt-5 group-hover:scale-125 transition-transform duration-300"></div>
-              <div className="flex justify-between items-center mb-3">
-                <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Cleaned Resumes</span>
-                <div className="w-9 h-9 bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 rounded-lg flex items-center justify-center">
-                  <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z" />
-                  </svg>
-                </div>
-              </div>
-              <h2 className="text-2xl font-extrabold text-gray-900 dark:text-white">
-                {loading ? "..." : stats.cleanedResumesCount}
-              </h2>
-              <p className="text-[11px] text-gray-500 mt-1.5">Parsed to recruiter database</p>
-            </div>
-          </>
-        ) : (
-          <>
-            {/* Candidates Card */}
-            <div className="bg-white dark:bg-gray-800 border border-gray-150 dark:border-gray-700 rounded-2xl p-5 hover:shadow-md transition-all duration-300 relative overflow-hidden group">
-              <div className="absolute top-0 right-0 w-20 h-20 bg-blue-500/5 rounded-full -mr-5 -mt-5 group-hover:scale-125 transition-transform duration-300"></div>
-              <div className="flex justify-between items-center mb-3">
-                <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Total Candidates</span>
-                <div className="w-9 h-9 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 rounded-lg flex items-center justify-center">
-                  <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.109A11.386 11.386 0 0110.089 21c-2.243 0-4.352-.64-6.136-1.75a3.333 3.333 0 01-1.08-1.08C2.116 16.987 3.9 16.21 5.924 16.21a9.03 9.03 0 013.376.65m0 0a11.386 11.386 0 011.089-6.628M9.3 16.21a9.03 9.03 0 01-3.376-.65m0 0l.092-.09A11.386 11.386 0 0110.089 9c1.9 0 3.693.468 5.277 1.298M9.03 16.21a9.03 9.03 0 003.376-.65m0 0A11.386 11.386 0 0015 9" />
-                  </svg>
-                </div>
-              </div>
-              <h2 className="text-2xl font-extrabold text-gray-900 dark:text-white">
-                {loading ? "..." : stats.candidatesCount}
-              </h2>
-              <p className="text-[11px] text-gray-500 mt-1.5">Candidates added across portal</p>
-            </div>
-
-            {/* Jobs Card */}
-            <div className="bg-white dark:bg-gray-800 border border-gray-150 dark:border-gray-700 rounded-2xl p-5 hover:shadow-md transition-all duration-300 relative overflow-hidden group">
-              <div className="absolute top-0 right-0 w-20 h-20 bg-emerald-500/5 rounded-full -mr-5 -mt-5 group-hover:scale-125 transition-transform duration-300"></div>
-              <div className="flex justify-between items-center mb-3">
-                <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Active Jobs</span>
-                <div className="w-9 h-9 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 rounded-lg flex items-center justify-center">
-                  <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 14.15v4.25c0 .596-.482 1.077-1.076 1.077H4.826c-.594 0-1.076-.481-1.076-1.077v-4.25m16.5 0a2.25 2.25 0 00-2.25-2.25h-12a2.25 2.25 0 00-2.25 2.25m16.5 0v3a2.25 2.25 0 01-2.25 2.25h-12a2.25 2.25 0 01-2.25-2.25v-3m16.5 0h-16.5" />
-                  </svg>
-                </div>
-              </div>
-              <h2 className="text-2xl font-extrabold text-gray-900 dark:text-white">
-                {loading ? "..." : stats.jobsCount}
-              </h2>
-              <p className="text-[11px] text-gray-500 mt-1.5">Active vacancies to fulfill</p>
-            </div>
-
-            {/* Skills Card */}
-            <div className="bg-white dark:bg-gray-800 border border-gray-150 dark:border-gray-700 rounded-2xl p-5 hover:shadow-md transition-all duration-300 relative overflow-hidden group">
-              <div className="absolute top-0 right-0 w-20 h-20 bg-amber-500/5 rounded-full -mr-5 -mt-5 group-hover:scale-125 transition-transform duration-300"></div>
-              <div className="flex justify-between items-center mb-3">
-                <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Skills Database</span>
-                <div className="w-9 h-9 bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 rounded-lg flex items-center justify-center">
-                  <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M17.25 6.75L22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3l-4.5 16.5" />
-                  </svg>
-                </div>
-              </div>
-              <h2 className="text-2xl font-extrabold text-gray-900 dark:text-white">
-                {loading ? "..." : stats.skillsCount}
-              </h2>
-              <p className="text-[11px] text-gray-500 mt-1.5">Configured search skills</p>
-            </div>
-
-            {/* Cleaned Resumes Card */}
-            <div className="bg-white dark:bg-gray-800 border border-gray-150 dark:border-gray-700 rounded-2xl p-5 hover:shadow-md transition-all duration-300 relative overflow-hidden group">
-              <div className="absolute top-0 right-0 w-20 h-20 bg-purple-500/5 rounded-full -mr-5 -mt-5 group-hover:scale-125 transition-transform duration-300"></div>
-              <div className="flex justify-between items-center mb-3">
-                <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Cleaned Resumes</span>
-                <div className="w-9 h-9 bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 rounded-lg flex items-center justify-center">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-                  </svg>
-                </div>
-              </div>
-              <h2 className="text-2xl font-extrabold text-gray-900 dark:text-white">
-                {loading ? "..." : stats.cleanedResumesCount}
-              </h2>
-              <p className="text-[11px] text-gray-500 mt-1.5">Cleaned of contact info</p>
-            </div>
-          </>
-        )}
-      </div>
-
-      {/* Graphical Insights */}
-      {!loading && stats.jobsCount > 0 && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {role === 'CANDIDATE' ? (
-            <div className="bg-white dark:bg-gray-900/40 border border-gray-150 dark:border-gray-800/80 backdrop-blur-sm rounded-2xl p-5 lg:col-span-3 shadow-xs">
-              <h3 className="text-base font-bold text-gray-900 dark:text-white mb-4">Application Status Summary</h3>
-              <div className="h-60 flex items-center justify-center">
-                <Chart options={{
-                  chart: { type: 'donut' as const, fontFamily: 'Inter, sans-serif', background: 'transparent' },
-                  labels: jobTypeChartData.labels,
-                  colors: ['#4F46E5', '#10B981', '#F59E0B', '#EF4444'],
-                  legend: { position: 'bottom' as const, labels: { colors: isDark ? '#9CA3AF' : '#4B5563' } },
-                  stroke: { show: true, colors: isDark ? ['#111827'] : ['#ffffff'], width: 2 },
-                  plotOptions: {
-                    pie: {
-                      donut: {
-                        size: '72%',
-                        labels: {
-                          show: true,
-                          total: {
-                            show: true,
-                            label: 'Applications',
-                            color: isDark ? '#9CA3AF' : '#4B5563',
-                            formatter: () => stats.jobsCount.toString()
-                          }
-                        }
-                      }
-                    }
-                  },
-                  theme: { mode: isDark ? 'dark' : 'light' }
-                }} series={jobTypeChartData.series} type="donut" width="100%" height="230" />
-              </div>
-            </div>
-          ) : (
+      {/* ── Dashboard Quick Actions Toolbar ── */}
+      <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 shadow-sm flex flex-wrap gap-2.5 items-center justify-between">
+        <div className="flex items-center gap-2 text-sm font-bold text-gray-800 dark:text-gray-200">
+          <ClipboardList className="w-4.5 h-4.5 text-indigo-650" />
+          <span>Quick Actions</span>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {role !== 'CANDIDATE' && (
             <>
-              <div className="bg-white dark:bg-gray-900/40 border border-gray-150 dark:border-gray-800/80 backdrop-blur-sm rounded-2xl p-5 lg:col-span-2 shadow-xs">
-                <h3 className="text-base font-bold text-gray-900 dark:text-white mb-4">Job Distribution by Location</h3>
-                <div className="h-60">
-                  <Chart options={locationBarOptions} series={[{ data: locationChartData.data }]} type="bar" height="100%" />
-                </div>
-              </div>
-
-              <div className="bg-white dark:bg-gray-900/40 border border-gray-150 dark:border-gray-800/80 backdrop-blur-sm rounded-2xl p-5 shadow-xs">
-                <h3 className="text-base font-bold text-gray-900 dark:text-white mb-4">Active Vacancies by Type</h3>
-                <div className="h-60 flex items-center justify-center">
-                  <Chart options={jobTypeDonutOptions} series={jobTypeChartData.series} type="donut" width="100%" height="230" />
-                </div>
-              </div>
+              <button
+                onClick={() => router.push('/candidates')}
+                className="px-3.5 py-1.5 text-xs font-semibold rounded-xl bg-gray-50 hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-200/60 dark:border-gray-700/60 transition-all cursor-pointer flex items-center gap-1.5"
+              >
+                <span>Search Candidates</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => router.push('/addskills')}
+                className="px-3.5 py-1.5 text-xs font-semibold rounded-xl bg-gray-50 hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-200/60 dark:border-gray-700/60 transition-all cursor-pointer flex items-center gap-1.5"
+              >
+                <span>Skills Settings</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
             </>
           )}
+          {role === 'CANDIDATE' && (
+            <button
+              onClick={() => router.push('/my-resume')}
+              className="px-3.5 py-1.5 text-xs font-semibold rounded-xl bg-gray-50 hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-200/60 dark:border-gray-700/60 transition-all cursor-pointer flex items-center gap-1.5"
+            >
+              <span>Manage My Resume</span>
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* ── CRM Premium Stats Cards Grid ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        {/* Candidates Metric */}
+        <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-3xl p-6 hover:shadow-md transition-all duration-300 relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/5 rounded-full -mr-6 -mt-6 group-hover:scale-125 transition-transform duration-300"></div>
+          <div className="flex justify-between items-center mb-4">
+            <span className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Total Candidates</span>
+            <div className="w-10 h-10 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-650 dark:text-indigo-400 rounded-2xl flex items-center justify-center border border-indigo-100/50 dark:border-indigo-900/30">
+              <Users className="w-5 h-5" />
+            </div>
+          </div>
+          <div className="flex items-baseline gap-2">
+            <h2 className="text-3xl font-black text-gray-950 dark:text-white">
+              {loading ? "..." : stats.candidatesCount}
+            </h2>
+            <span className="text-xs font-bold text-emerald-600 dark:text-emerald-450 flex items-center gap-0.5 bg-emerald-50 dark:bg-emerald-950/30 px-2 py-0.5 rounded-full">
+              <TrendingUp className="w-3 h-3" />
+              +5.02%
+            </span>
+          </div>
+          <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-2">Active parsed resumes in system</p>
+        </div>
+
+        {/* Active Openings Metric */}
+        <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-3xl p-6 hover:shadow-md transition-all duration-300 relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-full -mr-6 -mt-6 group-hover:scale-125 transition-transform duration-300"></div>
+          <div className="flex justify-between items-center mb-4">
+            <span className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Active Vacancies</span>
+            <div className="w-10 h-10 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 rounded-2xl flex items-center justify-center border border-emerald-100/50 dark:border-emerald-900/30">
+              <Briefcase className="w-5 h-5" />
+            </div>
+          </div>
+          <div className="flex items-baseline gap-2">
+            <h2 className="text-3xl font-black text-gray-950 dark:text-white">
+              {loading ? "..." : stats.jobsCount}
+            </h2>
+            <span className="text-xs font-bold text-emerald-600 dark:text-emerald-450 flex items-center gap-0.5 bg-emerald-50 dark:bg-emerald-950/30 px-2 py-0.5 rounded-full">
+              <TrendingUp className="w-3 h-3" />
+              +3.58%
+            </span>
+          </div>
+          <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-2">Open recruitment assignments</p>
+        </div>
+
+        {/* Lead Conversation / Talent Pipeline Metric */}
+        <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-3xl p-6 hover:shadow-md transition-all duration-300 relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/5 rounded-full -mr-6 -mt-6 group-hover:scale-125 transition-transform duration-300"></div>
+          <div className="flex justify-between items-center mb-4">
+            <span className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Skills Directory</span>
+            <div className="w-10 h-10 bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 rounded-2xl flex items-center justify-center border border-amber-100/50 dark:border-amber-900/30">
+              <Cpu className="w-5 h-5" />
+            </div>
+          </div>
+          <div className="flex items-baseline gap-2">
+            <h2 className="text-3xl font-black text-gray-950 dark:text-white">
+              {loading ? "..." : stats.skillsCount}
+            </h2>
+            <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5 bg-emerald-50 dark:bg-emerald-950/30 px-2 py-0.5 rounded-full">
+              <TrendingUp className="w-3 h-3" />
+              +12.4%
+            </span>
+          </div>
+          <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-2">Unique parsed skills tracked</p>
+        </div>
+
+        {/* Hired / Cleaned Profiles Metric */}
+        <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-3xl p-6 hover:shadow-md transition-all duration-300 relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-purple-500/5 rounded-full -mr-6 -mt-6 group-hover:scale-125 transition-transform duration-300"></div>
+          <div className="flex justify-between items-center mb-4">
+            <span className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Cleaned Resumes</span>
+            <div className="w-10 h-10 bg-purple-50 dark:bg-purple-950/40 text-purple-650 dark:text-purple-400 rounded-2xl flex items-center justify-center border border-purple-100/50 dark:border-purple-900/30">
+              <UserCheck className="w-5 h-5" />
+            </div>
+          </div>
+          <div className="flex items-baseline gap-2">
+            <h2 className="text-3xl font-black text-gray-950 dark:text-white">
+              {loading ? "..." : stats.cleanedResumesCount}
+            </h2>
+            <span className="text-xs font-bold text-emerald-600 dark:text-emerald-450 flex items-center gap-0.5 bg-emerald-50 dark:bg-emerald-950/30 px-2 py-0.5 rounded-full">
+              <TrendingUp className="w-3 h-3" />
+              +8.7%
+            </span>
+          </div>
+          <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-2">Anonymized database records</p>
+        </div>
+      </div>
+
+      {/* ── High-Fidelity CRM Charts Row ── */}
+      {!loading && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Recruitment pipeline activities (Balance Overview) */}
+          <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-3xl p-6 lg:col-span-2 shadow-sm">
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h3 className="text-base font-bold text-gray-950 dark:text-white">Recruitment Pipeline Overview</h3>
+                <p className="text-xs text-gray-400 mt-0.5">Resume upload frequency vs successful candidate hiring activity</p>
+              </div>
+              <div className="flex gap-2">
+                <span className="inline-flex items-center text-[10px] font-extrabold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 px-2 py-0.5 rounded-md uppercase">Monthly</span>
+              </div>
+            </div>
+            <div className="h-72">
+              <Chart options={pipelineOverviewOptions} series={pipelineOverviewSeries} type="area" height="100%" />
+            </div>
+          </div>
+
+          {/* Sourcing Channel Radar (Deal Type) */}
+          <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-3xl p-6 shadow-sm">
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h3 className="text-base font-bold text-gray-950 dark:text-white">Candidate Sourcing Channels</h3>
+                <p className="text-xs text-gray-400 mt-0.5">Radar tracking of applicant channels</p>
+              </div>
+            </div>
+            <div className="h-72 flex items-center justify-center">
+              <Chart options={sourcingRadarOptions} series={sourcingRadarSeries} type="radar" width="100%" height="270" />
+            </div>
+          </div>
         </div>
       )}
 
-      {/* Main Grid: Candidates & Recent Jobs */}
+      {/* ── Recruitment Pipeline Tables Widget ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {role === 'CANDIDATE' ? (
-          <div className="bg-white dark:bg-gray-800 border border-gray-150 dark:border-gray-700 rounded-2xl p-5 lg:col-span-3">
-            <h3 className="text-base font-bold text-gray-900 dark:text-white mb-4">My Submitted Applications</h3>
-            {candidateApps.length > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="border-b border-gray-100 dark:border-gray-700 text-xs font-bold text-gray-400 uppercase">
-                      <th className="pb-3">S.No</th>
-                      <th className="pb-3">Candidate Details</th>
-                      <th className="pb-3">Applied Positions</th>
-                      <th className="pb-3">Experience</th>
-                      <th className="pb-3">Cleaned Status</th>
+        {/* Candidates Pipeline (CRM Deals Status) */}
+        <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-3xl p-6 lg:col-span-2 shadow-sm flex flex-col justify-between">
+          <div>
+            <div className="flex justify-between items-center mb-5">
+              <div>
+                <h3 className="text-base font-bold text-gray-950 dark:text-white">Candidate Application Pipeline</h3>
+                <p className="text-xs text-gray-400 mt-0.5">Overview of candidates currently undergoing client evaluation rounds</p>
+              </div>
+              <button
+                onClick={() => router.push('/candidates')}
+                className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 hover:underline flex items-center gap-0.5 cursor-pointer"
+              >
+                <span>View All</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-gray-50 dark:border-gray-850 text-xs font-bold text-gray-400 dark:text-gray-500 uppercase">
+                    <th className="pb-3 pr-2">Candidate</th>
+                    <th className="pb-3">Hiring Client</th>
+                    <th className="pb-3">Assigned Recruiter</th>
+                    <th className="pb-3">Pipeline Stage</th>
+                    <th className="pb-3">Activity Date</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50 dark:divide-gray-850/60">
+                  {pipelineCandidates.map((cand) => (
+                    <tr key={cand.id} className="text-xs sm:text-sm hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition-all">
+                      <td className="py-4 pr-2">
+                        <div>
+                          <span className="block font-bold text-gray-950 dark:text-white">
+                            {cand.name}
+                          </span>
+                          <span className="block text-[11px] text-gray-400 mt-0.5">{cand.targetJob}</span>
+                        </div>
+                      </td>
+                      <td className="py-4 font-semibold text-gray-600 dark:text-gray-300">
+                        {cand.client}
+                      </td>
+                      <td className="py-4">
+                        <div className="flex items-center gap-2">
+                          <div className={`w-6 h-6 rounded-full ${cand.avatarBg} text-white flex items-center justify-center text-[10px] font-bold`}>
+                            {cand.recruiter.charAt(0)}
+                          </div>
+                          <span className="text-xs font-semibold text-gray-700 dark:text-gray-200">{cand.recruiter}</span>
+                        </div>
+                      </td>
+                      <td className="py-4">
+                        <span className={`inline-block text-[10px] font-bold px-2.5 py-0.5 rounded-md ${cand.stageColor}`}>
+                          {cand.stage}
+                        </span>
+                      </td>
+                      <td className="py-4 text-xs font-medium text-gray-450 dark:text-gray-500">
+                        {cand.date}
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100 dark:divide-gray-700/60">
-                    {candidateApps.map((cand, idx) => (
-                      <tr key={cand.id} className="text-sm">
-                        <td className="py-4 font-semibold text-gray-900 dark:text-white">
-                          {idx + 1}
-                        </td>
-                        <td className="py-4">
-                          <div>
-                            <span className="block font-semibold text-gray-900 dark:text-white">{cand.firstName} {cand.lastName}</span>
-                            <span className="block text-xs text-gray-500">{cand.email}</span>
-                          </div>
-                        </td>
-                        <td className="py-4">
-                          <div className="flex flex-wrap gap-1.5">
-                            {cand.appliedJobs && cand.appliedJobs.length > 0 ? (
-                              cand.appliedJobs.map((aj: any) => (
-                                <span key={aj.id} className="inline-block text-xs font-semibold px-2 py-0.5 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 rounded-md">
-                                  {aj.job?.title} ({aj.status})
-                                </span>
-                              ))
-                            ) : (
-                              <span className="text-gray-400 text-xs">General Profile</span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="py-4 font-medium text-gray-600 dark:text-gray-300">
-                          {cand.yearsOfExperience} Year{cand.yearsOfExperience > 1 && 's'}
-                        </td>
-                        <td className="py-4">
-                          {cand.cleanedResume ? (
-                            <span className="inline-block text-xs font-semibold px-2.5 py-0.5 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 rounded-md">
-                              Parsed & Cleaned
-                            </span>
-                          ) : (
-                            <span className="inline-block text-xs font-semibold px-2.5 py-0.5 bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 rounded-md">
-                              Awaiting Processing
-                            </span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div className="py-12 text-center text-gray-400">You haven't uploaded any resumes or applications yet. Use the "Upload Resume" button above.</div>
-            )}
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-        ) : (
-          <>
-            {/* Recent Candidates Table */}
-            <div className="bg-white dark:bg-gray-800 border border-gray-150 dark:border-gray-700 rounded-2xl p-5 lg:col-span-2 flex flex-col justify-between">
-              <div>
-                <div className="flex justify-between items-center mb-5">
-                  <div>
-                    <h3 className="text-base font-bold text-gray-900 dark:text-white">Recent Candidates Pipeline</h3>
-                    <p className="text-xs text-gray-500">Overview of the last candidate resumes uploaded</p>
-                  </div>
-                  <button
-                    onClick={() => router.push('/candidates')}
-                    className="text-xs font-semibold text-blue-600 hover:text-blue-700 hover:underline"
-                  >
-                    View All
-                  </button>
-                </div>
+        </div>
 
-                {loading ? (
-                  <div className="py-12 text-center text-gray-400">Loading data...</div>
-                ) : recentCandidates.length > 0 ? (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                      <thead>
-                        <tr className="border-b border-gray-100 dark:border-gray-700 text-xs font-bold text-gray-400 uppercase">
-                          <th className="pb-3">Candidate</th>
-                          <th className="pb-3">Experience</th>
-                          <th className="pb-3">Notice Period</th>
-                          <th className="pb-3">Status</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-100 dark:divide-gray-700/60">
-                        {recentCandidates.map((cand) => (
-                          <tr key={cand.id} className="text-sm">
-                            <td className="py-4">
-                              <div>
-                                <span className="block font-semibold text-gray-900 dark:text-white">
-                                  {cand.firstName} {cand.lastName}
-                                </span>
-                                <span className="block text-xs text-gray-500">{cand.email}</span>
-                              </div>
-                            </td>
-                            <td className="py-4 font-medium text-gray-600 dark:text-gray-300">
-                              {cand.yearsOfExperience} Year{cand.yearsOfExperience > 1 && 's'}
-                            </td>
-                            <td className="py-4 text-gray-500">
-                              {cand.noticePeriod} Day{cand.noticePeriod > 1 && 's'}
-                            </td>
-                            <td className="py-4">
-                              {cand.cleanedResume ? (
-                                <span className="inline-block text-xs font-semibold px-2.5 py-0.5 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 rounded-md">
-                                  Parsed & Cleaned
-                                </span>
-                              ) : (
-                                <span className="inline-block text-xs font-semibold px-2.5 py-0.5 bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 rounded-md">
-                                  Awaiting Clean
-                                </span>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <div className="py-12 text-center text-gray-400">No candidates uploaded yet</div>
-                )}
+        {/* Recruiter Tasks Checklist (CRM Tasks) */}
+        <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-3xl p-6 shadow-sm flex flex-col justify-between">
+          <div>
+            <div className="flex justify-between items-center mb-5">
+              <div>
+                <h3 className="text-base font-bold text-gray-950 dark:text-white">Recruitment Checklist</h3>
+                <p className="text-xs text-gray-400 mt-0.5">Tasks list of resume operations</p>
               </div>
+              <CheckSquare className="w-5 h-5 text-indigo-600" />
             </div>
 
-            {/* Recent Active Jobs */}
-            <div className="bg-white dark:bg-gray-800 border border-gray-150 dark:border-gray-700 rounded-2xl p-5 flex flex-col justify-between">
-              <div>
-                <div className="flex justify-between items-center mb-5">
-                  <div>
-                    <h3 className="text-base font-bold text-gray-900 dark:text-white">Recent Job Openings</h3>
-                    <p className="text-xs text-gray-500">Fresh requirements added recently</p>
+            <div className="space-y-4.5 mt-4">
+              {tasks.map((task) => (
+                <div
+                  key={task.id}
+                  onClick={() => toggleTask(task.id)}
+                  className="flex items-start gap-3 p-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 rounded-2xl cursor-pointer transition-all border border-gray-50/50 dark:border-gray-800/40"
+                >
+                  <input
+                    type="checkbox"
+                    checked={task.checked}
+                    onChange={() => {}}
+                    className="w-4 h-4 mt-0.5 text-indigo-650 border-gray-300 dark:border-gray-700 rounded-sm focus:ring-indigo-500 cursor-pointer"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-xs font-bold text-gray-800 dark:text-gray-200 ${task.checked ? "line-through text-gray-400 dark:text-gray-500" : ""}`}>
+                      {task.text}
+                    </p>
+                    <div className="flex gap-2 items-center mt-1 text-[10px] text-gray-450">
+                      <span className="flex items-center gap-0.5">
+                        <Clock className="w-3 h-3" />
+                        {task.date}
+                      </span>
+                      <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold ${
+                        task.status === "Completed" ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/20 dark:text-emerald-400" :
+                        task.status === "In Progress" ? "bg-amber-50 text-amber-600 dark:bg-amber-950/20 dark:text-amber-400" :
+                        "bg-rose-50 text-rose-600 dark:bg-rose-950/20 dark:text-rose-400"
+                      }`}>
+                        {task.status}
+                      </span>
+                    </div>
                   </div>
-                  <button
-                    onClick={() => router.push('/jobcreation')}
-                    className="text-xs font-semibold text-blue-600 hover:text-blue-700 hover:underline"
-                  >
-                    View All
-                  </button>
                 </div>
-
-                {loading ? (
-                  <div className="py-12 text-center text-gray-400">Loading data...</div>
-                ) : recentJobs.length > 0 ? (
-                  <div className="space-y-4">
-                    {recentJobs.slice(0, 4).map((job) => (
-                      <div
-                        key={job.id}
-                        className="p-4 border border-gray-100 dark:border-gray-700/60 rounded-2xl hover:border-blue-300 dark:hover:border-blue-900 transition-all"
-                      >
-                        <div className="flex justify-between items-start mb-2">
-                          <span className="text-[10px] font-bold px-2 py-0.5 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 rounded-md">
-                            {job.type ? job.type.replace('_', ' ') : 'FULL TIME'}
-                          </span>
-                          <span className="text-xs font-medium text-gray-400">
-                            {job.location}
-                          </span>
-                        </div>
-                        <h4 className="font-bold text-gray-900 dark:text-white text-sm">
-                          {job.title}
-                        </h4>
-                        <p className="text-xs text-gray-500 mb-2">
-                          {job.client || 'Internal Client'}
-                        </p>
-                        <div className="flex items-center justify-between text-xs font-semibold text-gray-800 dark:text-gray-300">
-                          <span>₹{job.salary ? job.salary.toLocaleString() : 'N/A'}</span>
-                          {job.internalSalary && (
-                            <span className="text-emerald-600 dark:text-emerald-400">
-                              ₹{job.internalSalary.toLocaleString()} (Int)
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="py-12 text-center text-gray-400">No active jobs found</div>
-                )}
-              </div>
+              ))}
             </div>
-          </>
-        )}
+          </div>
+          <button className="w-full text-center text-xs font-bold text-indigo-650 dark:text-indigo-400 hover:text-indigo-700 mt-5 pt-3 border-t border-gray-50 dark:border-gray-850 hover:underline flex items-center justify-center gap-1.5 cursor-pointer">
+            <span>Configure Checklist Board</span>
+          </button>
+        </div>
       </div>
+
+      {/* ── Placement Records & Activity Timeline Row ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Recent Hires/Placements (Closing Deals) */}
+        <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-3xl p-6 lg:col-span-2 shadow-sm flex flex-col justify-between">
+          <div>
+            <div className="flex justify-between items-center mb-5">
+              <div>
+                <h3 className="text-base font-bold text-gray-950 dark:text-white">Recent Successful Placements</h3>
+                <p className="text-xs text-gray-400 mt-0.5">Latest placements filled across client networks</p>
+              </div>
+              <button
+                onClick={() => router.push('/jobcreation')}
+                className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 hover:underline flex items-center gap-0.5 cursor-pointer"
+              >
+                <span>View Job Requirements</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-gray-50 dark:border-gray-850 text-xs font-bold text-gray-400 dark:text-gray-550 uppercase">
+                    <th className="pb-3">Close Date</th>
+                    <th className="pb-3">Candidate</th>
+                    <th className="pb-3">Hiring Partner</th>
+                    <th className="pb-3">Recruiter In Charge</th>
+                    <th className="pb-3">Compensation</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50 dark:divide-gray-850/60">
+                  {placements.map((plc) => (
+                    <tr key={plc.id} className="text-xs sm:text-sm hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition-all">
+                      <td className="py-4 font-semibold text-gray-900 dark:text-white">
+                        {plc.date}
+                      </td>
+                      <td className="py-4 font-bold text-indigo-600 dark:text-indigo-400">
+                        {plc.candidate}
+                      </td>
+                      <td className="py-4 font-semibold text-gray-600 dark:text-gray-300">
+                        {plc.client}
+                      </td>
+                      <td className="py-4 text-xs font-semibold text-gray-700 dark:text-gray-300">
+                        {plc.recruiter}
+                      </td>
+                      <td className="py-4 font-bold text-emerald-600 dark:text-emerald-400">
+                        {plc.compensation}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        {/* Recruitment Timeline Feed (Upcoming Activities) */}
+        <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-3xl p-6 shadow-sm flex flex-col justify-between">
+          <div>
+            <div className="flex justify-between items-center mb-5">
+              <div>
+                <h3 className="text-base font-bold text-gray-950 dark:text-white">Interview Activities</h3>
+                <p className="text-xs text-gray-400 mt-0.5">Recruiter actions & panel meetings schedule</p>
+              </div>
+              <Activity className="w-5 h-5 text-indigo-650" />
+            </div>
+
+            <div className="space-y-5 mt-4">
+              {activities.map((act) => (
+                <div key={act.id} className="flex gap-3.5 items-start">
+                  {/* Timeline representation */}
+                  <div className="flex flex-col items-center justify-center w-11 h-11 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-xl font-extrabold text-[10px] shrink-0">
+                    <span>{act.date.split(" ")[0]}</span>
+                    <span className="text-[8px] text-gray-400 font-medium uppercase">{act.date.split(" ")[1]}</span>
+                  </div>
+                  <div className="space-y-1 flex-1 min-w-0">
+                    <h4 className="text-xs font-bold text-gray-900 dark:text-white leading-tight">{act.title}</h4>
+                    <p className="text-[10px] text-gray-400 font-semibold">{act.time}</p>
+                    
+                    {/* Avatars count representation */}
+                    <div className="flex items-center gap-1.5 mt-1.5">
+                      <div className="flex -space-x-1.5 overflow-hidden">
+                        {[...Array(act.teamCount)].map((_, i) => (
+                          <div key={i} className={`inline-block h-4.5 w-4.5 rounded-full ring-2 ring-white dark:ring-gray-900 ${act.avatarBg} text-white flex items-center justify-center text-[7px] font-bold`}>
+                            {String.fromCharCode(65 + i)}
+                          </div>
+                        ))}
+                      </div>
+                      <span className="text-[9px] font-bold text-gray-400">+{act.teamCount} members</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <button className="w-full text-center text-xs font-bold text-indigo-650 dark:text-indigo-400 hover:text-indigo-700 mt-5 pt-3 border-t border-gray-50 dark:border-gray-850 hover:underline flex items-center justify-center gap-1.5 cursor-pointer">
+            <span>View Full Schedulers</span>
+          </button>
+        </div>
+      </div>
+
+      {/* ── Client Locations Widget ── */}
+      {!loading && locationChartData.categories.length > 0 && (
+        <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-3xl p-6 shadow-sm">
+          <div className="flex justify-between items-center mb-5">
+            <div>
+              <h3 className="text-base font-bold text-gray-950 dark:text-white">Active Vacancies Locations</h3>
+              <p className="text-xs text-gray-400 mt-0.5">Geographical distribution of job postings</p>
+            </div>
+          </div>
+          <div className="h-64">
+            <Chart options={locationBarOptions} series={[{ name: 'Jobs Available', data: locationChartData.data }]} type="bar" height="100%" />
+          </div>
+        </div>
+      )}
 
       {/* Upload Resume Modal */}
       <Modal isOpen={isOpen} onClose={closeModal} className="max-w-[700px] m-4">
