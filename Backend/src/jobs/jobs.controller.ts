@@ -30,10 +30,10 @@ export class JobsController {
 
   @Post('create')
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Create a new job (Admin/HR only)' })
+  @ApiOperation({ summary: 'Create a new job' })
   @ApiResponse({ status: 201, description: 'Job created successfully' })
   @UseGuards(AuthGuard)
-  @SetMetadata('roles', [Role.ADMIN, Role.HR])
+  @SetMetadata('roles', [Role.ADMIN, Role.HR, Role.CLIENT])
   @UseGuards(RoleGuard)
   async createJob(@Body() dto: CreateJobDto, @Request() req) {
     const userId = req.user.user;
@@ -47,6 +47,8 @@ export class JobsController {
   @ApiQuery({ name: 'search', required: false, type: String })
   @ApiQuery({ name: 'location', required: false, type: String })
   @ApiQuery({ name: 'type', required: false, type: String })
+  @ApiQuery({ name: 'userId', required: false, type: String })
+  @ApiQuery({ name: 'role', required: false, type: String })
   @ApiResponse({ status: 200, description: 'List of jobs' })
   findAll(
     @Query('page') page?: string,
@@ -54,10 +56,12 @@ export class JobsController {
     @Query('search') search?: string,
     @Query('location') location?: string,
     @Query('type') type?: string,
+    @Query('userId') userId?: string,
+    @Query('role') role?: string,
   ) {
     const pageNum = page ? parseInt(page, 10) : undefined;
     const limitNum = limit ? parseInt(limit, 10) : undefined;
-    return this.jobsService.findAll(pageNum, limitNum, search, location, type);
+    return this.jobsService.findAll(pageNum, limitNum, search, location, type, userId, role);
   }
 
   @Get('clients')
@@ -84,24 +88,28 @@ export class JobsController {
 
   @Patch(':id')
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Update a job by ID (Admin/HR only)' })
+  @ApiOperation({ summary: 'Update a job by ID' })
   @ApiResponse({ status: 200, description: 'Job updated successfully' })
   @UseGuards(AuthGuard)
-  @SetMetadata('roles', [Role.ADMIN, Role.HR])
+  @SetMetadata('roles', [Role.ADMIN, Role.HR, Role.CLIENT])
   @UseGuards(RoleGuard)
-  update(@Param('id') id: string, @Body() updateJobDto: UpdateJobDto) {
-    return this.jobsService.update(id, updateJobDto);
+  update(@Param('id') id: string, @Body() updateJobDto: UpdateJobDto, @Request() req) {
+    const userId = req.user.user;
+    const role = req.user.role;
+    return this.jobsService.update(id, updateJobDto, userId, role);
   }
 
   @Delete(':id')
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Delete a job by ID (Admin/HR only)' })
+  @ApiOperation({ summary: 'Delete a job by ID' })
   @ApiResponse({ status: 200, description: 'Job deleted successfully' })
   @UseGuards(AuthGuard)
-  @SetMetadata('roles', [Role.ADMIN, Role.HR])
+  @SetMetadata('roles', [Role.ADMIN, Role.HR, Role.CLIENT])
   @UseGuards(RoleGuard)
-  async deleteJob(@Param('id') id: string) {
-    return this.jobsService.jobDeleteById(id);
+  async deleteJob(@Param('id') id: string, @Request() req) {
+    const userId = req.user.user;
+    const role = req.user.role;
+    return this.jobsService.jobDeleteById(id, userId, role);
   }
 
   // ── Candidate applies to a job using their JWT session ──────────────────────

@@ -13,12 +13,12 @@
 
   interface Job {
     id: string;
-    company: string;
+    company?: string;
     title: string;
     description: string;
-    client: string;
+    client?: string;
     skills: string[];
-    internalSalary: number;
+    internalSalary?: number;
     salary: number;
     location: string;
     type: string;
@@ -29,13 +29,42 @@
     const isDark = theme === 'dark';
     const router = useRouter();
     const [authorized, setAuthorized] = useState(false);
+    const [editJobId, setEditJobId] = useState<string | null>(null);
+    const [userCompany, setUserCompany] = useState<string>("");
+    const [userRole, setUserRole] = useState<string>("");
+    const [formData, setFormData] = useState({
+      title: "",
+      description: "",
+      client: "",
+      skills: [] as string[],
+      salary: 0,
+      internalSalary: 0,
+      location: "",
+      type: "",
+    });
 
     useEffect(() => {
       const role = localStorage.getItem("role");
-      if (role !== "ADMIN" && role !== "HR") {
+      setUserRole(role || "");
+      if (role !== "ADMIN" && role !== "HR" && role !== "CLIENT") {
         router.replace("/dashboard");
       } else {
         setAuthorized(true);
+      }
+
+      if (typeof window !== "undefined") {
+        const userStr = localStorage.getItem("user");
+        if (userStr) {
+          try {
+            const userObj = JSON.parse(userStr);
+            setUserCompany(userObj.companyName || "");
+            if (role === "CLIENT") {
+              setFormData(prev => ({ ...prev, client: userObj.companyName || "" }));
+            }
+          } catch (e) {
+            console.error(e);
+          }
+        }
       }
     }, [router]);
 
@@ -93,16 +122,6 @@
     const { isOpen, openModal, closeModal } = useModal();
     const [jData, setJData] = useState<Job[]>([]);
     const [selectedOption, setSelectedOption] = useState(null);
-    const [formData, setFormData] = useState({
-      title: "",
-      description: "",
-      client: "",
-      skills: [] as string[],
-      salary: 0,
-      internalSalary: 0,
-      location: "",
-      type: "",
-    });
 
     const handleChnage = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
       const { name, value } = e.target as HTMLInputElement;
@@ -117,6 +136,36 @@
       setFormData((prev) => ({ ...prev, skills: values }));
     };
 
+      const handleCreateOpen = () => {
+        setEditJobId(null);
+        setFormData({
+          title: "",
+          description: "",
+          client: userRole === "CLIENT" ? userCompany : "",
+          skills: [],
+          salary: 0,
+          internalSalary: 0,
+          location: "",
+          type: "",
+        });
+        openModal();
+      };
+
+      const handleEditOpen = (job: Job) => {
+        setEditJobId(job.id);
+        setFormData({
+          title: job.title,
+          description: job.description,
+          client: job.client || job.company || "",
+          skills: job.skills || [],
+          salary: job.salary,
+          internalSalary: job.internalSalary || 0,
+          location: job.location,
+          type: job.type,
+        });
+        openModal();
+      };
+
       const handlSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
       e.preventDefault();
       if (!formData.skills || formData.skills.length === 0) {
@@ -130,8 +179,10 @@
       const token = localStorage.getItem("token");
 
       try {
-        const response = await fetch(`${API_URL}/jobs/create`, {
-          method: "POST",
+        const url = editJobId ? `${API_URL}/jobs/${editJobId}` : `${API_URL}/jobs/create`;
+        const method = editJobId ? "PATCH" : "POST";
+        const response = await fetch(url, {
+          method: method,
           headers: {
             'Authorization': `Bearer ${token}`,
             "Content-Type": "application/json"
@@ -144,32 +195,33 @@
           throw new Error(
             Array.isArray(errorData.message)
               ? errorData.message.join(", ")
-              : errorData.message || "Failed to create job"
+              : errorData.message || `Failed to ${editJobId ? "update" : "create"} job`
           );
         }
 
         const CreateJobData = await response.json();
         // Refresh the list to trigger correct pagination calculation
         setRefreshTrigger((prev) => prev + 1);
-        toast.success("Job created successfully!");
+        toast.success(`Job ${editJobId ? "updated" : "created"} successfully!`);
 
         // Reset form
         setFormData({
           title: "",
           description: "",
-          client: "",
+          client: userRole === "CLIENT" ? userCompany : "",
           skills: [],
           salary: 0,
           internalSalary: 0,
           location: "",
           type: "",
         });
+        setEditJobId(null);
         setSelectedOption(null);
 
         closeModal();
       } catch (error: any) {
-        console.error("Error creating Job:", error);
-        toast.error(error.message || "Error creating Job");
+        console.error(`Error saving Job:`, error);
+        toast.error(error.message || `Error saving Job`);
       }
     };
     
@@ -286,6 +338,15 @@
             queryParams.append("search", searchTerm);
           }
 
+          const localRole = localStorage.getItem("role");
+          const localUserId = localStorage.getItem("userId");
+          if (localRole) {
+            queryParams.append("role", localRole);
+          }
+          if (localUserId) {
+            queryParams.append("userId", localUserId);
+          }
+
           const res = await fetch(`${API_URL}/jobs?${queryParams.toString()}`, {
             method: "GET",
             headers: { "Content-Type": "application/json" },
@@ -318,7 +379,7 @@
           <Modal isOpen={isOpen} onClose={closeModal} className="max-w-[700px] m-4">
             <div className="relative w-full flex max-w-[700px] rounded-3xl bg-white dark:bg-gray-900 p-4 lg:p-11">
               <div className="max-w-2xl w-full mx-auto bg-white dark:bg-gray-950 h-[75vh] overflow-y-scroll custom-scrollbar shadow-md rounded-2xl p-6 mt-8 border border-gray-100 dark:border-gray-800/80">
-                <h2 className="text-2xl font-semibold mb-6 text-gray-900 dark:text-white">Add Job Listing</h2>
+                <h2 className="text-2xl font-semibold mb-6 text-gray-900 dark:text-white">{editJobId ? "Edit Job Listing" : "Add Job Listing"}</h2>
                 <form onSubmit={handlSubmit} className="space-y-5">
                   {/* Title */}
                   <div>
@@ -353,18 +414,30 @@
                   </div>
 
                   {/* Client */}
-                  <div>
-                    <label className="block mb-1 text-gray-700 dark:text-gray-300 font-medium">Client</label>
-                    <CreatableSelect
-                      name="client"
-                      value={formData.client ? { value: formData.client, label: formData.client } : null}
-                      onChange={(selected: any) => setFormData(prev => ({ ...prev, client: selected ? selected.value : "" }))}
-                      options={clients.map((client) => ({ value: client, label: client }))}
-                      styles={selectStyles}
-                      placeholder="Select or Type Client"
-                      isClearable
-                    />
-                  </div>
+                  {userRole !== "CLIENT" ? (
+                    <div>
+                      <label className="block mb-1 text-gray-700 dark:text-gray-300 font-medium">Client</label>
+                      <CreatableSelect
+                        name="client"
+                        value={formData.client ? { value: formData.client, label: formData.client } : null}
+                        onChange={(selected: any) => setFormData(prev => ({ ...prev, client: selected ? selected.value : "" }))}
+                        options={clients.map((client) => ({ value: client, label: client }))}
+                        styles={selectStyles}
+                        placeholder="Select or Type Client"
+                        isClearable
+                      />
+                    </div>
+                  ) : (
+                    <div>
+                      <label className="block mb-1 text-gray-700 dark:text-gray-300 font-medium">Client</label>
+                      <input
+                        type="text"
+                        value={formData.client || userCompany}
+                        disabled
+                        className="w-full border border-gray-300 dark:border-gray-700 rounded-lg p-2 bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 cursor-not-allowed"
+                      />
+                    </div>
+                  )}
 
                   {/* Skills */}
                   <div>
@@ -456,12 +529,12 @@
                     </select>
                   </div>
 
-                  {/* Submit */}
+                   {/* Submit */}
                   <button
                     type="submit"
                     className="w-full bg-blue-600 text-white rounded-lg py-2 font-semibold hover:bg-blue-700 transition-all"
                   >
-                    Create Job
+                    {editJobId ? "Save Changes" : "Create Job"}
                   </button>
                 </form>
               </div>
@@ -471,7 +544,8 @@
 
         <Joblisting 
           jData={jData} 
-          onCreateJob={openModal} 
+          onCreateJob={handleCreateOpen} 
+          onEditJob={handleEditOpen}
           currentPage={currentPage}
           setCurrentPage={setCurrentPage}
           totalCount={totalCount}

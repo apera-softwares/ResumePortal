@@ -14,6 +14,7 @@ import { LocationsModule } from './locations/locations.module';
 
 import { MailModule } from './mail/mail.module';
 
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -31,4 +32,4 @@ import { MailModule } from './mail/mail.module';
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule { }

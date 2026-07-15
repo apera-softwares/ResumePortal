@@ -105,14 +105,24 @@ export default function DashboardPage() {
         });
 
       } else {
+        const queryParams = new URLSearchParams();
+        const localRole = localStorage.getItem("role");
+        const localUserId = localStorage.getItem("userId");
+        if (localRole) {
+          queryParams.append("role", localRole);
+        }
+        if (localUserId) {
+          queryParams.append("userId", localUserId);
+        }
+
         // 1. Fetch Candidates
-        const cRes = await fetch(`${API_URL}/candidates`);
+        const cRes = await fetch(`${API_URL}/candidates?${queryParams.toString()}`);
         if (!cRes.ok) throw new Error("Failed to fetch candidates");
         const cData = await cRes.json();
         const candidates = Array.isArray(cData) ? cData : (cData.data || []);
 
         // 2. Fetch Jobs
-        const jRes = await fetch(`${API_URL}/jobs`);
+        const jRes = await fetch(`${API_URL}/jobs?${queryParams.toString()}`);
         if (!jRes.ok) throw new Error("Failed to fetch jobs");
         const jData = await jRes.json();
         const jobs = jData.data || [];

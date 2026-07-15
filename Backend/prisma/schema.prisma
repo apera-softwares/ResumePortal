@@ -16,10 +16,11 @@ model User {
   password    String
   role        Role
   mobile      String?
-  companyName String?
+  clientId    String?
   isActive    Boolean     @default(true)
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
+  client      Client?     @relation(fields: [clientId], references: [id], onDelete: SetNull)
   candidates  Candidate[]
   jobs        Job[]
 }
@@ -33,6 +34,7 @@ model Client {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   jobs        Job[]
+  users       User[]
 }
 
 model Location {

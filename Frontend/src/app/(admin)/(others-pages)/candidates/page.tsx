@@ -280,7 +280,17 @@ function CandidatesContent() {
 
   const fetchJobs = async () => {
     try {
-      const res = await fetch(`${API_URL}/jobs`);
+      const queryParams = new URLSearchParams();
+      const localRole = localStorage.getItem("role");
+      const localUserId = localStorage.getItem("userId");
+      if (localRole) {
+        queryParams.append("role", localRole);
+      }
+      if (localUserId) {
+        queryParams.append("userId", localUserId);
+      }
+
+      const res = await fetch(`${API_URL}/jobs?${queryParams.toString()}`);
       if (res.ok) {
         const data = await res.json();
         const jobsList = data.data || [];

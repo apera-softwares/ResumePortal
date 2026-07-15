@@ -91,6 +91,15 @@ export default function BrowseJobsPage() {
         if (searchTerm) {
           queryParams.append("search", searchTerm);
         }
+        
+        const localRole = localStorage.getItem("role");
+        const localUserId = localStorage.getItem("userId");
+        if (localRole) {
+          queryParams.append("role", localRole);
+        }
+        if (localUserId) {
+          queryParams.append("userId", localUserId);
+        }
 
         const res = await fetch(`${API_URL}/jobs?${queryParams.toString()}`, {
           method: "GET",

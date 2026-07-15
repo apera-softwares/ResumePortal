@@ -10,7 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from "../ui/table";
-import { Trash, Users } from "lucide-react";
+import { Trash, Users, Edit } from "lucide-react";
 
 interface Job {
   id: string;
@@ -39,6 +39,7 @@ interface JoblistingProps {
   role?: string;
   appliedJobIds?: Set<string>;
   onApply?: (jobId: string) => void;
+  onEditJob?: (job: Job) => void;
 }
 
 export default function Joblisting({
@@ -54,6 +55,7 @@ export default function Joblisting({
   role,
   appliedJobIds,
   onApply,
+  onEditJob,
 }: JoblistingProps) {
   const API_URL = process.env.NEXT_PUBLIC_API_URL;
   const router = useRouter();
@@ -327,6 +329,21 @@ export default function Joblisting({
                              </div>
                            </div>
                           
+                          {onEditJob && (
+                            <div className="relative group shrink-0">
+                              <button
+                                onClick={() => onEditJob(job)}
+                                className="p-1.5 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/30 dark:hover:bg-blue-950/50 text-blue-600 dark:text-blue-400 rounded-lg border border-blue-100/50 dark:border-blue-900/40 transition-all cursor-pointer"
+                              >
+                                <Edit className="h-3.5 w-3.5" />
+                              </button>
+                              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2.5 px-2 py-1 rounded-lg bg-blue-600 text-white text-[10px] font-semibold whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 translate-y-1 group-hover:translate-y-0 transition-all duration-150 z-50 shadow-md">
+                                Edit Job
+                                <div className="absolute top-full left-1/2 -translate-x-1/2 border-[4px] border-transparent border-t-blue-600" />
+                              </div>
+                            </div>
+                          )}
+
                           <div className="relative group shrink-0">
                             <button
                               onClick={() => handleDelete(job?.id)}
@@ -464,7 +481,7 @@ export default function Joblisting({
 
                             {/* Delete/Apply Action */}
                             <TableCell className="px-6 py-4 text-center">
-                              <div className="flex items-center justify-center">
+                              <div className="flex items-center justify-center gap-2">
                                 {role === "CANDIDATE" ? (
                                   <button
                                     disabled={appliedJobIds?.has(job.id)}
@@ -478,19 +495,35 @@ export default function Joblisting({
                                     {appliedJobIds?.has(job.id) ? "Applied" : "Apply"}
                                   </button>
                                 ) : (
-                                  /* Delete Tooltip Wrapper */
-                                  <div className="relative group">
-                                    <button
-                                      onClick={() => handleDelete(job?.id)}
-                                      className="p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-rose-600 dark:text-rose-400 bg-rose-50/50 hover:bg-rose-100/70 dark:bg-rose-950/20 dark:hover:bg-rose-950/40 transition-all shadow-xs cursor-pointer"
-                                    >
-                                      <Trash className="h-4 w-4" />
-                                    </button>
-                                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2.5 px-2 py-1 rounded-lg bg-rose-600 text-white text-[10px] font-semibold whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 translate-y-1 group-hover:translate-y-0 transition-all duration-150 z-50 shadow-md">
-                                      Delete Job
-                                      <div className="absolute top-full left-1/2 -translate-x-1/2 border-[4px] border-transparent border-t-rose-600" />
+                                  <>
+                                    {onEditJob && (
+                                      <div className="relative group">
+                                        <button
+                                          onClick={() => onEditJob(job)}
+                                          className="p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-blue-600 dark:text-blue-400 bg-blue-50/50 hover:bg-blue-100/70 dark:bg-blue-950/20 dark:hover:bg-blue-950/40 transition-all shadow-xs cursor-pointer"
+                                        >
+                                          <Edit className="h-4 w-4" />
+                                        </button>
+                                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2.5 px-2 py-1 rounded-lg bg-blue-600 text-white text-[10px] font-semibold whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 translate-y-1 group-hover:translate-y-0 transition-all duration-150 z-50 shadow-md">
+                                          Edit Job
+                                          <div className="absolute top-full left-1/2 -translate-x-1/2 border-[4px] border-transparent border-t-blue-600" />
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    <div className="relative group">
+                                      <button
+                                        onClick={() => handleDelete(job?.id)}
+                                        className="p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-rose-600 dark:text-rose-400 bg-rose-50/50 hover:bg-rose-100/70 dark:bg-rose-950/20 dark:hover:bg-rose-950/40 transition-all shadow-xs cursor-pointer"
+                                      >
+                                        <Trash className="h-4 w-4" />
+                                      </button>
+                                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2.5 px-2 py-1 rounded-lg bg-rose-600 text-white text-[10px] font-semibold whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 translate-y-1 group-hover:translate-y-0 transition-all duration-150 z-50 shadow-md">
+                                        Delete Job
+                                        <div className="absolute top-full left-1/2 -translate-x-1/2 border-[4px] border-transparent border-t-rose-600" />
+                                      </div>
                                     </div>
-                                  </div>
+                                  </>
                                 )}
                               </div>
                             </TableCell>
