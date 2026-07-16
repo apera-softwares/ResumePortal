@@ -11,6 +11,7 @@ services:
       DATABASE_URL: "${DATABASE_URL}"
       PORT: "8094"
       JWT_SECRET: "${JWT_SECRET}"
+      PUPPETEER_EXECUTABLE_PATH: "${PUPPETEER_EXECUTABLE_PATH}"
     volumes:
       - resumebuilder-uploads:/usr/src/app/uploads
     networks:

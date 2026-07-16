@@ -1137,6 +1137,7 @@ export class CandidateService {
     const puppeteer = require('puppeteer');
     const browser = await puppeteer.launch({
       headless: true,
+      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
@@ -1330,6 +1331,7 @@ export class CandidateService {
     let cleanSemanticHtml = '';
     const browser = await puppeteer.launch({
       headless: true,
+      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
