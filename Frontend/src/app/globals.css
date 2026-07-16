@@ -73,10 +73,10 @@
   --color-gray-500: #667085;
   --color-gray-600: #475467;
   --color-gray-700: #344054;
-  --color-gray-800: #1d2939;
-  --color-gray-900: #101828;
-  --color-gray-950: #0c111d;
-  --color-gray-dark: #1a2231;
+  --color-gray-800: #151d30;
+  --color-gray-900: #0b0f19;
+  --color-gray-950: #060814;
+  --color-gray-dark: #0a0d1a;
 
   --color-orange-25: #fffaf5;
   --color-orange-50: #fff6ed;
@@ -753,3 +753,63 @@ span.flatpickr-weekday,
   overflow-wrap: break-word !important;
   vertical-align: top;
 }
+
+/* Autocomplete/Autofill overrides for consistency in light and dark mode */
+input:-webkit-autofill,
+input:-webkit-autofill:hover, 
+input:-webkit-autofill:focus, 
+input:-webkit-autofill:active {
+  -webkit-text-fill-color: #101828 !important;
+  box-shadow: 0 0 0px 1000px #ffffff inset !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+.dark input:-webkit-autofill,
+.dark input:-webkit-autofill:hover, 
+.dark input:-webkit-autofill:focus, 
+.dark input:-webkit-autofill:active {
+  -webkit-text-fill-color: #ffffff !important;
+  box-shadow: 0 0 0px 1000px #101828 inset !important;
+}
+
+/* ==========================================
+   Premium Global Thin Scrollbar Styling
+   ========================================== */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #d1d5db; /* gray-300 */
+  border-radius: 9999px;
+  border: 1px solid transparent;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af; /* gray-400 */
+}
+
+/* Dark Mode Global Scrollbar */
+.dark ::-webkit-scrollbar-thumb {
+  background: #374151; /* gray-700 */
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #4b5563; /* gray-600 */
+}
+
+/* Firefox compatibility */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #d1d5db transparent;
+}
+
+.dark * {
+  scrollbar-color: #374151 transparent;
+}
+

@@ -45,5 +45,5 @@ jobs:
           pull: true
           env_data: |
             {
-               "PORT": "3000"
+               "NEXT_PUBLIC_API_URL": "${{ secrets.NEXT_PUBLIC_API_URL }}"
             }

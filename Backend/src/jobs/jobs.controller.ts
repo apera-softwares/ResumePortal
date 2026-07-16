@@ -9,55 +9,135 @@ import {
   Request,
   SetMetadata,
   UseGuards,
+  Query,
 } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery, ApiBody } from '@nestjs/swagger';
 import { JobsService } from './jobs.service';
+import { CandidateService } from 'src/candidate/candidate.service';
 import { CreateJobDto } from 'src/Validations/job/create-job.dto';
 import { UpdateJobDto } from 'src/Validations/job/update-job.dto';
 import { Role } from '@prisma/client';
 import { AuthGuard } from 'src/guards/auth.guard';
 import { RoleGuard } from 'src/guards/role.guard';
 
+@ApiTags('Jobs')
 @Controller('jobs')
 export class JobsController {
-  constructor(private readonly jobsService: JobsService) {}
+  constructor(
+    private readonly jobsService: JobsService,
+    private readonly candidateService: CandidateService,
+  ) {}
 
-  // Only Admin and HR can create job
-  @UseGuards(AuthGuard)
-  @SetMetadata('roles', [Role.ADMIN, Role.HR])
-  @UseGuards(RoleGuard)
   @Post('create')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Create a new job' })
+  @ApiResponse({ status: 201, description: 'Job created successfully' })
+  @UseGuards(AuthGuard)
+  @SetMetadata('roles', [Role.ADMIN, Role.HR, Role.CLIENT])
+  @UseGuards(RoleGuard)
   async createJob(@Body() dto: CreateJobDto, @Request() req) {
-    const userId = req.user.user; // comes from JWT payload
+    const userId = req.user.user;
     return this.jobsService.create(dto, userId);
   }
 
-  // get all jobs
   @Get()
-  findAll() {
-    return this.jobsService.findAll();
+  @ApiOperation({ summary: 'Get all jobs with filtering and pagination' })
+  @ApiQuery({ name: 'page', required: false, type: String })
+  @ApiQuery({ name: 'limit', required: false, type: String })
+  @ApiQuery({ name: 'search', required: false, type: String })
+  @ApiQuery({ name: 'location', required: false, type: String })
+  @ApiQuery({ name: 'type', required: false, type: String })
+  @ApiQuery({ name: 'userId', required: false, type: String })
+  @ApiQuery({ name: 'role', required: false, type: String })
+  @ApiResponse({ status: 200, description: 'List of jobs' })
+  findAll(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('search') search?: string,
+    @Query('location') location?: string,
+    @Query('type') type?: string,
+    @Query('userId') userId?: string,
+    @Query('role') role?: string,
+  ) {
+    const pageNum = page ? parseInt(page, 10) : undefined;
+    const limitNum = limit ? parseInt(limit, 10) : undefined;
+    return this.jobsService.findAll(pageNum, limitNum, search, location, type, userId, role);
   }
 
-  // get single job
+  @Get('clients')
+  @ApiOperation({ summary: 'Get all unique clients' })
+  @ApiResponse({ status: 200, description: 'List of unique clients' })
+  async getClients() {
+    return this.jobsService.getClients();
+  }
+
+  @Get('types')
+  @ApiOperation({ summary: 'Get all job types' })
+  @ApiResponse({ status: 200, description: 'List of job types' })
+  getJobTypes() {
+    return this.jobsService.getJobTypes();
+  }
+
   @Get(':id')
+  @ApiOperation({ summary: 'Get a single job by ID' })
+  @ApiResponse({ status: 200, description: 'Job retrieved successfully' })
+  @ApiResponse({ status: 404, description: 'Job not found' })
   async getJobById(@Param('id') id: string) {
-    return this.jobsService.getJobById(Number(id));
+    return this.jobsService.getJobById(id);
   }
 
-  // only admin and hr can edit the job using id
-@UseGuards(AuthGuard)
-  @SetMetadata('roles', [Role.ADMIN, Role.HR])
-  @UseGuards(RoleGuard)
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateJobDto: UpdateJobDto) {
-     return this.jobsService.update(Number(id), updateJobDto);
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update a job by ID' })
+  @ApiResponse({ status: 200, description: 'Job updated successfully' })
+  @UseGuards(AuthGuard)
+  @SetMetadata('roles', [Role.ADMIN, Role.HR, Role.CLIENT])
+  @UseGuards(RoleGuard)
+  update(@Param('id') id: string, @Body() updateJobDto: UpdateJobDto, @Request() req) {
+    const userId = req.user.user;
+    const role = req.user.role;
+    return this.jobsService.update(id, updateJobDto, userId, role);
   }
 
-  // only admin and hr delete job
-  @UseGuards(AuthGuard)
-  @SetMetadata('roles', [Role.ADMIN, Role.HR])
-  @UseGuards(RoleGuard)
   @Delete(':id')
-  async deleteJob(@Param('id') id: string) {
-    return this.jobsService.jobDeleteById(Number(id));
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Delete a job by ID' })
+  @ApiResponse({ status: 200, description: 'Job deleted successfully' })
+  @UseGuards(AuthGuard)
+  @SetMetadata('roles', [Role.ADMIN, Role.HR, Role.CLIENT])
+  @UseGuards(RoleGuard)
+  async deleteJob(@Param('id') id: string, @Request() req) {
+    const userId = req.user.user;
+    const role = req.user.role;
+    return this.jobsService.jobDeleteById(id, userId, role);
+  }
+
+  // ── Candidate applies to a job using their JWT session ──────────────────────
+  @Post('apply')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Apply to a job (Candidate only — uses JWT email)' })
+  @ApiBody({ schema: { type: 'object', properties: { jobId: { type: 'string' } }, required: ['jobId'] } })
+  @ApiResponse({ status: 201, description: 'Applied successfully' })
+  @ApiResponse({ status: 404, description: 'No candidate profile found' })
+  @UseGuards(AuthGuard)
+  @SetMetadata('roles', [Role.CANDIDATE])
+  @UseGuards(RoleGuard)
+  async applyToJob(@Body('jobId') jobId: string, @Request() req) {
+    const email: string = req.user?.email;
+    const userId: string = req.user?.user;
+    return this.candidateService.applyToJobByEmail(email, jobId, userId);
+  }
+
+  // ── Get all applied jobs for the logged-in candidate ────────────────────────
+  @Get('my-applied-jobs')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get all applied jobs for logged-in candidate' })
+  @ApiResponse({ status: 200, description: 'List of applied jobs' })
+  @UseGuards(AuthGuard)
+  @SetMetadata('roles', [Role.CANDIDATE])
+  @UseGuards(RoleGuard)
+  async getMyAppliedJobs(@Request() req) {
+    const email: string = req.user?.email;
+    return this.candidateService.findByEmail(email);
   }
 }

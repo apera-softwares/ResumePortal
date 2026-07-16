@@ -4,28 +4,21 @@
   import { Modal } from '@/components/ui/modal';
   import { useModal } from '@/hooks/useModal';
   import Select from 'react-select';
+  import CreatableSelect from 'react-select/creatable';
   import React, { useEffect, useState } from 'react';
   import toast from 'react-hot-toast';
   import { useTheme } from '@/context/ThemeContext';
+  import { useRouter } from 'next/navigation';
 
-  const clients = ["CloudSphere Technologies", "PixelCraft Studio", "PeopleFirst HR"];
-  const majorCities = ["REMOTE", "MUMBAI", "DELHI", "BANGALORE", "HYDERABAD", "CHENNAI", "PUNE"];
-  const jobTypes = ["FULL_TIME", "INTERN", "CONTRACT", "FREELANCING"]
-  // const options = [
-  //   { value: 'Js', label: 'Js' },
-  //   { value: 'nodeJs', label: 'nodeJs' },
-  //   { value: 'React', label: 'React' },
-  //   { value: 'SCSS', label: 'SCSS' },
-  // ];
 
   interface Job {
-    id: number;
-    company: string;
+    id: string;
+    company?: string;
     title: string;
     description: string;
-    client: string;
+    client?: string;
     skills: string[];
-    internalSalary: number;
+    internalSalary?: number;
     salary: number;
     location: string;
     type: string;
@@ -34,7 +27,47 @@
   export default function JobsCreation() {
     const { theme } = useTheme();
     const isDark = theme === 'dark';
-    
+    const router = useRouter();
+    const [authorized, setAuthorized] = useState(false);
+    const [editJobId, setEditJobId] = useState<string | null>(null);
+    const [userCompany, setUserCompany] = useState<string>("");
+    const [userRole, setUserRole] = useState<string>("");
+    const [formData, setFormData] = useState({
+      title: "",
+      description: "",
+      client: "",
+      skills: [] as string[],
+      salary: 0,
+      internalSalary: 0,
+      location: "",
+      type: "",
+    });
+
+    useEffect(() => {
+      const role = localStorage.getItem("role");
+      setUserRole(role || "");
+      if (role !== "ADMIN" && role !== "HR" && role !== "CLIENT") {
+        router.replace("/dashboard");
+      } else {
+        setAuthorized(true);
+      }
+
+      if (typeof window !== "undefined") {
+        const userStr = localStorage.getItem("user");
+        if (userStr) {
+          try {
+            const userObj = JSON.parse(userStr);
+            setUserCompany(userObj.companyName || "");
+            if (role === "CLIENT") {
+              setFormData(prev => ({ ...prev, client: userObj.companyName || "" }));
+            }
+          } catch (e) {
+            console.error(e);
+          }
+        }
+      }
+    }, [router]);
+
     const selectStyles = {
       control: (base: any) => ({
         ...base,
@@ -89,16 +122,6 @@
     const { isOpen, openModal, closeModal } = useModal();
     const [jData, setJData] = useState<Job[]>([]);
     const [selectedOption, setSelectedOption] = useState(null);
-    const [formData, setFormData] = useState({
-      title: "",
-      description: "",
-      client: "",
-      skills: [],
-      salary: 0,
-      internalSalary: 0,
-      location: "",
-      type: "",
-    });
 
     const handleChnage = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
       const { name, value } = e.target as HTMLInputElement;
@@ -113,17 +136,53 @@
       setFormData((prev) => ({ ...prev, skills: values }));
     };
 
-    const handlSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+      const handleCreateOpen = () => {
+        setEditJobId(null);
+        setFormData({
+          title: "",
+          description: "",
+          client: userRole === "CLIENT" ? userCompany : "",
+          skills: [],
+          salary: 0,
+          internalSalary: 0,
+          location: "",
+          type: "",
+        });
+        openModal();
+      };
+
+      const handleEditOpen = (job: Job) => {
+        setEditJobId(job.id);
+        setFormData({
+          title: job.title,
+          description: job.description,
+          client: job.client || job.company || "",
+          skills: job.skills || [],
+          salary: job.salary,
+          internalSalary: job.internalSalary || 0,
+          location: job.location,
+          type: job.type,
+        });
+        openModal();
+      };
+
+      const handlSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
       e.preventDefault();
       if (!formData.skills || formData.skills.length === 0) {
         toast.error("Please select at least one skill.");
         return;
       }
+      if (!formData.location) {
+        toast.error("Please select a location.");
+        return;
+      }
       const token = localStorage.getItem("token");
 
       try {
-        const response = await fetch(`${API_URL}/jobs/create`, {
-          method: "POST",
+        const url = editJobId ? `${API_URL}/jobs/${editJobId}` : `${API_URL}/jobs/create`;
+        const method = editJobId ? "PATCH" : "POST";
+        const response = await fetch(url, {
+          method: method,
           headers: {
             'Authorization': `Bearer ${token}`,
             "Content-Type": "application/json"
@@ -136,56 +195,159 @@
           throw new Error(
             Array.isArray(errorData.message)
               ? errorData.message.join(", ")
-              : errorData.message || "Failed to create job"
+              : errorData.message || `Failed to ${editJobId ? "update" : "create"} job`
           );
         }
 
         const CreateJobData = await response.json();
-        // Add new job to the list immediately
-        setJData((prev) => [...prev, CreateJobData.data]);
-        toast.success("Job created successfully!");
+        // Refresh the list to trigger correct pagination calculation
+        setRefreshTrigger((prev) => prev + 1);
+        toast.success(`Job ${editJobId ? "updated" : "created"} successfully!`);
 
         // Reset form
         setFormData({
           title: "",
           description: "",
-          client: "",
+          client: userRole === "CLIENT" ? userCompany : "",
           skills: [],
           salary: 0,
           internalSalary: 0,
           location: "",
           type: "",
         });
+        setEditJobId(null);
         setSelectedOption(null);
 
         closeModal();
       } catch (error: any) {
-        console.error("Error creating Job:", error);
-        toast.error(error.message || "Error creating Job");
+        console.error(`Error saving Job:`, error);
+        toast.error(error.message || `Error saving Job`);
       }
     };
     
-      const [skills ,setSkills]=useState([])
-      useEffect(()=>{
-        const fetchSkills =async()=>{
-          try{
-            const res=await fetch(`${API_URL}/skills`,{
-                  method:"GET",
-                  headers:{"Content-Type": "application/json"}
-                });
-                if(!res.ok)throw new Error("somethig went wrong");
-                const Data= await res.json();
-                setSkills(Data);
-          }catch(error){
-            console.error("error while getting skills")
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalCount, setTotalCount] = useState(0);
+    const [searchTerm, setSearchTerm] = useState("");
+    const [refreshTrigger, setRefreshTrigger] = useState(0);
+    const ITEMS_PER_PAGE = 8;
+
+    const [skills, setSkills] = useState([])
+    const [locations, setLocations] = useState<{ value: string; label: string }[]>([]);
+    const [clients, setClients] = useState<string[]>([]);
+    const [jobTypes, setJobTypes] = useState<string[]>([]);
+
+    useEffect(() => {
+      const fetchClients = async () => {
+        try {
+          const token = localStorage.getItem("token");
+          const res = await fetch(`${API_URL}/users?limit=1000`, {
+            method: "GET",
+            headers: {
+              'Authorization': `Bearer ${token || ""}`,
+              'Content-Type': 'application/json'
+            }
+          });
+          if (res.ok) {
+            const result = await res.json();
+            const usersList = result.data || [];
+            const clientUsers = usersList.filter((u: any) => u.role === "CLIENT" || u.role === "client");
+            setClients(clientUsers.map((c: any) => c.name));
           }
+        } catch (error) {
+          console.error("Error fetching clients:", error);
         }
-  fetchSkills()
-      },[])
+      };
+      fetchClients();
+    }, [API_URL]);
+
+    useEffect(() => {
+      const fetchJobTypes = async () => {
+        try {
+          const res = await fetch(`${API_URL}/jobs/types`);
+          if (res.ok) {
+            const result = await res.json();
+            const types = result.data || [];
+            if (types.length > 0) {
+              setJobTypes(types);
+            }
+          }
+        } catch (error) {
+          console.error("Error fetching job types:", error);
+        }
+      };
+      fetchJobTypes();
+    }, [API_URL]);
+
+    useEffect(() => {
+      const fetchLocations = async () => {
+        try {
+          const res = await fetch(`${API_URL}/locations`);
+          if (res.ok) {
+            const result = await res.json();
+            const locationsList = result.data || [];
+            const mapped = locationsList
+              .filter((loc: any) => loc.name.toUpperCase() !== "REMOTE")
+              .map((loc: any) => ({
+                value: loc.name,
+                label: loc.name
+                  .toLowerCase()
+                  .split(" ")
+                  .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
+                  .join(" "),
+              }));
+            setLocations([
+              { value: "Remote", label: "Remote" },
+              ...mapped
+            ]);
+          }
+        } catch (error) {
+          console.error("Error fetching locations:", error);
+        }
+      };
+      fetchLocations();
+    }, [API_URL]);
+
+    useEffect(()=>{
+      const fetchSkills =async()=>{
+        try{
+          const res=await fetch(`${API_URL}/skills`,{
+            method:"GET",
+            headers:{"Content-Type": "application/json"}
+          });
+          if(!res.ok)throw new Error("somethig went wrong");
+          const Data= await res.json();
+          setSkills(Data);
+        }catch(error){
+          console.error("error while getting skills")
+        }
+      }
+      fetchSkills()
+    },[])
+
+    useEffect(() => {
+      setCurrentPage(1);
+    }, [searchTerm]);
+
     useEffect(() => {
       const fetchJobs = async () => {
         try {
-          const res = await fetch(`${API_URL}/jobs`, {
+          const queryParams = new URLSearchParams();
+          queryParams.append("page", String(currentPage));
+          queryParams.append("limit", String(ITEMS_PER_PAGE));
+          if (searchTerm) {
+            queryParams.append("search", searchTerm);
+          }
+
+          const localRole = localStorage.getItem("role");
+          const localUserId = localStorage.getItem("userId");
+          if (localRole) {
+            queryParams.append("role", localRole);
+          }
+          if (localUserId) {
+            queryParams.append("userId", localUserId);
+          }
+
+          const res = await fetch(`${API_URL}/jobs?${queryParams.toString()}`, {
             method: "GET",
             headers: { "Content-Type": "application/json" },
           });
@@ -193,39 +355,41 @@
           if (!res.ok) throw new Error("Something went wrong");
 
           const jobsData = await res.json();
-          setJData(jobsData.data);
+          if (jobsData && typeof jobsData.total === "number") {
+            setJData(jobsData.data || []);
+            setTotalCount(jobsData.total);
+          } else {
+            const arr = Array.isArray(jobsData) ? jobsData : (jobsData.data || []);
+            setJData(arr);
+            setTotalCount(arr.length);
+          }
         } catch (error) {
           console.error("Error fetching jobs:", error);
         }
       };
 
       fetchJobs();
-    }, []);
+    }, [API_URL, currentPage, searchTerm, refreshTrigger]);
+
+    if (!authorized) return null;
 
     return (
       <>
-        <div className="px-6 py-5 flex justify-end items-center">
-          <button
-            onClick={openModal}
-            className="flex items-center gap-2 rounded-full border border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:text-gray-200"
-          >
-            <svg className="fill-current" width="18" height="18" viewBox="0 0 18 18">
-              <path fillRule="evenodd" clipRule="evenodd" d="M15.0911 2.78206C14.2125 1.90338 12.7878 1.90338 11.9092 2.78206L4.57524 10.116C4.26682 10.4244 4.0547 10.8158 3.96468 11.2426L3.31231 14.3352C3.25997 14.5833 3.33653 14.841 3.51583 15.0203C3.69512 15.1996 3.95286 15.2761 4.20096 15.2238L7.29355 14.5714C7.72031 14.4814 8.11172 14.2693 8.42013 13.9609L15.7541 6.62695C16.6327 5.74827 16.6327 4.32365 15.7541 3.44497L15.0911 2.78206Z" />
-            </svg>
-            Create Job
-          </button>
-
+        <div className="relative">
           <Modal isOpen={isOpen} onClose={closeModal} className="max-w-[700px] m-4">
             <div className="relative w-full flex max-w-[700px] rounded-3xl bg-white dark:bg-gray-900 p-4 lg:p-11">
               <div className="max-w-2xl w-full mx-auto bg-white dark:bg-gray-950 h-[75vh] overflow-y-scroll custom-scrollbar shadow-md rounded-2xl p-6 mt-8 border border-gray-100 dark:border-gray-800/80">
-                <h2 className="text-2xl font-semibold mb-6 text-gray-900 dark:text-white">Add Job Listing</h2>
+                <h2 className="text-2xl font-semibold mb-6 text-gray-900 dark:text-white">{editJobId ? "Edit Job Listing" : "Add Job Listing"}</h2>
                 <form onSubmit={handlSubmit} className="space-y-5">
                   {/* Title */}
                   <div>
-                    <label className="block mb-1 text-gray-700 dark:text-gray-300 font-medium">Job Title</label>
+                    <label className="block mb-1 text-gray-700 dark:text-gray-300 font-medium">
+                      Job Title <span className="text-red-500">*</span>
+                    </label>
                     <input
                       type="text"
                       name="title"
+                      value={formData.title}
                       onChange={handleChnage}
                       placeholder="Enter job title"
                       className="w-full border border-gray-300 dark:border-gray-700 rounded-lg p-2 focus:ring-2 focus:ring-blue-400 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
@@ -235,9 +399,12 @@
 
                   {/* Description */}
                   <div>
-                    <label className="block mb-1 text-gray-700 dark:text-gray-300 font-medium">Description</label>
+                    <label className="block mb-1 text-gray-700 dark:text-gray-300 font-medium">
+                      Description <span className="text-red-500">*</span>
+                    </label>
                     <textarea
                       name="description"
+                      value={formData.description}
                       onChange={handleChnage}
                       placeholder="Enter job description"
                       className="w-full border border-gray-300 dark:border-gray-700 rounded-lg p-2 focus:ring-2 focus:ring-blue-400 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
@@ -247,27 +414,40 @@
                   </div>
 
                   {/* Client */}
-                  <div>
-                    <label className="block mb-1 text-gray-700 dark:text-gray-300 font-medium">Client</label>
-                    <select
-                      name="client"
-                      onChange={handleChnage}
-                      className="w-full border border-gray-300 dark:border-gray-700 rounded-lg p-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                      required
-                    >
-                      <option value="" className="text-gray-500">Select Client</option>
-                      {clients.map((client) => (
-                        <option key={client} value={client}>{client}</option>
-                      ))}
-                    </select>
-                  </div>
+                  {userRole !== "CLIENT" ? (
+                    <div>
+                      <label className="block mb-1 text-gray-700 dark:text-gray-300 font-medium">Client</label>
+                      <CreatableSelect
+                        name="client"
+                        value={formData.client ? { value: formData.client, label: formData.client } : null}
+                        onChange={(selected: any) => setFormData(prev => ({ ...prev, client: selected ? selected.value : "" }))}
+                        options={clients.map((client) => ({ value: client, label: client }))}
+                        styles={selectStyles}
+                        placeholder="Select or Type Client"
+                        isClearable
+                      />
+                    </div>
+                  ) : (
+                    <div>
+                      <label className="block mb-1 text-gray-700 dark:text-gray-300 font-medium">Client</label>
+                      <input
+                        type="text"
+                        value={formData.client || userCompany}
+                        disabled
+                        className="w-full border border-gray-300 dark:border-gray-700 rounded-lg p-2 bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 cursor-not-allowed"
+                      />
+                    </div>
+                  )}
 
                   {/* Skills */}
                   <div>
                     <label className="block mb-1 text-gray-700 dark:text-gray-300 font-medium">Skills</label>
                     <Select
                       name="skills"
-                      defaultValue={selectedOption}
+                      value={skills.map((skill: any) => ({
+                        value: skill.name,
+                        label: skill.name,
+                      })).filter((opt: any) => formData.skills.includes(opt.value))}
                       onChange={handleSkillsChange}
                       options={skills.map((skill: any) => ({
                         value: skill.name,
@@ -275,18 +455,23 @@
                       }))}
                       isMulti
                       styles={selectStyles}
+                      placeholder="Select Skills..."
                     />
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block mb-1 text-gray-700 dark:text-gray-300 font-medium">Salary</label>
+                      <label className="block mb-1 text-gray-700 dark:text-gray-300 font-medium">
+                        Salary <span className="text-red-500">*</span>
+                      </label>
                       <input
                         type="number"
                         name="salary"
+                        value={formData.salary || ""}
                         onChange={handleChnage}
                         placeholder="e.g. 80000"
                         className="w-full border border-gray-300 dark:border-gray-700 rounded-lg p-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                        required
                       />
                     </div>
                     <div>
@@ -294,6 +479,7 @@
                       <input
                         type="number"
                         name="internalSalary"
+                        value={formData.internalSalary || ""}
                         onChange={handleChnage}
                         placeholder="e.g. 100000"
                         className="w-full border border-gray-300 dark:border-gray-700 rounded-lg p-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
@@ -304,41 +490,51 @@
                   {/* Location */}
                   <div>
                     <label className="block mb-1 text-gray-700 dark:text-gray-300 font-medium">Location</label>
-                    <select
+                    <CreatableSelect
                       name="location"
-                      onChange={handleChnage}
-                      className="w-full border border-gray-300 dark:border-gray-700 rounded-lg p-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                      required
-                    >
-                      <option value="" className="text-gray-500">Select Location</option>
-                      {majorCities.map((city) => (
-                        <option key={city} value={city}>{city}</option>
-                      ))}
-                    </select>
+                      value={formData.location ? {
+                        value: formData.location,
+                        label: formData.location === "REMOTE" || formData.location.toUpperCase() === "REMOTE"
+                          ? "Remote"
+                          : formData.location
+                              .toLowerCase()
+                              .split(" ")
+                              .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
+                              .join(" ")
+                      } : null}
+                      onChange={(selected: any) => setFormData(prev => ({ ...prev, location: selected ? selected.value : "" }))}
+                      options={locations}
+                      styles={selectStyles}
+                      placeholder="Select or Type Location"
+                      isClearable
+                    />
                   </div>
 
                   {/* Job Type */}
                   <div>
                     <label className="block mb-1 text-gray-700 dark:text-gray-300 font-medium">Job Type</label>
-                    <Select
+                    <select
                       name="type"
-                      onChange={(selected: any) =>
-                        setFormData(prev => ({ ...prev, type: selected.value }))
-                      }
-                      options={jobTypes.map((type) => ({
-                        value: type,
-                        label: type,
-                      }))}
-                      styles={selectStyles}
-                    />
+                      value={formData.type}
+                      onChange={handleChnage}
+                      className="w-full border border-gray-300 dark:border-gray-700 rounded-lg p-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                      required
+                    >
+                      <option value="" className="text-gray-500">Select Job Type</option>
+                      {jobTypes.map((type) => (
+                        <option key={type} value={type}>
+                          {type.replace("_", " ").toLowerCase().split(" ").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")}
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
-                  {/* Submit */}
+                   {/* Submit */}
                   <button
                     type="submit"
                     className="w-full bg-blue-600 text-white rounded-lg py-2 font-semibold hover:bg-blue-700 transition-all"
                   >
-                    Create Job
+                    {editJobId ? "Save Changes" : "Create Job"}
                   </button>
                 </form>
               </div>
@@ -346,7 +542,19 @@
           </Modal>
         </div>
 
-        <Joblisting jData={jData} />
+        <Joblisting 
+          jData={jData} 
+          onCreateJob={handleCreateOpen} 
+          onEditJob={handleEditOpen}
+          currentPage={currentPage}
+          setCurrentPage={setCurrentPage}
+          totalCount={totalCount}
+          searchTerm={searchTerm}
+          setSearchTerm={setSearchTerm}
+          itemsPerPage={ITEMS_PER_PAGE}
+          onRefresh={() => setRefreshTrigger((prev) => prev + 1)}
+          role={typeof window !== "undefined" ? localStorage.getItem("role") || undefined : undefined}
+        />
       </>
     )
   }

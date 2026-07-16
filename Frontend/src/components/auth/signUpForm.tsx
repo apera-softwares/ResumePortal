@@ -5,13 +5,16 @@ import Button from "@/components/ui/button/Button";
 import { ChevronLeftIcon, EyeCloseIcon, EyeIcon } from "@/icons";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import toast from "react-hot-toast";
+import axios from "axios";
+import { gsap } from "gsap";
 
 export default function SignUpForm() {
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
-  const API_URL = process.env.NEXT_PUBLIC_API_URL;
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || (typeof window !== "undefined" ? `http://${window.location.hostname}:3003` : "http://localhost:3003");
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -28,6 +31,24 @@ export default function SignUpForm() {
   });
 
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (containerRef.current) {
+      const items = containerRef.current.querySelectorAll(".animate-item");
+      gsap.fromTo(
+        items,
+        { opacity: 0, y: 30 },
+        {
+          opacity: 1,
+          y: 0,
+          duration: 0.8,
+          stagger: 0.1,
+          ease: "power3.out",
+          delay: 0.1,
+        }
+      );
+    }
+  }, []);
 
   const handleOnChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -79,6 +100,10 @@ export default function SignUpForm() {
     setIsLoading(true);
     const signupUrl = `${API_URL}/users/signup`;
 
+    const nameParts = formData.name.trim().split(/\s+/);
+    const firstName = nameParts[0] || "";
+    const lastName = nameParts.slice(1).join(" ") || firstName;
+
     try {
       const response = await fetch(signupUrl, {
         method: "POST",
@@ -87,6 +112,8 @@ export default function SignUpForm() {
         },
         body: JSON.stringify({
           name: formData.name,
+          firstName,
+          lastName,
           email: formData.email,
           password: formData.password,
           role: "CANDIDATE",
@@ -98,8 +125,18 @@ export default function SignUpForm() {
         throw new Error(errData.message || "Registration failed");
       }
 
-      toast.success("Account created successfully! Please log in.");
-      router.push("/login");
+      // Send OTP after successful signup
+      await axios.post(`${API_URL}/otp/send`, { email: formData.email }).catch((err) => {
+        console.error("Failed to send OTP", err);
+      });
+
+      toast.success("Account created! Please verify your email.");
+      
+      // Store temp email and redirect
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem("tempEmail", formData.email);
+      }
+      router.push(`/verify-otp?email=${encodeURIComponent(formData.email)}`);
     } catch (error: any) {
       console.error("Signup error:", error);
       toast.error(error.message || "Failed to create account.");
@@ -109,21 +146,25 @@ export default function SignUpForm() {
   };
 
   return (
-    <div className="flex relative flex-col flex-1 lg:w-1/2 w-full">
-      <div className="w-full max-w-md sm:pt-10 mx-auto mb-5">
+    <div ref={containerRef} className="flex relative flex-col flex-1 lg:w-1/2 w-full px-4 sm:px-6 lg:px-8 justify-center py-12">
+      <div className="w-full max-w-md mx-auto mb-6 animate-item">
         <Link
           href="/login"
-          className="inline-flex items-center text-sm text-gray-500 transition-colors hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+          className="inline-flex items-center gap-2 text-sm text-gray-500 transition-all hover:text-brand-500 hover:translate-x-[-4px] dark:text-gray-400 dark:hover:text-brand-400"
         >
           <ChevronLeftIcon />
           Back to Login
         </Link>
       </div>
 
-      <div className="flex flex-col justify-center flex-1 w-full max-w-md mx-auto">
-        <div className="bg-white dark:bg-gray-900 border border-gray-150/80 dark:border-gray-800/80 shadow-xl rounded-3xl p-6 sm:p-8">
-          <div className="mb-6">
-            <h1 className="mb-2 font-bold text-gray-900 text-title-sm dark:text-white/90 sm:text-title-md">
+      <div className="w-full max-w-md mx-auto">
+        <div className="backdrop-blur-xl bg-white/80 dark:bg-gray-950/70 border border-gray-200/50 dark:border-white/[0.06] shadow-[0_8px_32px_0_rgba(31,38,135,0.06)] rounded-3xl p-6 sm:p-8 relative overflow-hidden animate-item">
+          {/* Subtle light effects inside card */}
+          <div className="absolute top-0 right-0 w-32 h-32 bg-brand-500/10 rounded-full blur-2xl pointer-events-none" />
+          <div className="absolute bottom-0 left-0 w-32 h-32 bg-purple-500/10 rounded-full blur-2xl pointer-events-none" />
+
+          <div className="mb-6 relative z-10 animate-item">
+            <h1 className="mb-2 font-bold text-gray-900 text-title-sm dark:text-white/90 sm:text-title-md tracking-tight">
               Create Candidate Account
             </h1>
             <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -131,119 +172,125 @@ export default function SignUpForm() {
             </p>
           </div>
 
-          <form onSubmit={handleSubmit}>
-            <div className="space-y-5">
-              <div>
-                <Label>
-                  Full Name <span className="text-rose-500">*</span>
-                </Label>
-                <Input
-                  placeholder="John Doe"
-                  type="text"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleOnChange}
-                  required
-                />
-                {errors.name && (
-                  <p className="text-xs text-rose-500 mt-1">{errors.name}</p>
-                )}
-              </div>
-
-              <div>
-                <Label>
-                  Email Address <span className="text-rose-500">*</span>
-                </Label>
-                <Input
-                  placeholder="john.doe@example.com"
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleOnChange}
-                  required
-                />
-                {errors.email && (
-                  <p className="text-xs text-rose-500 mt-1">{errors.email}</p>
-                )}
-              </div>
-
-              <div>
-                <Label>
-                  Password <span className="text-rose-500">*</span>
-                </Label>
-                <div className="relative">
+          <div className="relative z-10">
+            <form onSubmit={handleSubmit}>
+              <div className="space-y-4">
+                <div className="animate-item">
+                  <Label>
+                    Full Name <span className="text-rose-500">*</span>
+                  </Label>
                   <Input
-                    type={showPassword ? "text" : "password"}
-                    placeholder="Create a strong password"
-                    name="password"
-                    value={formData.password}
+                    placeholder="John Doe"
+                    type="text"
+                    name="name"
+                    value={formData.name}
                     onChange={handleOnChange}
                     required
+                    className="transition-all focus:border-brand-500 dark:focus:border-brand-500"
                   />
-                  <span
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute z-30 -translate-y-1/2 cursor-pointer right-4 top-1/2"
-                  >
-                    {showPassword ? (
-                      <EyeIcon className="fill-gray-500 dark:fill-gray-400" />
-                    ) : (
-                      <EyeCloseIcon className="fill-gray-500 dark:fill-gray-400" />
-                    )}
-                  </span>
+                  {errors.name && (
+                    <p className="text-xs text-rose-500 mt-1">{errors.name}</p>
+                  )}
                 </div>
-                {errors.password && (
-                  <p className="text-xs text-rose-500 mt-1">{errors.password}</p>
-                )}
-              </div>
 
-              <div>
-                <Label>
-                  Confirm Password <span className="text-rose-500">*</span>
-                </Label>
-                <div className="relative">
+                <div className="animate-item">
+                  <Label>
+                    Email Address <span className="text-rose-500">*</span>
+                  </Label>
                   <Input
-                    type={showPassword ? "text" : "password"}
-                    placeholder="Confirm your password"
-                    name="confirmPassword"
-                    value={formData.confirmPassword}
+                    placeholder="john.doe@example.com"
+                    type="email"
+                    name="email"
+                    value={formData.email}
                     onChange={handleOnChange}
                     required
+                    className="transition-all focus:border-brand-500 dark:focus:border-brand-500"
                   />
-                  <span
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute z-30 -translate-y-1/2 cursor-pointer right-4 top-1/2"
-                  >
-                    {showPassword ? (
-                      <EyeIcon className="fill-gray-500 dark:fill-gray-400" />
-                    ) : (
-                      <EyeCloseIcon className="fill-gray-500 dark:fill-gray-400" />
-                    )}
-                  </span>
+                  {errors.email && (
+                    <p className="text-xs text-rose-500 mt-1">{errors.email}</p>
+                  )}
                 </div>
-                {errors.confirmPassword && (
-                  <p className="text-xs text-rose-500 mt-1">{errors.confirmPassword}</p>
-                )}
-              </div>
 
-              <div className="pt-2">
-                <Button className="w-full rounded-xl" size="sm" disabled={isLoading}>
-                  {isLoading ? "Creating Account..." : "Sign Up"}
-                </Button>
-              </div>
+                <div className="animate-item">
+                  <Label>
+                    Password <span className="text-rose-500">*</span>
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      type={showPassword ? "text" : "password"}
+                      placeholder="Create a strong password"
+                      name="password"
+                      value={formData.password}
+                      onChange={handleOnChange}
+                      required
+                      className="transition-all focus:border-brand-500 dark:focus:border-brand-500"
+                    />
+                    <span
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute z-30 -translate-y-1/2 cursor-pointer right-4 top-1/2 p-1 hover:text-brand-500 transition-colors"
+                    >
+                      {showPassword ? (
+                        <EyeIcon className="fill-gray-500 dark:fill-gray-400" />
+                      ) : (
+                        <EyeCloseIcon className="fill-gray-500 dark:fill-gray-400" />
+                      )}
+                    </span>
+                  </div>
+                  {errors.password && (
+                    <p className="text-xs text-rose-500 mt-1">{errors.password}</p>
+                  )}
+                </div>
 
-              <div className="text-center pt-2">
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Already have an account?{" "}
-                  <Link
-                    href="/login"
-                    className="text-blue-600 hover:text-blue-700 dark:text-blue-400 font-semibold transition-colors"
-                  >
-                    Log In
-                  </Link>
-                </p>
+                <div className="animate-item">
+                  <Label>
+                    Confirm Password <span className="text-rose-500">*</span>
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      type={showPassword ? "text" : "password"}
+                      placeholder="Confirm your password"
+                      name="confirmPassword"
+                      value={formData.confirmPassword}
+                      onChange={handleOnChange}
+                      required
+                      className="transition-all focus:border-brand-500 dark:focus:border-brand-500"
+                    />
+                    <span
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute z-30 -translate-y-1/2 cursor-pointer right-4 top-1/2 p-1 hover:text-brand-500 transition-colors"
+                    >
+                      {showPassword ? (
+                        <EyeIcon className="fill-gray-500 dark:fill-gray-400" />
+                      ) : (
+                        <EyeCloseIcon className="fill-gray-500 dark:fill-gray-400" />
+                      )}
+                    </span>
+                  </div>
+                  {errors.confirmPassword && (
+                    <p className="text-xs text-rose-500 mt-1">{errors.confirmPassword}</p>
+                  )}
+                </div>
+
+                <div className="pt-2 animate-item">
+                  <Button className="w-full rounded-xl bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-700 hover:to-brand-600 shadow-md shadow-brand-500/10 hover:shadow-brand-500/20 transition-all duration-300 py-3" size="sm" type="submit" disabled={isLoading}>
+                    {isLoading ? "Creating Account..." : "Sign Up"}
+                  </Button>
+                </div>
+
+                <div className="text-center pt-2 animate-item">
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Already have an account?{" "}
+                    <Link
+                      href="/login"
+                      className="text-brand-500 hover:text-brand-600 dark:text-brand-400 font-semibold transition-colors"
+                    >
+                      Log In
+                    </Link>
+                  </p>
+                </div>
               </div>
-            </div>
-          </form>
+            </form>
+          </div>
         </div>
       </div>
     </div>

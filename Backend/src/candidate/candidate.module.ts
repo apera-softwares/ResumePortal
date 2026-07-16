@@ -6,8 +6,10 @@ import { AuthModule } from 'src/guards/auth.module';
 import { CandidateCreatedListener } from '../listeners/candidate-created.listener';
 
 @Module({
-  imports : [AuthModule],
+  imports: [AuthModule],
   controllers: [CandidateController],
   providers: [CandidateService, PrismaService, CandidateCreatedListener],
+  exports: [CandidateService],
 })
 export class CandidateModule {}
+

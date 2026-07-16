@@ -6,6 +6,7 @@ import toast from "react-hot-toast";
 import { saveAs } from "file-saver";
 import dynamic from "next/dynamic";
 import { jsPDF } from "jspdf";
+import { useRouter, usePathname } from "next/navigation";
 import {
   AlignCenter,
   AlignJustify,
@@ -30,7 +31,6 @@ function jsonToHtml(jsonStr: string): string {
   }
 }
 
-// Import CanvasResumeEditor dynamically with SSR disabled to prevent hydration mismatch errors
 const CanvasResumeEditor = dynamic(() => import("./CanvasResumeEditor"), {
   ssr: false,
   loading: () => (
@@ -72,9 +72,26 @@ function buildIframeDocument(html: string, editable = false): string {
         min-height: 100%;
         margin: 0;
         background: #9ca3af;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
       }
       body {
-        overflow: auto;
+        overflow-y: auto;
+        overflow-x: hidden;
+        width: 100%;
+        padding: 20px 0;
+        box-sizing: border-box;
+      }
+      /* Centering page wrappers of pdftohtml output */
+      div[id$="-div"], div[id^="page"], .a4-page, [style*="width:892px"], [style*="width: 892px"] {
+        margin-left: auto !important;
+        margin-right: auto !important;
+        margin-top: 10px !important;
+        margin-bottom: 25px !important;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.15) !important;
+        position: relative !important;
+        background: #ffffff;
       }
       ${editable ? `
       [contenteditable="true"] {
@@ -300,13 +317,14 @@ function ExactHtmlResumeEditor({ html, title, onChange }: ExactHtmlResumeEditorP
 }
 
 interface Candidate {
-  id: number;
+  id: string;
   firstName: string;
   lastName: string;
   resume: string;
   resumeText?: string;
   cleanedResume?: string;
   editedHtml?: string;
+  isPublic?: boolean;
 }
 
 interface EditResumeProps {
@@ -314,26 +332,84 @@ interface EditResumeProps {
   onSave?: (updatedCandidate: Candidate & Record<string, unknown>) => void;
   isInline?: boolean;
   onClose?: () => void;
+  initialMode?: "preview" | "edit" | "review" | "original";
+  isPublicPage?: boolean;
 }
 
-export default function EditResume({ candidate, onSave, isInline = false, onClose }: EditResumeProps) {
+export default function EditResume({ candidate, onSave, isInline = false, onClose, initialMode, isPublicPage = false }: EditResumeProps) {
+  const router = useRouter();
+  const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(isInline);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingFile, setIsUploadingFile] = useState(false);
   const [rawHtml, setRawHtml] = useState<string>("");
   const [previewHtml, setPreviewHtml] = useState<string>("");
-  const [viewMode, setViewMode] = useState<"preview" | "edit">("preview");
+  const [originalParsedHtml, setOriginalParsedHtml] = useState<string>("");
+  const [isEditMode, setIsEditMode] = useState<boolean>(initialMode === "edit");
+  const [viewMode, setViewMode] = useState<"preview" | "edit" | "review">(
+    initialMode === "edit" ? "edit" : (initialMode === "original" || initialMode === "review" ? "review" : "preview")
+  );
   const [styleHeader, setStyleHeader] = useState<string>("");
   const [zoom, setZoom] = useState<number>(1.0);
   const [editorKey, setEditorKey] = useState<number>(0);
-  
+
+  const [isPublic, setIsPublic] = useState<boolean>(candidate.isPublic || false);
+  const [isTogglingPublic, setIsTogglingPublic] = useState(false);
+  const [role, setRole] = useState<string | null>(null);
+
+  const [isLoading, setIsLoading] = useState(true);
+  const [candidateResume, setCandidateResume] = useState<string | null>(candidate.resume || null);
+
   const isLoadedRef = useRef(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const API_URL =
     process.env.NEXT_PUBLIC_API_URL ||
-    (typeof window !== "undefined" ? `http://${window.location.hostname}:8094` : "http://localhost:8094");
+    (typeof window !== "undefined" ? `http://${window.location.hostname}:3003` : "http://localhost:3003");
+
+  // Get user role from local storage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setRole(localStorage.getItem("role"));
+    }
+  }, []);
+
+  // Sync viewMode and isEditMode with initialMode when routing parameters change
+  useEffect(() => {
+    if (initialMode) {
+      const edit = initialMode === "edit";
+      setIsEditMode(edit);
+      setViewMode(
+        edit ? "edit" : (initialMode === "original" || initialMode === "review" ? "review" : "preview")
+      );
+    }
+  }, [initialMode]);
+
+  const handleEditResumeClick = () => {
+    setIsEditMode(true);
+    setViewMode("edit");
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      params.set("mode", "edit");
+      router.replace(`${pathname}?${params.toString()}`);
+    }
+  };
+
+  const handleCancel = () => {
+    if (initialMode === "edit") {
+      if (isInline) onClose?.();
+      else setIsOpen(false);
+    } else {
+      setIsEditMode(false);
+      setViewMode("review");
+      if (typeof window !== "undefined") {
+        const params = new URLSearchParams(window.location.search);
+        params.set("mode", "view");
+        router.replace(`${pathname}?${params.toString()}`);
+      }
+    }
+  };
 
   // Fetch initial content from backend on open (Load ONCE only)
   useEffect(() => {
@@ -343,6 +419,7 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
     }
 
     const loadContent = async () => {
+      setIsLoading(true);
       try {
         const token = localStorage.getItem("token");
         const response = await fetch(`${API_URL}/candidates/${candidate.id}`, {
@@ -351,29 +428,139 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
         if (response.ok) {
           const data = await response.json();
           const sourceHtml = data.editedHtml || data.resumeText || "";
-          
+
           setStyleHeader("");
           setPreviewHtml(sourceHtml);
           setRawHtml(sourceHtml);
-          setViewMode("preview");
-          
+          setOriginalParsedHtml(data.resumeText || "");
+          setIsPublic(data.isPublic || false);
+          setCandidateResume(data.resume || null);
+          if (!initialMode) {
+            setViewMode(isPublicPage ? "preview" : "edit");
+          }
+
           // Mark as loaded so subsequent state updates do not overwrite TipTap editor
           isLoadedRef.current = true;
         }
       } catch (err) {
         console.error("Failed to fetch resume HTML", err);
+      } finally {
+        setIsLoading(false);
       }
     };
 
     loadContent();
-  }, [isOpen, candidate.id, API_URL]);
+  }, [isOpen, candidate.id, API_URL, initialMode]);
+
+  const togglePublicStatus = async () => {
+    setIsTogglingPublic(true);
+    try {
+      const token = localStorage.getItem("token");
+      const nextPublicVal = !isPublic;
+      const response = await fetch(`${API_URL}/candidates/${candidate.id}/public`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ isPublic: nextPublicVal }),
+      });
+      if (response.ok) {
+        setIsPublic(nextPublicVal);
+        toast.success(nextPublicVal ? "Candidate is now public!" : "Candidate is now private.");
+        if (onSave) {
+          onSave({ ...candidate, isPublic: nextPublicVal });
+        }
+      } else {
+        toast.error("Failed to update public status.");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("An error occurred updating public status.");
+    } finally {
+      setIsTogglingPublic(false);
+    }
+  };
 
 
   const handleEditorChange = (html: string) => {
     setRawHtml(html);
   };
 
+  const renderUploadResumePlaceholder = () => {
+    return (
+      <div className="w-full h-full min-h-[450px] flex flex-col items-center justify-center p-8 bg-gray-50 dark:bg-gray-900 border border-dashed border-gray-300 dark:border-gray-800 rounded-2xl">
+        <div className="max-w-md w-full flex flex-col items-center text-center">
+          <div className="p-4 bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400 rounded-full mb-4">
+            <svg className="w-10 h-10" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.233-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z" />
+            </svg>
+          </div>
+          <h4 className="text-lg font-bold text-gray-900 dark:text-white mb-2">No Resume Found</h4>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+            This candidate does not have a resume uploaded. Upload a resume file (PDF or Word) to start parsing and viewing.
+          </p>
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isUploadingFile}
+            className="px-6 py-3 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition-all shadow-md hover:scale-[1.01] active:scale-[0.99] flex items-center gap-2 cursor-pointer disabled:opacity-50"
+          >
+            {isUploadingFile ? (
+              <>
+                <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+                <span>Uploading...</span>
+              </>
+            ) : (
+              <>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                </svg>
+                <span>Upload Resume</span>
+              </>
+            )}
+          </button>
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            accept=".pdf,.docx,.doc"
+            className="hidden"
+          />
+        </div>
+      </div>
+    );
+  };
+
   const renderResumeSurface = () => {
+    if (isLoading) {
+      return (
+        <div className="w-full h-full flex items-center justify-center p-8 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl min-h-[500px]">
+          <div className="flex flex-col items-center gap-3">
+            <svg className="animate-spin h-8 w-8 text-blue-600" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+            </svg>
+            <span className="text-sm font-semibold text-gray-500">Loading resume...</span>
+          </div>
+        </div>
+      );
+    }
+
+    if (!candidateResume && !rawHtml && !previewHtml && !originalParsedHtml) {
+      return renderUploadResumePlaceholder();
+    }
+
+    if (viewMode === "review") {
+      return (
+        <div className="h-full overflow-hidden rounded-2xl border border-gray-200 bg-gray-100 shadow-inner dark:border-gray-800 dark:bg-gray-950">
+          {renderOriginalResumeContent()}
+        </div>
+      );
+    }
+
     if (viewMode === "preview") {
       return (
         <div className="h-full overflow-hidden rounded-2xl border border-gray-200 bg-gray-100 shadow-inner dark:border-gray-800 dark:bg-gray-950">
@@ -391,6 +578,7 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
     if (rawHtml) {
       return (
         <ExactHtmlResumeEditor
+          key={`${candidate.id}-${editorKey}`}
           html={rawHtml}
           title={`${candidate.firstName} ${candidate.lastName} resume editor`}
           onChange={handleEditorChange}
@@ -407,6 +595,58 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
         zoom={zoom}
         onZoomChange={setZoom}
       />
+    );
+  };
+
+  const renderOriginalResumeContent = () => {
+    if (originalParsedHtml) {
+      return (
+        <iframe
+          srcDoc={buildIframeDocument(originalParsedHtml)}
+          className="w-full h-full border-none bg-gray-400"
+          title="Original Resume HTML"
+          sandbox="allow-same-origin"
+        />
+      );
+    }
+
+    const resumeUrl = candidateResume ? `${API_URL}/uploads/${candidateResume}` : null;
+    const isPdf = candidateResume?.toLowerCase().endsWith(".pdf");
+
+    if (isPdf && resumeUrl) {
+      return (
+        <iframe
+          src={`${resumeUrl}#toolbar=0&navpanes=0`}
+          className="w-full h-full border-none bg-gray-400"
+          title="Original Resume PDF"
+        />
+      );
+    }
+
+    if (!isPdf && !originalParsedHtml) {
+      if (isLoading) {
+        return (
+          <div className="w-full h-full flex items-center justify-center p-8 bg-gray-50 dark:bg-gray-900">
+            <div className="flex flex-col items-center gap-3">
+              <svg className="animate-spin h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              </svg>
+              <span className="text-sm font-semibold text-gray-500">Loading original resume...</span>
+            </div>
+          </div>
+        );
+      }
+      return renderUploadResumePlaceholder();
+    }
+
+    return (
+      <div className="w-full h-full flex flex-col items-center justify-center gap-3 p-8 bg-gray-50 dark:bg-gray-900 text-gray-500 dark:text-gray-400">
+        <svg className="w-12 h-12 text-gray-300 dark:text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+        <span className="text-sm font-semibold">No original resume file or text available.</span>
+      </div>
     );
   };
 
@@ -453,15 +693,15 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
     const tempDiv = document.createElement("div");
     tempDiv.innerHTML = htmlContent;
     const plainText = tempDiv.textContent || tempDiv.innerText || "";
-    
+
     doc.setFont("Helvetica");
     doc.setFontSize(14);
     doc.text(title, 40, 40);
-    
+
     doc.setFontSize(10);
     const splitText = doc.splitTextToSize(plainText, 515);
     let y = 70;
-    
+
     splitText.forEach((line: string) => {
       if (y > 780) {
         doc.addPage();
@@ -474,38 +714,57 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
     return doc.output("blob");
   };
 
-  const handleExportPdf = () => {
-    if (!rawHtml) return;
+  const handleExportPdf = async () => {
+    const htmlToExport = viewMode === "review" ? (originalParsedHtml || rawHtml) : (previewHtml || rawHtml);
+    if (!htmlToExport) return;
+    const exportToast = toast.loading("Exporting premium PDF...");
     try {
-      const cleanHtml = getCleanHtml(rawHtml);
-      const blob = generateSimplePdfBlob(cleanHtml, `${candidate.firstName} ${candidate.lastName}`);
+      const response = await fetch(`${API_URL}/candidates/export-pdf`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ html: htmlToExport }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to export PDF from server.");
+      }
+
+      const blob = await response.blob();
       saveAs(blob, `${candidate.firstName}_${candidate.lastName}_resume.pdf`);
+      toast.dismiss(exportToast);
       toast.success("PDF exported successfully!");
     } catch (err) {
       console.error(err);
+      toast.dismiss(exportToast);
       toast.error("Failed to export PDF.");
     }
   };
 
-  const handleExportWord = () => {
+  const handleExportWord = async () => {
     if (!rawHtml) return;
+    const exportToast = toast.loading("Exporting premium Word document...");
     try {
-      const cleanHtml = getCleanHtml(rawHtml);
-      const header = "<html xmlns:o='urn:schemas-microsoft-com:office:office' " +
-        "xmlns:w='urn:schemas-microsoft-com:office:word' " +
-        "xmlns='http://www.w3.org/TR/REC-html40'>" +
-        "<head><title>Resume</title><meta charset='utf-8'></head><body>";
-      const footer = "</body></html>";
-      const sourceHTML = header + cleanHtml + footer;
-      
-      const blob = new Blob(['\ufeff' + sourceHTML], {
-        type: 'application/msword'
+      const response = await fetch(`${API_URL}/candidates/export-docx`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ html: rawHtml }),
       });
-      
-      saveAs(blob, `${candidate.firstName}_${candidate.lastName}_resume.doc`);
+
+      if (!response.ok) {
+        throw new Error("Failed to export Word document from server.");
+      }
+
+      const blob = await response.blob();
+      saveAs(blob, `${candidate.firstName}_${candidate.lastName}_resume.docx`);
+      toast.dismiss(exportToast);
       toast.success("Word document exported successfully!");
     } catch (err) {
       console.error(err);
+      toast.dismiss(exportToast);
       toast.error("Failed to export Word document.");
     }
   };
@@ -535,7 +794,9 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
       }
 
       const updatedCandidate = await response.json();
-      
+
+      setIsPublic(updatedCandidate.isPublic || false);
+      setCandidateResume(updatedCandidate.resume || null);
       onSave?.(updatedCandidate);
 
       const parsedContent = updatedCandidate.resumeText || "";
@@ -545,6 +806,7 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
 
         setPreviewHtml(parsedContent);
         setRawHtml(parsedContent);
+        setOriginalParsedHtml(parsedContent);
         setViewMode("preview");
         setEditorKey(prev => prev + 1); // Reset CanvasResumeEditor state and force remount with new parsed HTML
         toast.success("Resume updated and parsed successfully!", { id: uploadToast });
@@ -591,7 +853,7 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
       }
 
       const updatedCandidate = await response.json();
-      
+
       onSave?.({ ...updatedCandidate, resumeText: rawHtml });
       setPreviewHtml(fullHtml);
       setViewMode("preview");
@@ -624,97 +886,144 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
             </button>
             <div>
               <h4 className="text-xl font-bold text-gray-900 dark:text-white">
-                Resume Visual Editor
+                {isEditMode ? "Resume Visual Editor" : "View Resume"}
               </h4>
               <p className="text-xs text-gray-500 mt-1">
-                Edit and format resume layout for {candidate.firstName} {candidate.lastName}
+                {isEditMode 
+                  ? `Edit and format resume layout for ${candidate.firstName} ${candidate.lastName}` 
+                  : `View resume layout for ${candidate.firstName} ${candidate.lastName}`}
               </p>
             </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <div className="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-800">
+            {!isEditMode && role !== "CLIENT" && role !== "CANDIDATE" && !isPublicPage && (
               <button
-                onClick={() => setViewMode("preview")}
-                disabled={isSaving || isUploadingFile}
-                className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all disabled:opacity-50 ${
-                  viewMode === "preview"
+                onClick={handleEditResumeClick}
+                className="px-3 py-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-all shadow-md flex items-center gap-1.5 cursor-pointer"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                </svg>
+                <span>Edit Resume</span>
+              </button>
+            )}
+
+            {!isPublicPage && isEditMode && (
+              <button
+                onClick={togglePublicStatus}
+                disabled={isTogglingPublic || isSaving || isUploadingFile}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-md transition-all border ${isPublic
+                  ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-900/30"
+                  : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50 dark:bg-gray-900 dark:text-gray-300 dark:border-gray-700 dark:hover:bg-gray-800"
+                  } disabled:opacity-50`}
+              >
+                {isPublic ? (
+                  <>
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 002 2h2m-4-3h1.5a2.5 2.5 0 012.5 2.5V14a2 2 0 002 2h1.5m-6-3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span>Public</span>
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                    <span>Mark as Public</span>
+                  </>
+                )}
+              </button>
+            )}
+
+            {isEditMode && (
+              <div className="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-800">
+                <button
+                  onClick={() => setViewMode("review")}
+                  disabled={isSaving || isUploadingFile}
+                  className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all disabled:opacity-50 ${viewMode === "review"
                     ? "bg-white text-blue-600 shadow-xs dark:bg-gray-900 dark:text-blue-400"
                     : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                }`}
-              >
-                Exact Preview
-              </button>
+                    }`}
+                >
+                  Preview
+                </button>
+                {isPublicPage && (
+                  <button
+                    onClick={() => setViewMode("preview")}
+                    disabled={isSaving || isUploadingFile}
+                    className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all disabled:opacity-50 ${viewMode === "preview"
+                      ? "bg-white text-blue-600 shadow-xs dark:bg-gray-900 dark:text-blue-400"
+                      : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                      }`}
+                  >
+                    View
+                  </button>
+                )}
+                {!isPublicPage && (
+                  <button
+                    onClick={() => setViewMode("edit")}
+                    disabled={isSaving || isUploadingFile}
+                    className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all disabled:opacity-50 ${viewMode === "edit"
+                      ? "bg-white text-blue-600 shadow-xs dark:bg-gray-900 dark:text-blue-400"
+                      : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                      }`}
+                  >
+                    Edit
+                  </button>
+                )}
+              </div>
+            )}
+
+            {!isPublicPage && (
+              <>
+                {/* Premium Update File Button */}
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isSaving || isUploadingFile}
+                  className="px-3 py-1.5 text-xs font-bold text-violet-600 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-955/40 border border-violet-200 dark:border-violet-800/40 rounded-lg transition-all disabled:opacity-50 flex items-center gap-1.5 shadow-xs"
+                >
+                  {isUploadingFile ? (
+                    <svg className="animate-spin h-3.5 w-3.5" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                  ) : (
+                    <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                    </svg>
+                  )}
+                  {isUploadingFile ? "Uploading..." : "Replace Resume"}
+                </button>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileChange}
+                  accept=".pdf,.docx,.doc"
+                  className="hidden"
+                />
+              </>
+            )}
+
+            {!isPublicPage && isEditMode && (
               <button
-                onClick={() => setViewMode("edit")}
+                onClick={handleExportWord}
                 disabled={isSaving || isUploadingFile}
-                className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all disabled:opacity-50 ${
-                  viewMode === "edit"
-                    ? "bg-white text-blue-600 shadow-xs dark:bg-gray-900 dark:text-blue-400"
-                    : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                }`}
+                className="px-3 py-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 rounded-lg transition-all disabled:opacity-50"
               >
-                Edit
+                Export Word
               </button>
-            </div>
+            )}
 
-            <button
-              onClick={handleCopy}
-              disabled={isSaving || isUploadingFile}
-              className="px-3 py-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-955/40 rounded-lg transition-all disabled:opacity-50"
-            >
-              Copy Text
-            </button>
-
-            <button
-              onClick={handleOpenPdf}
-              disabled={isSaving || isUploadingFile}
-              className="px-3 py-1.5 text-xs font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-all disabled:opacity-50"
-            >
-              Open Original
-            </button>
-
-            {/* Premium Update File Button */}
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isSaving || isUploadingFile}
-              className="px-3 py-1.5 text-xs font-bold text-violet-600 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-955/40 rounded-lg transition-all disabled:opacity-50 flex items-center gap-1.5"
-            >
-              {isUploadingFile ? (
-                <svg className="animate-spin h-3.5 w-3.5" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                </svg>
-              ) : (
-                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.2">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                </svg>
-              )}
-              {isUploadingFile ? "Uploading..." : "Update File"}
-            </button>
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleFileChange}
-              accept=".pdf,.docx,.doc"
-              className="hidden"
-            />
-
-            <button
-              onClick={handleExportWord}
-              disabled={isSaving || isUploadingFile}
-              className="px-3 py-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-955/40 rounded-lg transition-all disabled:opacity-50"
-            >
-              Export Word
-            </button>
-
-            <button
-              onClick={handleExportPdf}
-              disabled={isSaving || isUploadingFile}
-              className="px-3 py-1.5 text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-955/40 rounded-lg transition-all disabled:opacity-50"
-            >
-              Export PDF
-            </button>
+            {isEditMode && (
+              <button
+                onClick={handleExportPdf}
+                disabled={isSaving || isUploadingFile}
+                className="px-3 py-1.5 text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-955/40 rounded-lg transition-all disabled:opacity-50"
+              >
+                Export PDF
+              </button>
+            )}
           </div>
         </div>
 
@@ -729,27 +1038,38 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
           </div>
 
           <div className="flex justify-end gap-3">
-            <button
-              onClick={onClose}
-              disabled={isSaving || isUploadingFile}
-              className="px-5 py-2.5 text-sm font-semibold bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-200 rounded-xl transition-all disabled:opacity-50"
-            >
-              Cancel
-            </button>
+            {isPublicPage || !isEditMode ? (
+              <button
+                onClick={onClose}
+                className="px-6 py-2.5 text-sm font-semibold bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-200 rounded-xl transition-all shadow-sm active:scale-95"
+              >
+                Close
+              </button>
+            ) : (
+              <>
+                <button
+                  onClick={handleCancel}
+                  disabled={isSaving || isUploadingFile}
+                  className="px-5 py-2.5 text-sm font-semibold bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-200 rounded-xl transition-all disabled:opacity-50"
+                >
+                  Cancel
+                </button>
 
-            <button
-              onClick={handleSave}
-              disabled={isSaving || isUploadingFile}
-              className="px-6 py-2.5 text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-all shadow-md active:scale-95 flex items-center gap-2"
-            >
-              {isSaving && (
-                <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                </svg>
-              )}
-              {isSaving ? "Saving..." : "Save to Server"}
-            </button>
+                <button
+                  onClick={handleSave}
+                  disabled={isSaving || isUploadingFile}
+                  className="px-6 py-2.5 text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-all shadow-md active:scale-95 flex items-center gap-2"
+                >
+                  {isSaving && (
+                    <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                  )}
+                  {isSaving ? "Saving..." : "Save"}
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -765,9 +1085,9 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
         View Resume
       </button>
 
-      <Modal 
-        isOpen={isOpen} 
-        onClose={() => !isSaving && !isUploadingFile && setIsOpen(false)} 
+      <Modal
+        isOpen={isOpen}
+        onClose={() => !isSaving && !isUploadingFile && setIsOpen(false)}
         isFullscreen={true}
         className="bg-white dark:bg-gray-900"
       >
@@ -776,96 +1096,143 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
           <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 border-b border-gray-150 dark:border-gray-800 pb-4">
             <div>
               <h4 className="text-xl font-bold text-gray-900 dark:text-white">
-                Resume Visual Editor
+                {isEditMode ? "Resume Visual Editor" : "View Resume"}
               </h4>
               <p className="text-xs text-gray-500 mt-1">
-                Edit and format resume layout for {candidate.firstName} {candidate.lastName}
+                {isEditMode 
+                  ? `Edit and format resume layout for ${candidate.firstName} ${candidate.lastName}` 
+                  : `View resume layout for ${candidate.firstName} ${candidate.lastName}`}
               </p>
             </div>
 
             <div className="flex flex-wrap items-center gap-2 pr-12 sm:pr-16">
-              <div className="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-800">
+              {!isEditMode && role !== "CLIENT" && role !== "CANDIDATE" && !isPublicPage && (
                 <button
-                  onClick={() => setViewMode("preview")}
-                  disabled={isSaving || isUploadingFile}
-                  className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all disabled:opacity-50 ${
-                    viewMode === "preview"
+                  onClick={handleEditResumeClick}
+                  className="px-3 py-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-all shadow-md flex items-center gap-1.5 cursor-pointer"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                  </svg>
+                  <span>Edit Resume</span>
+                </button>
+              )}
+
+              {!isPublicPage && isEditMode && (
+                <button
+                  onClick={togglePublicStatus}
+                  disabled={isTogglingPublic || isSaving || isUploadingFile}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-md transition-all border ${isPublic
+                    ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-900/30"
+                    : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50 dark:bg-gray-900 dark:text-gray-300 dark:border-gray-700 dark:hover:bg-gray-800"
+                    } disabled:opacity-50`}
+                >
+                  {isPublic ? (
+                    <>
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 002 2h2m-4-3h1.5a2.5 2.5 0 012.5 2.5V14a2 2 0 002 2h1.5m-6-3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span>Public</span>
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                      </svg>
+                      <span>Mark as Public</span>
+                    </>
+                  )}
+                </button>
+              )}
+
+              {isEditMode && (
+                <div className="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-800">
+                  <button
+                    onClick={() => setViewMode("review")}
+                    disabled={isSaving || isUploadingFile}
+                    className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all disabled:opacity-50 ${viewMode === "review"
                       ? "bg-white text-blue-600 shadow-xs dark:bg-gray-900 dark:text-blue-400"
                       : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                  }`}
-                >
-                  Exact Preview
-                </button>
+                      }`}
+                  >
+                    Preview
+                  </button>
+                  {isPublicPage && (
+                    <button
+                      onClick={() => setViewMode("preview")}
+                      disabled={isSaving || isUploadingFile}
+                      className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all disabled:opacity-50 ${viewMode === "preview"
+                        ? "bg-white text-blue-600 shadow-xs dark:bg-gray-900 dark:text-blue-400"
+                        : "text-gray-500 hover:text-gray-705 dark:text-gray-400 dark:hover:text-gray-200"
+                        }`}
+                    >
+                      View
+                    </button>
+                  )}
+                  {!isPublicPage && (
+                    <button
+                      onClick={() => setViewMode("edit")}
+                      disabled={isSaving || isUploadingFile}
+                      className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all disabled:opacity-50 ${viewMode === "edit"
+                        ? "bg-white text-blue-600 shadow-xs dark:bg-gray-900 dark:text-blue-400"
+                        : "text-gray-500 hover:text-gray-705 dark:text-gray-400 dark:hover:text-gray-200"
+                        }`}
+                    >
+                      Edit
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {!isPublicPage && (
+                <>
+                  {/* Premium Update File Button */}
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isSaving || isUploadingFile}
+                    className="px-3 py-1.5 text-xs font-bold text-violet-600 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-955/40 border border-violet-200 dark:border-violet-800/40 rounded-lg transition-all disabled:opacity-50 flex items-center gap-1.5 shadow-xs"
+                  >
+                    {isUploadingFile ? (
+                      <svg className="animate-spin h-3.5 w-3.5" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                    ) : (
+                      <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.2">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                      </svg>
+                    )}
+                    {isUploadingFile ? "Uploading..." : "Replace Resume"}
+                  </button>
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileChange}
+                    accept=".pdf,.docx,.doc"
+                    className="hidden"
+                  />
+                </>
+              )}
+
+              {!isPublicPage && isEditMode && (
                 <button
-                  onClick={() => setViewMode("edit")}
+                  onClick={handleExportWord}
                   disabled={isSaving || isUploadingFile}
-                  className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all disabled:opacity-50 ${
-                    viewMode === "edit"
-                      ? "bg-white text-blue-600 shadow-xs dark:bg-gray-900 dark:text-blue-400"
-                      : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                  }`}
+                  className="px-3 py-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-955/40 rounded-lg transition-all disabled:opacity-50"
                 >
-                  Edit
+                  Export Word
                 </button>
-              </div>
+              )}
 
-              <button
-                onClick={handleCopy}
-                disabled={isSaving || isUploadingFile}
-                className="px-3 py-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-955/40 rounded-lg transition-all disabled:opacity-50"
-              >
-                Copy Text
-              </button>
-
-              <button
-                onClick={handleOpenPdf}
-                disabled={isSaving || isUploadingFile}
-                className="px-3 py-1.5 text-xs font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-all disabled:opacity-50"
-              >
-                Open Original
-              </button>
-
-              {/* Premium Update File Button */}
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isSaving || isUploadingFile}
-                className="px-3 py-1.5 text-xs font-bold text-violet-600 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-955/40 rounded-lg transition-all disabled:opacity-50 flex items-center gap-1.5"
-              >
-                {isUploadingFile ? (
-                  <svg className="animate-spin h-3.5 w-3.5" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                  </svg>
-                ) : (
-                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.2">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                  </svg>
-                )}
-                {isUploadingFile ? "Uploading..." : "Update File"}
-              </button>
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileChange}
-                accept=".pdf,.docx,.doc"
-                className="hidden"
-              />
-
-              <button
-                onClick={handleExportWord}
-                disabled={isSaving || isUploadingFile}
-                className="px-3 py-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-955/40 rounded-lg transition-all disabled:opacity-50"
-              >
-                Export Word
-              </button>
-
-              <button
-                onClick={handleExportPdf}
-                disabled={isSaving || isUploadingFile}
-                className="px-3 py-1.5 text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-955/40 rounded-lg transition-all disabled:opacity-50"
-              >
-                Export PDF
-              </button>
+              {isEditMode && (
+                <button
+                  onClick={handleExportPdf}
+                  disabled={isSaving || isUploadingFile}
+                  className="px-3 py-1.5 text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-955/40 rounded-lg transition-all disabled:opacity-50"
+                >
+                  Export PDF
+                </button>
+              )}
             </div>
           </div>
 
@@ -881,27 +1248,38 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
             </div>
 
             <div className="flex justify-end gap-3">
-              <button
-                onClick={() => setIsOpen(false)}
-                disabled={isSaving || isUploadingFile}
-                className="px-5 py-2.5 text-sm font-semibold bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-200 rounded-xl transition-all disabled:opacity-50"
-              >
-                Cancel
-              </button>
+              {isPublicPage || !isEditMode ? (
+                <button
+                  onClick={() => setIsOpen(false)}
+                  className="px-6 py-2.5 text-sm font-semibold bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-200 rounded-xl transition-all shadow-sm active:scale-95"
+                >
+                  Close
+                </button>
+              ) : (
+                <>
+                  <button
+                    onClick={handleCancel}
+                    disabled={isSaving || isUploadingFile}
+                    className="px-5 py-2.5 text-sm font-semibold bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-200 rounded-xl transition-all disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
 
-              <button
-                onClick={handleSave}
-                disabled={isSaving || isUploadingFile}
-                className="px-6 py-2.5 text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-all shadow-md active:scale-95 flex items-center gap-2"
-              >
-                {isSaving && (
-                  <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                  </svg>
-                )}
-                {isSaving ? "Saving..." : "Save to Server"}
-              </button>
+                  <button
+                    onClick={handleSave}
+                    disabled={isSaving || isUploadingFile}
+                    className="px-6 py-2.5 text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-all shadow-md active:scale-95 flex items-center gap-2"
+                  >
+                    {isSaving && (
+                      <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                    )}
+                    {isSaving ? "Saving..." : "Save"}
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>

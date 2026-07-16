@@ -2,6 +2,7 @@
 import { Outfit } from 'next/font/google';
 import './globals.css';
 import { Providers } from './providers';
+import Script from 'next/script';
 
 const outfit = Outfit({
   subsets: ["latin"],

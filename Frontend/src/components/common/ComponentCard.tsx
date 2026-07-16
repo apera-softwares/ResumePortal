@@ -61,6 +61,12 @@ const ComponentCard: React.FC<ComponentCardProps> = ({
       const data = await response.json()
       console.log(data, "user create")
       toast.success('user created.');
+      setFormData({
+        name: "",
+        email: "",
+        password: "",
+        role: "",
+      });
       closeModal();
       succes?.()
     } catch (error) {
@@ -109,7 +115,8 @@ const ComponentCard: React.FC<ComponentCardProps> = ({
                 name="role"
                 value={formData.role}
                 onChange={handleOnChange}
-                className="w-full py-2 border-2 rounded-md px-3 outline-gray-200"
+                className="w-full py-2.5 bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-xl px-3 outline-none text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 transition-all"
+                required
               >
                 <option value="" disabled>
                   Select a role
@@ -123,36 +130,36 @@ const ComponentCard: React.FC<ComponentCardProps> = ({
             <div className="grid grid-cols-1 gap-x-6 gap-y-5 lg:grid-cols-2">
               <div>
                 <Label>Name</Label>
-                <Input name="name" onChange={handleOnChange} type="text" />
+                <Input name="name" value={formData.name} onChange={handleOnChange} type="text" required />
               </div>
               {/* <div>
                 <Label>Last Name</Label>
-                <Input name="name" onChange={handleOnChange} type="text"  />
+                <Input name="name" value={formData.name} onChange={handleOnChange} type="text"  />
               </div> */}
 
               <div>
                 <Label>Email Address</Label>
-                <Input name="email" onChange={handleOnChange} type="email" />
+                <Input name="email" value={formData.email} onChange={handleOnChange} type="email" required />
               </div>
 
               <div>
                 <Label>Password</Label>
-                <Input name="password" onChange={handleOnChange} type="password" />
+                <Input name="password" value={formData.password} onChange={handleOnChange} type="password" required />
               </div>
               {/* <div>
                 <Label>Mobile No</Label>
-                <Input name="password" onChange={handleOnChange} type="Number" />
+                <Input name="password" value={formData.password} onChange={handleOnChange} type="Number" />
               </div> */}
               {/* <div>
                 <Label>Company Name </Label>
-                <Input name="password" onChange={handleOnChange} type="text" />
+                <Input name="password" value={formData.password} onChange={handleOnChange} type="text" />
               </div> */}
 
             </div>
 
             <div className="flex justify-end gap-3 mt-6">
-              <Button size="sm" variant="outline" onClick={closeModal}>Close</Button>
-              <Button size="sm"  >Save User</Button>
+              <Button size="sm" variant="outline" type="button" onClick={closeModal}>Close</Button>
+              <Button size="sm" type="submit">Save User</Button>
             </div>
           </form>
         </div>

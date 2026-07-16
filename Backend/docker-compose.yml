@@ -11,6 +11,20 @@ services:
       DATABASE_URL: "${DATABASE_URL}"
       PORT: "8094"
       JWT_SECRET: "${JWT_SECRET}"
+      PUPPETEER_EXECUTABLE_PATH: "${PUPPETEER_EXECUTABLE_PATH}"
+      POSTGRES_USER: "${POSTGRES_USER}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+      POSTGRES_DB: "${POSTGRES_DB}"
+      JWT_SECRET: "${JWT_SECRET}"
+      USE_S3: "${USE_S3}"
+      SMTP_USER: "${SMTP_USER}"
+      SMTP_PASSWORD: "${SMTP_PASSWORD}"
+      GOOGLE_CLIENT_ID: "${GOOGLE_CLIENT_ID}"
+      S3_ENDPOINT: "${S3_ENDPOINT}"
+      ACCESS_KEY_ID: "${ACCESS_KEY_ID}"
+      SECRET_ACCESS_KEY: "${SECRET_ACCESS_KEY}"
+      S3_BUCKET: "${S3_BUCKET}"
+      S3_ACCOUNT_ID: "${S3_ACCOUNT_ID}"
     volumes:
       - resumebuilder-uploads:/usr/src/app/uploads
     networks:

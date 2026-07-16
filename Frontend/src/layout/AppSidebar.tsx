@@ -4,12 +4,13 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useSidebar } from "../context/SidebarContext";
-import { ListIcon, TableIcon, TimeIcon, UserCircleIcon, GridIcon } from "../icons/index";
+import { ListIcon, TableIcon, TimeIcon, UserCircleIcon, GridIcon, BellIcon } from "../icons/index";
 
 type NavItem = {
   name: string;
   icon: React.ReactNode;
   path: string;
+  onClick?: () => void;
 };
 
 const AdminRoute: NavItem[] = [
@@ -30,44 +31,15 @@ const AdminRoute: NavItem[] = [
   },
   {
     icon: <UserCircleIcon />,
-    name: "Create Jobs",
+    name: "Jobs",
     path: "/jobcreation",
   },
   {
     icon: <TimeIcon/>,
-    name: "Add Skills",
+    name: "Skills",
     path: "/addskills",
   },
 ];
-
-/*
-const UserRoute: NavItem[] = [
-
-    {
-    icon: <ListIcon />,
-    name: "Candidates",
-    path: "/candidates",
-  },
-
-];
-
-
-const HrRoute: NavItem[] = [
-    {
-    icon: <ListIcon />,
-    name: "Candidates",
-    path: "/candidates",
-  },
-  {
-    icon: <UserCircleIcon />,
-    name: "Create Jobs",
-    path: "/jobcreation",
-  },
-
-];
-*/
-
-
 
 const AppSidebar: React.FC = () => {
   const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
@@ -87,27 +59,57 @@ const AppSidebar: React.FC = () => {
     setName(localStoragename || "")
   },[])
   
-  // Prevent rendering until component is mounted on client
   if (!mounted) {
     return null;
   }
       
-   let routes: NavItem[] = [];
+  const handleLogOut = async () => {
+    if (confirm("Are you sure you want to log out?")) {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      try {
+        await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3003"}/users/logout`, { method: "POST" });
+      } catch (e) {}
+      window.location.href = "/login";
+    }
+  };
+
+  const candidateRoutes: NavItem[] = [
+    {
+      icon: <GridIcon />,
+      name: "Dashboard",
+      path: "/dashboard",
+    },
+    {
+      icon: <ListIcon />,
+      name: "Jobs",
+      path: "/dashboard/jobs",
+    },
+    {
+      icon: <UserCircleIcon />,
+      name: "My Resume",
+      path: "/my-resume",
+    },
+  ];
+
+  let routes: NavItem[] = [];
 
   switch (role) {
     case "ADMIN":
-    case "HR":
-    case "CLIENT":
       routes = AdminRoute;
       break;
+    case "HR":
+      routes = AdminRoute.filter(r => r.name !== "Users");
+      break;
+    case "CLIENT":
+      routes = AdminRoute.filter(r => r.name !== "Users" && r.name !== "Skills");
+      break;
+    case "CANDIDATE":
+      routes = candidateRoutes;
+      break;
     default:
-      routes = []; // or a default route
+      routes = [];
   }
-
-
-
-
-
 
   return (
     <aside
@@ -127,46 +129,67 @@ const AppSidebar: React.FC = () => {
         </Link>
       </div>
      
-<div className=" py-10 ">
-              
-              <div className="flex flex-col gap-1  xl:gap-3 xl:text-left">
-                    <div className="flex items-center gap-2  ">
-                       {isExpanded || isHovered || isMobileOpen ? (<>   <div className="w-12 h-12  rounded-full bg-blue-800 flex items-center justify-center text-white font-bold">
-                        
-                         {name.charAt(0).toLocaleUpperCase()}
-                      </div>
-                   <div className="flex flex-col">
-                                     <h4 className="text-lg font-semibold text-center text-gray-800 dark:text-white/90 xl:text-left">{name}</h4>
-                    <p className="text-xs  text-gray-500 dark:text-gray-400"> 
-                  {role}
-                </p>
-                   </div></>) : (<> <div className="w-12 h-12  rounded-full bg-blue-800 flex items-center justify-center text-white font-bold">
-                        
-                         {name.charAt(0).toLocaleUpperCase()}
-                      </div> </>)}
-                   
-
-              </div>            
-              </div>
-            </div> 
+      {pathname !== "/profile" && (
+        <div className=" py-10 ">
+          <div className="flex flex-col gap-1  xl:gap-3 xl:text-left">
+            <div className="flex items-center gap-2  ">
+              {isExpanded || isHovered || isMobileOpen ? (
+                <>
+                  <div className="w-12 h-12  rounded-full bg-blue-800 flex items-center justify-center text-white font-bold">
+                    {name.charAt(0).toLocaleUpperCase()}
+                  </div>
+                  <div className="flex flex-col">
+                    <h4 className="text-lg font-semibold text-center text-gray-800 dark:text-white/90 xl:text-left">
+                      {name}
+                    </h4>
+                    <p className="text-xs  text-gray-500 dark:text-gray-400">
+                      {role}
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="w-12 h-12  rounded-full bg-blue-800 flex items-center justify-center text-white font-bold">
+                    {name.charAt(0).toLocaleUpperCase()}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
       <div className="flex flex-col overflow-y-auto duration-300 ease-linear min-h-80 ">
         
            
         <nav className=" ">
           <ul className="flex flex-col gap-4">
-            { routes.map((nav) => (
+            {routes.map((nav) => (
               <li key={nav.name}>
-                <Link
-                  href={nav.path}
-                  className={`menu-item group ${isActive(nav.path) ? "menu-item-active" : "menu-item-inactive"}`}
-                >
-                  <span className={`${isActive(nav.path) ? "menu-item-icon-active" : "menu-item-icon-inactive"}`}>
-                    {nav.icon}
-                  </span>
-                  {(isExpanded || isHovered || isMobileOpen) && (
-                    <span className="menu-item-text">{nav.name}</span>
-                  )}
-                </Link>
+                {nav.onClick ? (
+                  <button
+                    onClick={nav.onClick}
+                    className="menu-item group menu-item-inactive w-full text-left cursor-pointer border-none bg-transparent outline-none flex items-center"
+                  >
+                    <span className="menu-item-icon-inactive">
+                      {nav.icon}
+                    </span>
+                    {(isExpanded || isHovered || isMobileOpen) && (
+                      <span className="menu-item-text">{nav.name}</span>
+                    )}
+                  </button>
+                ) : (
+                  <Link
+                    href={nav.path}
+                    className={`menu-item group ${isActive(nav.path) ? "menu-item-active" : "menu-item-inactive"}`}
+                  >
+                    <span className={`${isActive(nav.path) ? "menu-item-icon-active" : "menu-item-icon-inactive"}`}>
+                      {nav.icon}
+                    </span>
+                    {(isExpanded || isHovered || isMobileOpen) && (
+                      <span className="menu-item-text">{nav.name}</span>
+                    )}
+                  </Link>
+                )}
               </li>
             ))}
           </ul>

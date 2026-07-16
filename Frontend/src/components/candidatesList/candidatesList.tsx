@@ -12,14 +12,11 @@ import {
 
 import EditResume from "../UsersModels/resumeEditModel/EditResume";
 
-
-
-// Define the table data using the interface
 const users: any[] = [];
 
 
 export default function CadidatesList() {
- 
+
   return (
     <div className="overflow-hidden rounded-xl  border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03]">
       <div className="max-w-full overflow-x-auto ">
@@ -32,7 +29,7 @@ export default function CadidatesList() {
                   isHeader
                   className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
                 >
-                  Candidate Name
+                Name
                 </TableCell>
                 <TableCell
                   isHeader
@@ -51,22 +48,22 @@ export default function CadidatesList() {
                   isHeader
                   className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
                 >
-                  year Of experience
+                  Yrs Of Exp
                 </TableCell>
                 <TableCell
                   isHeader
                   className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
                 >
-                 Education
+                  Education
                 </TableCell>
-                  <TableCell
+                <TableCell
                   isHeader
                   className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
                 >
-                skills
+                  skills
                 </TableCell>
-                
-                    <TableCell
+
+                <TableCell
                   isHeader
                   className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
                 >
@@ -83,16 +80,16 @@ export default function CadidatesList() {
 
             {/* Table Body */}
             <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05] ">
-              {users?.map((user :any ) => (
-                <TableRow key={user.id}> 
+              {users?.map((user: any) => (
+                <TableRow key={user.id}>
                   <TableCell className="px-5 py-4 sm:px-6 text-start ">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 overflow-hidden flex items-center justify-center bg-blue-700 text-white rounded-full ">
-                      {user.name.charAt(0).toUpperCase()}
+                        {user.name.charAt(0).toUpperCase()}
                       </div>
                       <div>
                         <span className="block font-medium text-gray-800 text-theme-sm dark:text-white/90">
-                          {user.name} 
+                          {user.name}
                         </span>
                         <span className="block text-gray-500 text-theme-xs dark:text-gray-400">
                           {user.role}
@@ -101,25 +98,25 @@ export default function CadidatesList() {
                     </div>
                   </TableCell>
                   <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
-                     {user.role} 
+                    {user.role}
                   </TableCell>
                   <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
                     <div className="flex -space-x-2">
-                       {user.email}
+                      {user.email}
                     </div>
                   </TableCell>
                   <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
-                  <div className="flex -space-x-2">
-                    {user.password}
+                    <div className="flex -space-x-2">
+                      {user.password}
                     </div>
-                  
+
                   </TableCell>
-                  
+
                   <TableCell className="px-4 py-3 text-gray-500 flex gap-2 text-theme-sm dark:text-gray-400">
                     <button className="px-[1vw] py-[.8vh] rounded-2xl text-xs  bg-red-500 text-white">
-                     Delete 
+                      Delete
                     </button>
-                        <EditResume candidate={{ id: 0, firstName: "", lastName: "", resume: "" }} />
+                    <EditResume candidate={{ id: "", firstName: "", lastName: "", resume: "" }} />
                   </TableCell>
                 </TableRow>
               ))}

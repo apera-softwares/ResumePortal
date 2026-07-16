@@ -2,11 +2,12 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useModal } from "../../hooks/useModal";
+import { gsap } from "gsap";
 import { Modal } from "../ui/modal";
 import ResumeUploadForm from "../ResumeUploadForm/ResumeUploadForm";
 
 interface joblist {
-  id: number;
+  id: string;
   title: string;
   client: string;
   description: string;
@@ -22,20 +23,24 @@ interface joblist {
 
 export default function PublicJoblisting() {
   const [jobList, setJobList] = useState<joblist[]>([]);
-  const [appliedJobs, setAppliedJobs] = useState<number[]>([]);
+  const [appliedJobs, setAppliedJobs] = useState<string[]>([]);
   const [searchitem, setSearchitem] = useState<string>('');
   const [searchLocation, setSearchLocation] = useState<string>('');
   const [searchType, setSearchType] = useState<string>('All');
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [filteredjobs, setFilterdJobs] = useState<joblist[]>([]);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const ITEMS_PER_PAGE = 8;
+
   const { isOpen, openModal, closeModal } = useModal();
-  const [applyingJobId, setApplyingJobId] = useState<number | null>(null);
+  const [applyingJobId, setApplyingJobId] = useState<string | null>(null);
   const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
   // Load applied jobs from localStorage on mount
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const storedApplied = localStorage.getItem("appliedJobIds");
+      const storedApplied = sessionStorage.getItem("appliedJobIds");
       if (storedApplied) {
         try {
           setAppliedJobs(JSON.parse(storedApplied));
@@ -46,71 +51,71 @@ export default function PublicJoblisting() {
     }
   }, []);
 
+  // Reset pagination when search parameters change
   useEffect(() => {
-    const JobsData = async () => {
+    setCurrentPage(1);
+  }, [searchitem, searchLocation, searchType]);
+
+  // Fetch jobs dynamically based on backend pagination/filters
+  useEffect(() => {
+    const fetchJobs = async () => {
       try {
-        const response = await fetch(`${API_URL}/jobs`, {
+        const queryParams = new URLSearchParams();
+        queryParams.append("page", String(currentPage));
+        queryParams.append("limit", String(ITEMS_PER_PAGE));
+        if (searchitem?.trim()) queryParams.append("search", searchitem.trim());
+        if (searchLocation?.trim()) queryParams.append("location", searchLocation.trim());
+        if (searchType && searchType !== "All") queryParams.append("type", searchType);
+
+        const response = await fetch(`${API_URL}/jobs?${queryParams.toString()}`, {
           method: "GET",
           headers: { "Content-Type": "application/json" }
         });
-        if (!response.ok) throw new Error("Something went wrong while fetch");
-        const JobListData = await response.json();
-        setJobList(JobListData.data);
+        if (!response.ok) throw new Error("Something went wrong while fetching jobs");
+        const resData = await response.json();
+        setJobList(resData.data || []);
+        setTotalCount(resData.total || 0);
       } catch (error) {
         console.error("Error fetching jobs:", error);
       }
     };
-    JobsData();
-  }, [API_URL]);
+    fetchJobs();
+  }, [API_URL, currentPage, searchitem, searchLocation, searchType]);
 
-  useEffect(() => {
-    setFilterdJobs(jobList);
-  }, [jobList]);
-
-  // Combined filtering logic
-  const handleSearch = useCallback(() => {
-    let result = jobList;
-
-    // Filter by Job Title / Client / Skills
-    if (searchitem?.trim() !== "") {
-      const query = searchitem.toLowerCase();
-      result = result.filter((job) =>
-        job.title.toLowerCase().includes(query) ||
-        job.client.toLowerCase().includes(query) ||
-        job.skills.some((skill) => skill.toLowerCase().includes(query))
-      );
-    }
-
-    // Filter by Location
-    if (searchLocation?.trim() !== "") {
-      const locQuery = searchLocation.toLowerCase();
-      result = result.filter((job) =>
-        job.location.toLowerCase().includes(locQuery) ||
-        (job.cities && job.cities.some(city => city.toLowerCase().includes(locQuery)))
-      );
-    }
-
-    // Filter by Job Type
-    if (searchType !== "All") {
-      result = result.filter((job) =>
-        job.type.toLowerCase() === searchType.toLowerCase()
-      );
-    }
-
-    setFilterdJobs(result);
-  }, [jobList, searchitem, searchLocation, searchType]);
-
-  // Perform search automatically when searchType changes (dropdown/badges)
-  useEffect(() => {
-    handleSearch();
-  }, [searchType, jobList, handleSearch]);
-
-  const handleApply = (id: number) => {
-    setApplyingJobId(id);
-    openModal();
+  const handleSearch = () => {
+    setCurrentPage(1);
   };
 
-  const handleApplySuccess = (jobId: number) => {
+  const handleApply = async (id: string) => {
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    if (!token) {
+      window.location.href = "/login";
+      return;
+    }
+
+    try {
+      const checkRes = await fetch(`${API_URL}/users/check-auth`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        }
+      });
+
+      if (!checkRes.ok) {
+        window.location.href = "/login";
+        return;
+      }
+
+      setApplyingJobId(id);
+      openModal();
+    } catch (error) {
+      console.error("Error checking auth status:", error);
+      window.location.href = "/login";
+    }
+  };
+
+  const handleApplySuccess = (jobId: string) => {
     setAppliedJobs((prev) => [...prev, jobId]);
   };
 
@@ -140,8 +145,45 @@ export default function PublicJoblisting() {
   };
 
   // List of unique locations & types for autofill dropdowns
-  const uniqueLocations = Array.from(new Set(jobList.map(j => j.location).filter(Boolean)));
-  const uniqueTypes = Array.from(new Set(jobList.map(j => j.type).filter(Boolean)));
+  const uniqueLocations = ["REMOTE", "MUMBAI", "DELHI", "BANGALORE", "HYDERABAD", "CHENNAI", "PUNE"];
+  const uniqueTypes = ["FULL_TIME", "INTERN", "CONTRACT", "FREELANCING"];
+
+  // GSAP animation on mount
+  useEffect(() => {
+    const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
+    tl.fromTo(".hero-title", 
+      { opacity: 0, y: 40 }, 
+      { opacity: 1, y: 0, duration: 1.0, delay: 0.1 }
+    )
+    .fromTo(".hero-description", 
+      { opacity: 0, y: 25 }, 
+      { opacity: 1, y: 0, duration: 0.8 }, 
+      "-=0.7"
+    )
+    .fromTo(".search-console", 
+      { opacity: 0, scale: 0.96, y: 20 }, 
+      { opacity: 1, scale: 1, y: 0, duration: 0.8 }, 
+      "-=0.6"
+    )
+    .fromTo(".quick-filters button", 
+      { opacity: 0, y: 15 }, 
+      { opacity: 1, y: 0, duration: 0.5, stagger: 0.08 }, 
+      "-=0.5"
+    );
+  }, []);
+
+  // GSAP animation when jobList changes
+  useEffect(() => {
+    if (jobList.length > 0) {
+      const timer = setTimeout(() => {
+        gsap.fromTo(".job-card-item", 
+          { opacity: 0, y: 25, scale: 0.97 }, 
+          { opacity: 1, y: 0, scale: 1, duration: 0.6, stagger: 0.06, ease: "power2.out" }
+        );
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [jobList, viewMode]);
 
   return (
     <div className="w-full bg-gray-50 dark:bg-gray-950 min-h-screen font-outfit transition-colors duration-300">
@@ -152,15 +194,15 @@ export default function PublicJoblisting() {
         <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-blue-600/5 dark:bg-blue-600/5 rounded-full blur-[120px] pointer-events-none"></div>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
-          <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight text-gray-900 dark:text-white mb-6">
+          <h1 className="hero-title text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight text-gray-900 dark:text-white mb-6">
             Find Your Next <span className="bg-gradient-to-r from-blue-600 to-blue-500 bg-clip-text text-transparent">Dream Career</span>
           </h1>
-          <p className="text-base sm:text-lg md:text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto mb-10 leading-relaxed">
+          <p className="hero-description text-base sm:text-lg md:text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto mb-10 leading-relaxed">
             Discover thousands of high-paying opportunities from leading companies. Refine by title, location, or type, and apply instantly.
           </p>
 
           {/* Premium Multi-Field Search Console */}
-          <div className="max-w-4xl mx-auto bg-white dark:bg-gray-900 rounded-2xl md:rounded-full p-2.5 sm:p-3 shadow-xl border border-gray-100 dark:border-gray-800 flex flex-col md:flex-row items-stretch md:items-center gap-2 md:gap-0">
+          <div className="search-console max-w-4xl mx-auto bg-white dark:bg-gray-900 rounded-2xl md:rounded-full p-2.5 sm:p-3 shadow-xl border border-gray-100 dark:border-gray-800 flex flex-col md:flex-row items-stretch md:items-center gap-2 md:gap-0">
             {/* Field 1: What (Job Title / Skill / Company) */}
             <div className="flex-1 flex items-center gap-3 px-4 py-2 border-b md:border-b-0 md:border-r border-gray-100 dark:border-gray-800">
               <svg className="w-5 h-5 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -228,7 +270,7 @@ export default function PublicJoblisting() {
           </div>
 
           {/* Quick Filter Badges */}
-          <div className="flex flex-wrap items-center justify-center gap-2.5 mt-8 text-sm">
+          <div className="quick-filters flex flex-wrap items-center justify-center gap-2.5 mt-8 text-sm">
             <span className="text-gray-500 font-medium">Quick Filters:</span>
             <button 
               onClick={() => handleBadgeClick('All')}
@@ -284,78 +326,87 @@ export default function PublicJoblisting() {
         </div>
 
         {/* Listings Display */}
-        {filteredjobs.length > 0 ? (
+        {jobList.length > 0 ? (
             viewMode === 'grid' ? (
               /* GRID VIEW */
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredjobs.map((job) => {
+              /* GRID VIEW */
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4.5">
+                {jobList.map((job) => {
                   const { gradient, initial } = getAvatarStyle(job.client);
                   const isApplied = appliedJobs.includes(job.id);
                   return (
                     <div
                       key={job.id}
-                      className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800/80 rounded-2xl p-6 shadow-sm hover:shadow-xl hover:-translate-y-1 dark:hover:border-blue-500/30 transition-all duration-300 flex flex-col justify-between group"
+                      className="job-card-item bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800/80 rounded-2xl p-4.5 shadow-sm hover:shadow-xl hover:-translate-y-1 dark:hover:border-blue-500/30 transition-all duration-300 flex flex-col justify-between group"
                     >
                       <div>
                         {/* Top Row: Logo & Job Type */}
-                        <div className="flex justify-between items-start mb-4">
-                          <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center font-bold text-lg shadow-sm shrink-0`}>
+                        <div className="flex justify-between items-start mb-3">
+                          <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center font-bold text-base shadow-sm shrink-0`}>
                             {initial}
                           </div>
-                          <span className="text-xs font-semibold px-3 py-1 bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 rounded-full border border-blue-100 dark:border-blue-900/30">
+                          <span className="text-[10px] font-bold px-2.5 py-0.5 bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 rounded-full border border-blue-100 dark:border-blue-900/30">
                             {job.type}
                           </span>
                         </div>
 
                         {/* Title & Company */}
-                        <h3 className="text-lg font-bold text-gray-900 dark:text-white line-clamp-1 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                        <h3 className="text-base font-bold text-gray-900 dark:text-white line-clamp-1 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                           {job.title}
                         </h3>
-                        <p className="text-sm font-semibold text-gray-400 dark:text-gray-500 mt-1 mb-4">
+                        <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 mt-0.5 mb-3">
                           {job.client}
                         </p>
 
                         {/* Description */}
-                        <p className="text-gray-600 dark:text-gray-400 text-sm mb-5 line-clamp-3 leading-relaxed">
+                        <p className="text-gray-600 dark:text-gray-400 text-xs mb-3.5 line-clamp-2 leading-relaxed">
                           {job.description}
                         </p>
 
-                        {/* Metadata Labels */}
-                        <div className="space-y-2.5 mb-5">
-                          <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-                            <svg className="w-4.5 h-4.5 text-gray-400 dark:text-gray-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                            </svg>
-                            <span className="line-clamp-1">{job.location}</span>
+                        {/* Metadata & Skills split footer */}
+                        <div className="border-t border-gray-100 dark:border-gray-800/60 pt-3.5 mt-3.5 flex items-center justify-between gap-3 mb-4">
+                          {/* Left: Location & Salary info */}
+                          <div className="flex flex-col gap-0.5 text-[11px] text-gray-500 dark:text-gray-400">
+                            <div className="flex items-center gap-1">
+                              <svg className="w-3 h-3 text-gray-400 dark:text-gray-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                              </svg>
+                              <span className="line-clamp-1">{job.location}</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <svg className="w-3 h-3 text-gray-400 dark:text-gray-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              <span>{job.salary}</span>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-                            <svg className="w-4.5 h-4.5 text-gray-400 dark:text-gray-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            <span>{job.salary}</span>
-                          </div>
-                        </div>
 
-                        {/* Skills Tags */}
-                        {job.skills && job.skills.length > 0 && (
-                          <div className="flex flex-wrap gap-1.5 mb-6">
-                            {job.skills.map((skill, index) => (
-                              <span
-                                key={index}
-                                className="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-xs font-semibold px-2.5 py-1 rounded-md border border-gray-200/50 dark:border-gray-700/55"
-                              >
-                                {skill}
-                              </span>
-                            ))}
-                          </div>
-                        )}
+                          {/* Right: Skills badges */}
+                          {job.skills && job.skills.length > 0 && (
+                            <div className="flex flex-wrap gap-1 justify-end max-w-[130px]">
+                              {job.skills.slice(0, 2).map((skill, index) => (
+                                <span
+                                  key={index}
+                                  className="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-[9px] font-semibold px-2 py-0.5 rounded border border-gray-200/50 dark:border-gray-700/55"
+                                >
+                                  {skill}
+                                </span>
+                              ))}
+                              {job.skills.length > 2 && (
+                                <span className="text-[9px] font-bold text-gray-450 dark:text-gray-500 px-0.5 py-0.5 self-center">
+                                  +{job.skills.length - 2}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </div>
 
                       {/* Apply Button */}
                       <button
                         onClick={() => handleApply(job.id)}
-                        className={`w-full py-2.5 sm:py-3 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all duration-200 ${
+                        className={`w-full py-2.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all duration-200 ${
                           isApplied
                             ? "bg-gray-150 dark:bg-[#1a2333] text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-800 cursor-default"
                             : "bg-blue-600 hover:bg-blue-700 text-white hover:scale-[1.01] active:scale-[0.99] shadow-sm hover:shadow"
@@ -378,91 +429,106 @@ export default function PublicJoblisting() {
               </div>
             ) : (
               /* LIST VIEW */
-              <div className="space-y-4">
-                {filteredjobs.map((job) => {
-                  const { gradient, initial } = getAvatarStyle(job.client);
-                  const isApplied = appliedJobs.includes(job.id);
-                  return (
-                    <div
-                      key={job.id}
-                      className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800/80 rounded-2xl p-5 shadow-sm hover:shadow-md hover:border-gray-200 dark:hover:border-blue-500/30 transition-all duration-200 flex flex-col md:flex-row md:items-center justify-between gap-5"
-                    >
-                      {/* Left Panel: Logo & Title/Details */}
-                      <div className="flex items-start gap-4">
-                        <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br ${gradient} flex items-center justify-center font-bold text-lg sm:text-xl shadow-sm shrink-0`}>
-                          {initial}
-                        </div>
-                        <div>
-                          <div className="flex flex-wrap items-center gap-2">
-                            <h3 className="text-base sm:text-lg font-bold text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
-                              {job.title}
-                            </h3>
-                            <span className="text-[10px] font-bold px-2.5 py-0.5 bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 rounded-full border border-blue-100 dark:border-blue-900/30">
-                              {job.type}
-                            </span>
-                          </div>
-                          <p className="text-sm font-semibold text-gray-400 dark:text-gray-500 mt-0.5">
-                            {job.client}
-                          </p>
-                          
-                          {/* Meta Rows */}
-                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-3 text-xs text-gray-500 dark:text-gray-400">
-                            <div className="flex items-center gap-1.5">
-                              <svg className="w-4 h-4 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                              </svg>
-                              <span>{job.location}</span>
-                            </div>
-                            <div className="flex items-center gap-1.5">
-                              <svg className="w-4 h-4 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                              </svg>
-                              <span>{job.salary}</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
+              <div className="flex flex-col justify-between overflow-hidden rounded-3xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-sm">
+                <div className="max-w-full overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="h-14 border-b border-gray-100 dark:border-gray-800 bg-gray-50/60 dark:bg-gray-900/60">
+                        <th className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-start">Job Details</th>
+                        <th className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-start">Job Type</th>
+                        <th className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-start">Location & Salary</th>
+                        <th className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-start">Skills</th>
+                        <th className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-sm text-center">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 dark:divide-gray-800/60">
+                      {jobList.map((job) => {
+                        const { gradient, initial } = getAvatarStyle(job.client);
+                        const isApplied = appliedJobs.includes(job.id);
+                        return (
+                          <tr key={job.id} className="job-card-item hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition-all">
+                            {/* Job Details */}
+                            <td className="px-6 py-4 text-start">
+                              <div className="flex items-center gap-3">
+                                <div className={`w-9 h-9 flex items-center justify-center rounded-full font-bold bg-gradient-to-br ${gradient} text-xs`}>
+                                  {initial}
+                                </div>
+                                <div className="flex flex-col">
+                                  <span className="font-semibold text-gray-900 dark:text-white line-clamp-1">
+                                    {job.title}
+                                  </span>
+                                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                                    {job.client}
+                                  </span>
+                                </div>
+                              </div>
+                            </td>
 
-                      {/* Middle Panel: Skills array */}
-                      {job.skills && job.skills.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5 max-w-xs md:max-w-sm">
-                          {job.skills.map((skill, index) => (
-                            <span
-                              key={index}
-                              className="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-xs font-semibold px-2.5 py-1 rounded-md border border-gray-200/50 dark:border-gray-700/55"
-                            >
-                              {skill}
-                            </span>
-                          ))}
-                        </div>
-                      )}
+                            {/* Job Type */}
+                            <td className="px-6 py-4 text-start">
+                              <span className="text-[10px] font-bold px-2.5 py-1 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 rounded-full border border-blue-100 dark:border-blue-900/30">
+                                {job.type}
+                              </span>
+                            </td>
 
-                      {/* Right Panel: CTA Button */}
-                      <div className="w-full md:w-auto shrink-0">
-                        <button
-                          onClick={() => handleApply(job.id)}
-                          className={`w-full md:w-36 py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all duration-200 ${
-                            isApplied
-                              ? "bg-gray-150 dark:bg-[#1a2333] text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-800 cursor-default"
-                              : "bg-blue-600 hover:bg-blue-700 text-white hover:scale-[1.01] active:scale-[0.99] shadow-sm hover:shadow"
-                          }`}
-                        >
-                          {isApplied ? (
-                            <>
-                              <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                              </svg>
-                              <span>Applied</span>
-                            </>
-                          ) : (
-                            <span>Apply Now</span>
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
+                            {/* Location & Salary */}
+                            <td className="px-6 py-4 text-start">
+                              <div className="flex flex-col">
+                                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                  {job.location}
+                                </span>
+                                <span className="text-xs text-gray-500 dark:text-gray-400">
+                                  {job.salary}
+                                </span>
+                              </div>
+                            </td>
+
+                            {/* Skills */}
+                            <td className="px-6 py-4 text-start max-w-[200px]">
+                              <div className="flex flex-wrap gap-1.5">
+                                {job.skills && job.skills.length > 0 ? (
+                                  job.skills.map((skill, index) => (
+                                    <span
+                                      key={index}
+                                      className="bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300 px-2 py-0.5 rounded-md text-xs border border-gray-200/50 dark:border-gray-700"
+                                    >
+                                      {skill}
+                                    </span>
+                                  ))
+                                ) : (
+                                  <span className="text-gray-400">-</span>
+                                )}
+                              </div>
+                            </td>
+
+                            {/* Actions */}
+                            <td className="px-6 py-4 text-center">
+                              <button
+                                onClick={() => handleApply(job.id)}
+                                className={`px-4 py-1.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all duration-200 mx-auto ${
+                                  isApplied
+                                    ? "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-700 cursor-default"
+                                    : "bg-blue-600 hover:bg-blue-700 text-white hover:scale-[1.01] active:scale-[0.99] shadow-xs"
+                                }`}
+                              >
+                                {isApplied ? (
+                                  <>
+                                    <svg className="w-3.5 h-3.5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                                    </svg>
+                                    <span>Applied</span>
+                                  </>
+                                ) : (
+                                  <span>Apply Now</span>
+                                )}
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )
           ) : (
@@ -488,8 +554,79 @@ export default function PublicJoblisting() {
                 Clear all filters
               </button>
             </div>
-          )
-        }
+          )}
+
+        {/* Premium Pagination Bar */}
+        {totalCount > 0 && (
+          <div className="flex flex-col sm:flex-row items-center justify-between border-t border-gray-200/40 dark:border-gray-800/60 bg-transparent pt-6 mt-12 gap-4">
+            <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 font-medium">
+              <span>Showing</span>
+              <span className="px-2 py-0.5 rounded-lg bg-gray-100 dark:bg-gray-800/80 text-gray-800 dark:text-gray-200 font-bold">
+                {(currentPage - 1) * ITEMS_PER_PAGE + 1} - {Math.min(currentPage * ITEMS_PER_PAGE, totalCount)}
+              </span>
+              <span>of</span>
+              <span className="px-2 py-0.5 rounded-lg bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-bold">
+                {totalCount}
+              </span>
+              <span>jobs</span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                className="px-3.5 py-2 rounded-xl text-xs font-semibold border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-750 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              >
+                Prev
+              </button>
+
+              {(() => {
+                const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
+                const pages: (number | string)[] = [];
+                if (totalPages <= 5) {
+                  for (let i = 1; i <= totalPages; i++) pages.push(i);
+                } else {
+                  pages.push(1);
+                  if (currentPage > 3) pages.push("... ");
+                  const start = Math.max(2, currentPage - 1);
+                  const end = Math.min(totalPages - 1, currentPage + 1);
+                  for (let i = start; i <= end; i++) pages.push(i);
+                  if (currentPage < totalPages - 2) pages.push(" ...");
+                  pages.push(totalPages);
+                }
+                return pages.map((page, idx) => {
+                  if (typeof page === "string") {
+                    return (
+                      <span key={`ellipse-${idx}`} className="text-gray-400 dark:text-gray-650 px-1.5 font-semibold text-xs select-none">
+                        ...
+                      </span>
+                    );
+                  }
+                  return (
+                    <button
+                      key={page}
+                      onClick={() => setCurrentPage(page)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${currentPage === page
+                        ? "bg-blue-600 border-blue-600 text-white shadow-xs"
+                        : "border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800"
+                        }`}
+                    >
+                      {page}
+                    </button>
+                  );
+                });
+              })()}
+
+              <button
+                onClick={() => setCurrentPage((prev) => Math.min(prev + 1, Math.ceil(totalCount / ITEMS_PER_PAGE)))}
+                disabled={currentPage === Math.ceil(totalCount / ITEMS_PER_PAGE)}
+                className="px-3.5 py-2 rounded-xl text-xs font-semibold border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-750 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </section>
 
       {/* Apply Job Modal */}
