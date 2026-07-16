@@ -45,5 +45,6 @@ jobs:
             {
                "DATABASE_URL": "${{ secrets.DATABASE_URL }}",
                "PORT": "8094",
-               "JWT_SECRET": "${{ secrets.JWT_SECRET }}"
+               "JWT_SECRET": "${{ secrets.JWT_SECRET }}",
+               "PUPPETEER_EXECUTABLE_PATH": "${{ secrets.PUPPETEER_EXECUTABLE_PATH }}"
             }
