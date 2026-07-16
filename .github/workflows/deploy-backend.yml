@@ -54,7 +54,6 @@ jobs:
                "USE_S3": "${{secrets.USE_S3}}",
                "SMTP_USER": "${{secrets.SMTP_USER}}",
                "SMTP_PASSWORD": "${{secrets.SMTP_PASSWORD}}",
-               "GOOGLE_CLIENT_ID": "${{secrets.GOOGLE_CLIENT_ID}}",
                "S3_ENDPOINT": "${{secrets.S3_ENDPOINT}}",
                "ACCESS_KEY_ID": "${{secrets.ACCESS_KEY_ID}}",
                "SECRET_ACCESS_KEY": "${{secrets.SECRET_ACCESS_KEY}}",
