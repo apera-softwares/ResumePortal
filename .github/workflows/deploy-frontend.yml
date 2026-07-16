@@ -26,7 +26,8 @@ jobs:
           context: './Frontend'
           push: true
           no-cache: true
-          build-args: NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}
+          build-args: |
+            NEXT_PUBLIC_API_URL=http://209.182.232.11:8094
           tags: 'registry.aperasoftwares.com/aperra-org/resumebuilder-frontend:latest'
 
       - name: 'Portainer Deploy'
