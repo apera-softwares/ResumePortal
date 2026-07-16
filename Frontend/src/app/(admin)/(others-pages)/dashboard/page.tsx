@@ -161,6 +161,12 @@ export default function DashboardPage() {
         });
 
       } else {
+        const token = localStorage.getItem("token");
+        const headers = {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        };
+
         const queryParams = new URLSearchParams();
         const localRole = localStorage.getItem("role");
         const localUserId = localStorage.getItem("userId");
@@ -171,17 +177,17 @@ export default function DashboardPage() {
           queryParams.append("userId", localUserId);
         }
 
-        const cRes = await fetch(`${API_URL}/candidates?${queryParams.toString()}`);
+        const cRes = await fetch(`${API_URL}/candidates?${queryParams.toString()}`, { headers });
         if (!cRes.ok) throw new Error("Failed to fetch candidates");
         const cData = await cRes.json();
         const candidates = Array.isArray(cData) ? cData : (cData.data || []);
 
-        const jRes = await fetch(`${API_URL}/jobs?${queryParams.toString()}`);
+        const jRes = await fetch(`${API_URL}/jobs?${queryParams.toString()}`, { headers });
         if (!jRes.ok) throw new Error("Failed to fetch jobs");
         const jData = await jRes.json();
         const jobs = jData.data || [];
 
-        const sRes = await fetch(`${API_URL}/skills`);
+        const sRes = await fetch(`${API_URL}/skills`, { headers });
         if (!sRes.ok) throw new Error("Failed to fetch skills");
         const sData = await sRes.json();
         const skills = sData || [];
