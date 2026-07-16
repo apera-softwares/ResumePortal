@@ -34,7 +34,6 @@ RUN npm run build
 # Prune devDependencies to keep the production node_modules light
 RUN npm prune --omit=dev
 
-
 # ==========================================
 # Stage 2: Production Image
 # ==========================================
