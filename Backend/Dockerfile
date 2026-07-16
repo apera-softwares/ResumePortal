@@ -16,6 +16,9 @@ WORKDIR /usr/src/app
 COPY package*.json ./
 COPY prisma ./prisma/
 
+# Skip Puppeteer browser download during npm install to avoid network failures
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+
 # Install all dependencies (including devDependencies)
 RUN npm install
 
@@ -38,11 +41,12 @@ FROM --platform=linux/amd64 node:20-bookworm-slim AS production
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install OpenSSL for Prisma, LibreOffice for resume conversions, and standard fonts
+# Install OpenSSL for Prisma, LibreOffice, Chromium, and standard fonts
 RUN apt-get update && apt-get install -y --no-install-recommends \
     openssl \
     libreoffice-core \
     libreoffice-writer \
+    chromium \
     fonts-liberation \
     fonts-dejavu \
     fonts-noto \
@@ -63,10 +67,14 @@ COPY --from=builder /usr/src/app/node_modules ./node_modules
 COPY --from=builder /usr/src/app/dist ./dist
 COPY --from=builder /usr/src/app/prisma ./prisma
 
+# Ensure upload directories exist
+RUN mkdir -p uploads
+
 # Define default environment variables
 ENV DATABASE_URL=""
 ENV JWT_SECRET=""
 ENV PORT=8094
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
 EXPOSE 8094
 
