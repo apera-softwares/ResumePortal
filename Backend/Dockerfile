@@ -18,6 +18,7 @@ COPY prisma ./prisma/
 
 # Skip Puppeteer browser download during npm install to avoid network failures
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+ENV PUPPETEER_SKIP_DOWNLOAD=true
 
 # Install all dependencies (including devDependencies)
 RUN npm install
