@@ -5,9 +5,9 @@ services:
     container_name: resumebuilder-frontend-latest
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "8093:8093"
     environment:
-      PORT: "3000"
+      - NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
     networks:
       - resumebuilder-network
 
