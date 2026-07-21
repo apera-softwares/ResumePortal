@@ -356,7 +356,7 @@ export default function CandidateDetailsModal({
           <input
             type="checkbox"
             checked={props.isSelected}
-            onChange={() => {}}
+            onChange={() => { }}
             className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500 cursor-pointer"
           />
           <span className="text-sm font-medium text-gray-700 dark:text-gray-200">{props.label}</span>

@@ -119,7 +119,7 @@ export default function DashboardPage() {
 
         let totalJobsApplied = 0;
         const uniqueSkills = new Set<string>();
-        
+
         const statusCounts: { [key: string]: number } = {
           APPLIED: 0,
           REVIEWED: 0,
@@ -369,12 +369,12 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6 max-w-[1600px] mx-auto">
-      
+
       {/* ── Welcome & Interactive Header ── */}
       <div className="relative flex flex-col md:flex-row justify-between items-start md:items-center bg-gradient-to-br from-slate-900 via-indigo-900 to-indigo-950 text-white rounded-3xl p-6 md:p-8 shadow-md overflow-hidden transition-all border border-indigo-950/15 dark:border-slate-800/40">
         <div className="absolute -right-10 -bottom-10 w-60 h-60 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none"></div>
         <div className="absolute left-1/3 top-0 w-32 h-32 bg-white/5 rounded-full blur-2xl pointer-events-none"></div>
-        
+
         <div className="space-y-2 z-10">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 text-white text-xs font-semibold tracking-wider uppercase backdrop-blur-xs">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
@@ -653,7 +653,7 @@ export default function DashboardPage() {
                   <input
                     type="checkbox"
                     checked={task.checked}
-                    onChange={() => {}}
+                    onChange={() => { }}
                     className="w-4 h-4 mt-0.5 text-indigo-650 border-gray-300 dark:border-gray-700 rounded-sm focus:ring-indigo-500 cursor-pointer"
                   />
                   <div className="flex-1 min-w-0">
@@ -665,11 +665,10 @@ export default function DashboardPage() {
                         <Clock className="w-3 h-3" />
                         {task.date}
                       </span>
-                      <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold ${
-                        task.status === "Completed" ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/20 dark:text-emerald-400" :
-                        task.status === "In Progress" ? "bg-amber-50 text-amber-600 dark:bg-amber-950/20 dark:text-amber-400" :
-                        "bg-rose-50 text-rose-600 dark:bg-rose-950/20 dark:text-rose-400"
-                      }`}>
+                      <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold ${task.status === "Completed" ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/20 dark:text-emerald-400" :
+                          task.status === "In Progress" ? "bg-amber-50 text-amber-600 dark:bg-amber-950/20 dark:text-amber-400" :
+                            "bg-rose-50 text-rose-600 dark:bg-rose-950/20 dark:text-rose-400"
+                        }`}>
                         {task.status}
                       </span>
                     </div>
@@ -762,7 +761,7 @@ export default function DashboardPage() {
                   <div className="space-y-1 flex-1 min-w-0">
                     <h4 className="text-xs font-bold text-gray-900 dark:text-white leading-tight">{act.title}</h4>
                     <p className="text-[10px] text-gray-400 font-semibold">{act.time}</p>
-                    
+
                     {/* Avatars count representation */}
                     <div className="flex items-center gap-1.5 mt-1.5">
                       <div className="flex -space-x-1.5 overflow-hidden">

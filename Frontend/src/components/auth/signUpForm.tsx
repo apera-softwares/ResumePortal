@@ -17,14 +17,16 @@ export default function SignUpForm() {
   const containerRef = useRef<HTMLDivElement>(null);
 
   const [formData, setFormData] = useState({
-    name: "",
+    firstName: "",
+    lastName: "",
     email: "",
     password: "",
     confirmPassword: "",
   });
 
   const [errors, setErrors] = useState({
-    name: "",
+    firstName: "",
+    lastName: "",
     email: "",
     password: "",
     confirmPassword: "",
@@ -57,10 +59,15 @@ export default function SignUpForm() {
 
   const validate = () => {
     let isValid = true;
-    const tempErrors = { name: "", email: "", password: "", confirmPassword: "" };
+    const tempErrors = { firstName: "", lastName: "", email: "", password: "", confirmPassword: "" };
 
-    if (!formData.name.trim()) {
-      tempErrors.name = "Full name is required";
+    if (!formData.firstName.trim()) {
+      tempErrors.firstName = "First name is required";
+      isValid = false;
+    }
+
+    if (!formData.lastName.trim()) {
+      tempErrors.lastName = "Last name is required";
       isValid = false;
     }
 
@@ -100,10 +107,6 @@ export default function SignUpForm() {
     setIsLoading(true);
     const signupUrl = `${API_URL}/users/signup`;
 
-    const nameParts = formData.name.trim().split(/\s+/);
-    const firstName = nameParts[0] || "";
-    const lastName = nameParts.slice(1).join(" ") || firstName;
-
     try {
       const response = await fetch(signupUrl, {
         method: "POST",
@@ -111,9 +114,9 @@ export default function SignUpForm() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          name: formData.name,
-          firstName,
-          lastName,
+          name: `${formData.firstName.trim()} ${formData.lastName.trim()}`,
+          firstName: formData.firstName.trim(),
+          lastName: formData.lastName.trim(),
           email: formData.email,
           password: formData.password,
           role: "CANDIDATE",
@@ -175,22 +178,42 @@ export default function SignUpForm() {
           <div className="relative z-10">
             <form onSubmit={handleSubmit}>
               <div className="space-y-4">
-                <div className="animate-item">
-                  <Label>
-                    Full Name <span className="text-rose-500">*</span>
-                  </Label>
-                  <Input
-                    placeholder="John Doe"
-                    type="text"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleOnChange}
-                    required
-                    className="transition-all focus:border-brand-500 dark:focus:border-brand-500"
-                  />
-                  {errors.name && (
-                    <p className="text-xs text-rose-500 mt-1">{errors.name}</p>
-                  )}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 animate-item">
+                  <div>
+                    <Label>
+                      First Name <span className="text-rose-500">*</span>
+                    </Label>
+                    <Input
+                      placeholder="John"
+                      type="text"
+                      name="firstName"
+                      value={formData.firstName}
+                      onChange={handleOnChange}
+                      required
+                      className="transition-all focus:border-brand-500 dark:focus:border-brand-500"
+                    />
+                    {errors.firstName && (
+                      <p className="text-xs text-rose-500 mt-1">{errors.firstName}</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <Label>
+                      Last Name <span className="text-rose-500">*</span>
+                    </Label>
+                    <Input
+                      placeholder="Doe"
+                      type="text"
+                      name="lastName"
+                      value={formData.lastName}
+                      onChange={handleOnChange}
+                      required
+                      className="transition-all focus:border-brand-500 dark:focus:border-brand-500"
+                    />
+                    {errors.lastName && (
+                      <p className="text-xs text-rose-500 mt-1">{errors.lastName}</p>
+                    )}
+                  </div>
                 </div>
 
                 <div className="animate-item">

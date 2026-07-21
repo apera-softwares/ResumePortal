@@ -243,7 +243,7 @@ const AppHeader: React.FC = () => {
                 if (appFont) localStorage.setItem("app-font", appFont);
 
                 toast.success("Logout successful!");
-                router.replace("/login");
+                router.replace("/login?logout=true");
               }}
               className="flex-1 py-2.5 px-4 text-sm font-semibold text-white bg-rose-600 hover:bg-rose-700 dark:bg-rose-650 dark:hover:bg-rose-750 rounded-xl transition-all shadow-xs"
             >

@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useSidebar } from "../context/SidebarContext";
+import { useLoader } from "../context/LoaderContext";
 import { ListIcon, TableIcon, TimeIcon, UserCircleIcon, GridIcon, BellIcon } from "../icons/index";
 
 type NavItem = {
@@ -35,7 +36,7 @@ const AdminRoute: NavItem[] = [
     path: "/jobcreation",
   },
   {
-    icon: <TimeIcon/>,
+    icon: <TimeIcon />,
     name: "Skills",
     path: "/addskills",
   },
@@ -46,30 +47,53 @@ const AppSidebar: React.FC = () => {
   const pathname = usePathname();
 
   const isActive = (path: string) => path === pathname;
+  const { startLoading } = useLoader();
+
+  const handleLinkClick = (e: React.MouseEvent<HTMLAnchorElement>, path: string, name: string) => {
+    if (pathname === path) {
+      return;
+    }
+    const targetNames = ["candidates", "jobs", "users", "skills"];
+    if (targetNames.includes(name.toLowerCase())) {
+      let msg = "";
+      if (name.toLowerCase() === "candidates") {
+        msg = "candidate is loading..";
+      } else if (name.toLowerCase() === "jobs") {
+        msg = "jobs loading..";
+      } else if (name.toLowerCase() === "users") {
+        msg = "users loading..";
+      } else if (name.toLowerCase() === "skills") {
+        msg = "skills loading..";
+      } else {
+        msg = `${name.toLowerCase()} is loading..`;
+      }
+      startLoading(msg);
+    }
+  };
 
   const [role, setRole] = useState("")
-   const [name ,setName] =useState('');
+  const [name, setName] = useState('');
   const [mounted, setMounted] = useState(false);
-  
-  useEffect(()=>{
+
+  useEffect(() => {
     setMounted(true);
     const localStorageRole = localStorage.getItem("role")
     const localStoragename = localStorage.getItem("name")
     setRole(localStorageRole || "")
     setName(localStoragename || "")
-  },[])
-  
+  }, [])
+
   if (!mounted) {
     return null;
   }
-      
+
   const handleLogOut = async () => {
     if (confirm("Are you sure you want to log out?")) {
       localStorage.removeItem("token");
       localStorage.removeItem("user");
       try {
         await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3003"}/users/logout`, { method: "POST" });
-      } catch (e) {}
+      } catch (e) { }
       window.location.href = "/login";
     }
   };
@@ -128,7 +152,7 @@ const AppSidebar: React.FC = () => {
           )}
         </Link>
       </div>
-     
+
       {pathname !== "/profile" && (
         <div className=" py-10 ">
           <div className="flex flex-col gap-1  xl:gap-3 xl:text-left">
@@ -159,8 +183,8 @@ const AppSidebar: React.FC = () => {
         </div>
       )}
       <div className="flex flex-col overflow-y-auto duration-300 ease-linear min-h-80 ">
-        
-           
+
+
         <nav className=" ">
           <ul className="flex flex-col gap-4">
             {routes.map((nav) => (
@@ -180,6 +204,7 @@ const AppSidebar: React.FC = () => {
                 ) : (
                   <Link
                     href={nav.path}
+                    onClick={(e) => handleLinkClick(e, nav.path, nav.name)}
                     className={`menu-item group ${isActive(nav.path) ? "menu-item-active" : "menu-item-inactive"}`}
                   >
                     <span className={`${isActive(nav.path) ? "menu-item-icon-active" : "menu-item-icon-inactive"}`}>

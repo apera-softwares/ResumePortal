@@ -343,12 +343,18 @@ export class UsersService {
         }
       }
 
-      const command = new GetObjectCommand({
-        Bucket: process.env.S3_BUCKET,
-        Key: candidate?.resume,
-      });
-
-      const presignedUrl = await getSignedUrl(client, command, { expiresIn: 3600 });
+      let presignedUrl: string | null = null;
+      if (candidate && candidate.resume) {
+        try {
+          const command = new GetObjectCommand({
+            Bucket: process.env.S3_BUCKET,
+            Key: candidate.resume,
+          });
+          presignedUrl = await getSignedUrl(client, command, { expiresIn: 3600 });
+        } catch (s3Error) {
+          console.error('[getProfile] Failed to generate signed URL:', s3Error);
+        }
+      }
 
       return {
         statusCode: 200,

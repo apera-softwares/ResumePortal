@@ -5,6 +5,13 @@ export function middleware(request: NextRequest) {
   const token = request.cookies.get('token')?.value;
   const { pathname } = request.nextUrl;
 
+  // Clear cookie and redirect to clean login page if logging out
+  if (pathname === '/login' && request.nextUrl.searchParams.get('logout') === 'true') {
+    const response = NextResponse.redirect(new URL('/login', request.url));
+    response.cookies.delete('token');
+    return response;
+  }
+
   // Protected paths that require authentication
   const isProtectedPath =
     pathname.startsWith('/dashboard') ||

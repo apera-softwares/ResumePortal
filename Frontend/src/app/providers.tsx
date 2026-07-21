@@ -6,19 +6,56 @@ import { FontProvider } from '@/context/FontContext';
 import { Toaster } from 'react-hot-toast';
 import axios from 'axios';
 import SmoothScroll from '@/components/SmoothScroll';
+import { LoaderProvider, useLoader } from '@/context/LoaderContext';
+import { PageLoader } from '@/components/ui/PageLoader';
 
 axios.defaults.withCredentials = true;
 
 if (typeof window !== "undefined") {
+  // Axios Request Interceptor
+  axios.interceptors.request.use(
+    (config) => {
+      const token = window.localStorage.getItem("token");
+      if (token && config.headers && !config.headers["Authorization"]) {
+        config.headers["Authorization"] = `Bearer ${token}`;
+      }
+      return config;
+    },
+    (error) => {
+      return Promise.reject(error);
+    }
+  );
+
   const originalFetch = window.fetch;
   window.fetch = function (input, init) {
-    if (init) {
-      if (!init.credentials) {
-        init.credentials = 'include';
-      }
-    } else {
-      init = { credentials: 'include' };
+    init = init || {};
+    if (!init.credentials) {
+      init.credentials = 'include';
     }
+
+    const token = window.localStorage.getItem("token");
+    if (token) {
+      if (!init.headers) {
+        init.headers = {};
+      }
+
+      if (init.headers instanceof Headers) {
+        if (!init.headers.has("Authorization")) {
+          init.headers.set("Authorization", `Bearer ${token}`);
+        }
+      } else if (Array.isArray(init.headers)) {
+        const hasAuth = init.headers.some(([key]) => key.toLowerCase() === 'authorization');
+        if (!hasAuth) {
+          init.headers.push(["Authorization", `Bearer ${token}`]);
+        }
+      } else {
+        const hasAuth = Object.keys(init.headers).some(k => k.toLowerCase() === 'authorization');
+        if (!hasAuth) {
+          (init.headers as any)["Authorization"] = `Bearer ${token}`;
+        }
+      }
+    }
+
     return originalFetch.call(this, input, init);
   };
 
@@ -41,14 +78,23 @@ if (typeof window !== "undefined") {
   };
 }
 
+function PageLoaderWrapper() {
+  const { isLoading, loadingMessage } = useLoader();
+  if (!isLoading) return null;
+  return <PageLoader message={loadingMessage} />;
+}
+
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <ThemeProvider>
       <FontProvider>
         <SidebarProvider>
-          <SmoothScroll />
-          {children}
-          <Toaster position="top-center" containerStyle={{ zIndex: 9999999 }} />
+          <LoaderProvider>
+            <SmoothScroll />
+            {children}
+            <PageLoaderWrapper />
+            <Toaster position="top-center" containerStyle={{ zIndex: 9999999 }} />
+          </LoaderProvider>
         </SidebarProvider>
       </FontProvider>
     </ThemeProvider>
