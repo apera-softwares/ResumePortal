@@ -97,7 +97,9 @@ export default function VerifyOtpForm() {
       if (typeof window !== "undefined") {
         const userData = response.data.data;
 
-          if (userData) {
+        let tokenToUse = "";
+        if (userData && userData.token) {
+          tokenToUse = userData.token;
           localStorage.setItem("token", userData.token);
           
           // Save complete user object
@@ -113,6 +115,13 @@ export default function VerifyOtpForm() {
           const tempRole = localStorage.getItem("tempRole");
           const tempName = localStorage.getItem("tempName");
           const tempUserId = localStorage.getItem("tempUserId");
+          const tempToken = localStorage.getItem("tempToken");
+          const existingToken = localStorage.getItem("token");
+          tokenToUse = tempToken || existingToken || "";
+          
+          if (tempToken && !existingToken) {
+            localStorage.setItem("token", tempToken);
+          }
 
           if (tempRole) {
             localStorage.removeItem("tempRole");
@@ -132,6 +141,10 @@ export default function VerifyOtpForm() {
             role: tempRole || "",
           };
           localStorage.setItem("user", JSON.stringify(userObj));
+        }
+
+        if (tokenToUse) {
+          document.cookie = `token=${tokenToUse}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
         }
 
         sessionStorage.removeItem("tempEmail");

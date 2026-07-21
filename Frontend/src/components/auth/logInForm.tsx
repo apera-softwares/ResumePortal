@@ -101,6 +101,7 @@ export default function LogInForm() {
 
       if (typeof window !== "undefined") {
         localStorage.setItem("token", data.data.token);
+        document.cookie = `token=${data.data.token}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
         
         // Save complete user object to localStorage
         const userObj = {

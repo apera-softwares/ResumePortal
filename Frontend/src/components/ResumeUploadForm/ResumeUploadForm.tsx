@@ -542,7 +542,7 @@ export default function ResumeUploadForm({ closeModal, jobId, onApplySuccess }: 
           <input
             type="checkbox"
             checked={props.isSelected}
-            onChange={() => {}}
+            onChange={() => { }}
             className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500 cursor-pointer"
           />
           <span className="text-sm font-medium text-gray-700 dark:text-gray-200">{props.label}</span>
@@ -564,7 +564,7 @@ export default function ResumeUploadForm({ closeModal, jobId, onApplySuccess }: 
       </div>
 
       <form className="flex flex-col justify-start" onSubmit={handlSubmit}>
-        <div className="custom-scrollbar max-h-[60vh] md:max-h-[70vh] overflow-y-auto px-2 pb-3">
+        <div className="custom-scrollbar max-h-[60vh] md:max-h-[70vh] overflow-y-auto px-2 pb-3" data-lenis-prevent>
           <div className="mt-7">
             <h5 className="mb-5 text-lg font-medium text-gray-800 dark:text-white/90 lg:mb-6">
               Candidate Information
@@ -632,20 +632,20 @@ export default function ResumeUploadForm({ closeModal, jobId, onApplySuccess }: 
                 <Label>Years of Experience</Label>
                 <div className="grid grid-cols-2 gap-2">
                   <Select
-                     name="expYears"
-                     value={EXP_YEARS_OPTIONS.find(opt => opt.value === expYears) || null}
-                     onChange={handleExpYearsChange}
-                     options={EXP_YEARS_OPTIONS}
-                     styles={customSelectStyles}
-                     placeholder="Yrs"
+                    name="expYears"
+                    value={EXP_YEARS_OPTIONS.find(opt => opt.value === expYears) || null}
+                    onChange={handleExpYearsChange}
+                    options={EXP_YEARS_OPTIONS}
+                    styles={customSelectStyles}
+                    placeholder="Yrs"
                   />
                   <Select
-                     name="expMonths"
-                     value={EXP_MONTHS_OPTIONS.find(opt => opt.value === expMonths) || null}
-                     onChange={handleExpMonthsChange}
-                     options={EXP_MONTHS_OPTIONS}
-                     styles={customSelectStyles}
-                     placeholder="Months"
+                    name="expMonths"
+                    value={EXP_MONTHS_OPTIONS.find(opt => opt.value === expMonths) || null}
+                    onChange={handleExpMonthsChange}
+                    options={EXP_MONTHS_OPTIONS}
+                    styles={customSelectStyles}
+                    placeholder="Months"
                   />
                 </div>
               </div>
