@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import {
   Injectable,
   NotFoundException,
@@ -22,6 +23,9 @@ const client = new S3Client({
     secretAccessKey: process.env.SECRET_ACCESS_KEY!,
   },
 });
+
+console.log("ACCESS_KEY_ID", process.env.ACCESS_KEY_ID)
+console.log("SECRET_ACCESS_KEY", process.env.SECRET_ACCESS_KEY)
 
 @Injectable()
 export class UsersService {
