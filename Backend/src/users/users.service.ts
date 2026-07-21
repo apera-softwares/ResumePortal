@@ -347,6 +347,7 @@ export class UsersService {
       }
 
       let presignedUrl: string | null = null;
+
       if (candidate && candidate.resume) {
         try {
           const command = new GetObjectCommand({
