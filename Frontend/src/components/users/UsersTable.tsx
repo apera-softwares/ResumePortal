@@ -204,6 +204,11 @@ export default function UsersTable({
   };
 
   const handleSaveUser = async () => {
+    if (!formData.role) {
+      toast.error("Role is required.");
+      return;
+    }
+
     if (!formData.firstName || !formData.email || !formData.mobile) {
       toast.error("First Name, Email Address, and Mobile are required.");
       return;
@@ -629,20 +634,20 @@ export default function UsersTable({
           </p>
 
           <form className="flex flex-col gap-4" onSubmit={(e) => { e.preventDefault(); handleSaveUser(); }}>
-            {/* Role Dropdown */}
             <div className="flex flex-col gap-1.5">
-              <Label>Role</Label>
-              <select
+              <Label>Role <span className="text-rose-500">*</span></Label>
+              <Select
                 name="role"
-                value={formData.role}
-                onChange={handleChange}
-                className="w-full py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl px-3 outline-none text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 transition-all"
-                required
-              >
-                <option value="">Select Role</option>
-                <option value="HR">HR</option>
-                <option value="CLIENT">Client</option>
-              </select>
+                value={formData.role ? { value: formData.role, label: formData.role === "HR" ? "HR" : "Client" } : null}
+                onChange={(selected: any) => setFormData(prev => ({ ...prev, role: selected ? selected.value : "" }))}
+                options={[
+                  { value: "HR", label: "HR" },
+                  { value: "CLIENT", label: "Client" }
+                ]}
+                styles={selectStyles}
+                placeholder="Select Role"
+                isSearchable
+              />
             </div>
 
             {/* Name Fields */}
