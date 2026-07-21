@@ -1,5 +1,4 @@
 // src/candidate/candidate.service.ts
-import 'dotenv/config';
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma.service';
 import { $Enums } from '@prisma/client';
