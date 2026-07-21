@@ -32,7 +32,7 @@ async function bootstrap() {
 
       const s3Client = new S3Client({
         region: "auto",
-        endpoint: process.env.S3_ENPOINT,
+        endpoint: process.env.S3_ENDPOINT,
         credentials: {
           accessKeyId: process.env.ACCESS_KEY_ID!,
           secretAccessKey: process.env.SECRET_ACCESS_KEY!,

@@ -10,7 +10,7 @@ import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 
 const client = new S3Client({
   region: "auto",
-  endpoint: process.env.S3_ENPOINT,
+  endpoint: process.env.S3_ENDPOINT,
   credentials: {
     accessKeyId: process.env.ACCESS_KEY_ID!,
     secretAccessKey: process.env.SECRET_ACCESS_KEY!,
@@ -28,7 +28,7 @@ async function streamToBuffer(stream: any): Promise<Buffer> {
 
 @Injectable()
 export class CandidateCreatedListener {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   @OnEvent('candidate.created')
   async handleCandidateCreatedEvent(event: CandidateCreatedEvent) {
@@ -63,7 +63,7 @@ export class CandidateCreatedListener {
           });
           const s3Response = await client.send(getCommand);
           const responseBuffer = await streamToBuffer(s3Response.Body);
-          
+
           // Ensure directory exists
           const dir = join(process.cwd(), 'uploads');
           if (!fs.existsSync(dir)) {

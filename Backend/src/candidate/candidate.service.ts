@@ -20,7 +20,7 @@ import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client
 
 const client = new S3Client({
   region: "auto",
-  endpoint: process.env.S3_ENPOINT,
+  endpoint: process.env.S3_ENDPOINT,
   credentials: {
     accessKeyId: process.env.ACCESS_KEY_ID!,
     secretAccessKey: process.env.SECRET_ACCESS_KEY!,
@@ -733,7 +733,7 @@ export class CandidateService {
       const localPath = join(process.cwd(), 'uploads', candidate.resume);
       try {
         if (fs.existsSync(localPath)) fs.unlinkSync(localPath);
-      } catch (err) {}
+      } catch (err) { }
     }
 
     if (candidate.cleanedResume) {
@@ -753,7 +753,7 @@ export class CandidateService {
       const localPath = join(process.cwd(), 'uploads', candidate.cleanedResume);
       try {
         if (fs.existsSync(localPath)) fs.unlinkSync(localPath);
-      } catch (err) {}
+      } catch (err) { }
     }
 
     return await this.prisma.candidate.delete({
@@ -1112,7 +1112,7 @@ export class CandidateService {
         if (fs.existsSync(tempFilePath)) {
           fs.unlinkSync(tempFilePath);
         }
-      } catch (err) {}
+      } catch (err) { }
     }
 
     // Update candidate record
@@ -1738,7 +1738,7 @@ export class CandidateService {
             if (fs.existsSync(tempFilePath)) {
               fs.unlinkSync(tempFilePath);
             }
-          } catch (err) {}
+          } catch (err) { }
         }
       }
     } else if (resumeText) {
@@ -1779,7 +1779,7 @@ export class CandidateService {
             if (fs.existsSync(oldFilePath)) {
               fs.unlinkSync(oldFilePath);
             }
-          } catch (err) {}
+          } catch (err) { }
         }
 
         resumeFilename = pdfFileName;
@@ -1789,7 +1789,7 @@ export class CandidateService {
           if (fs.existsSync(finalPdfPath)) {
             fs.unlinkSync(finalPdfPath);
           }
-        } catch (err) {}
+        } catch (err) { }
 
         console.log(
           `[Backend PDF Gen] Puppeteer PDF generated and uploaded to R2/S3 successfully for candidate ID: ${candidate.id}`,

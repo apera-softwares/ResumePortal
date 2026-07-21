@@ -5,6 +5,8 @@ import { useModal } from "../../hooks/useModal";
 import { gsap } from "gsap";
 import { Modal } from "../ui/modal";
 import ResumeUploadForm from "../ResumeUploadForm/ResumeUploadForm";
+import Select from "react-select";
+import { useTheme } from "@/context/ThemeContext";
 
 interface joblist {
   id: string;
@@ -22,6 +24,81 @@ interface joblist {
 
 
 export default function PublicJoblisting() {
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
+
+  const selectStyles = {
+    control: (base: any, state: any) => ({
+      ...base,
+      backgroundColor: 'transparent',
+      border: 'none',
+      boxShadow: 'none',
+      color: isDark ? '#ffffff' : '#111827',
+      fontSize: '0.875rem',
+      cursor: 'pointer',
+      width: '100%',
+      minHeight: '36px',
+    }),
+    valueContainer: (base: any) => ({
+      ...base,
+      padding: 0,
+    }),
+    singleValue: (base: any) => ({
+      ...base,
+      color: isDark ? '#f3f4f6' : '#1f2937',
+    }),
+    placeholder: (base: any) => ({
+      ...base,
+      color: '#9ca3af',
+    }),
+    dropdownIndicator: (base: any) => ({
+      ...base,
+      color: '#9ca3af',
+      padding: 0,
+      '&:hover': {
+        color: isDark ? '#ffffff' : '#111827',
+      }
+    }),
+    indicatorSeparator: () => ({
+      display: 'none',
+    }),
+    menu: (base: any) => ({
+      ...base,
+      backgroundColor: isDark ? '#111827' : '#ffffff',
+      borderRadius: '0.75rem',
+      border: isDark ? '1px solid #374151' : '1px solid #e5e7eb',
+      boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+      zIndex: 50,
+      padding: '4px',
+    }),
+    menuList: (base: any) => ({
+      ...base,
+      padding: 0,
+    }),
+    option: (base: any, { isFocused, isSelected }: any) => ({
+      ...base,
+      backgroundColor: isSelected
+        ? '#2563eb'
+        : isFocused
+        ? (isDark ? '#1f2937' : '#f3f4f6')
+        : 'transparent',
+      color: isSelected ? '#ffffff' : (isDark ? '#e5e7eb' : '#1f2937'),
+      cursor: 'pointer',
+      padding: '8px 12px',
+      borderRadius: '0.5rem',
+      fontSize: '0.875rem',
+      '&:active': {
+        backgroundColor: isSelected ? '#2563eb' : (isDark ? '#374151' : '#e5e7eb'),
+      }
+    }),
+    input: (base: any) => ({
+      ...base,
+      color: isDark ? '#ffffff' : '#111827',
+      margin: 0,
+      padding: 0,
+    }),
+  };
+
   const [jobList, setJobList] = useState<joblist[]>([]);
   const [appliedJobs, setAppliedJobs] = useState<string[]>([]);
   const [searchitem, setSearchitem] = useState<string>('');
@@ -245,16 +322,19 @@ export default function PublicJoblisting() {
               <svg className="w-5 h-5 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
               </svg>
-              <select 
-                value={searchType} 
-                onChange={(e) => setSearchType(e.target.value)}
-                className="w-full bg-transparent text-sm text-gray-800 dark:text-gray-100 outline-none cursor-pointer appearance-none pr-6 dark:bg-gray-900"
-              >
-                <option value="All" className="dark:bg-gray-900">All Job Types</option>
-                {uniqueTypes.map((type, idx) => (
-                  <option key={idx} value={type} className="dark:bg-gray-900">{type}</option>
-                ))}
-              </select>
+              <div className="flex-1 min-w-0">
+                <Select
+                  value={searchType ? { value: searchType, label: searchType === "All" ? "All Job Types" : searchType } : null}
+                  onChange={(selected: any) => setSearchType(selected ? selected.value : "All")}
+                  options={[
+                    { value: "All", label: "All Job Types" },
+                    ...uniqueTypes.map((type) => ({ value: type, label: type }))
+                  ]}
+                  styles={selectStyles}
+                  placeholder="Select Job Type"
+                  isSearchable
+                />
+              </div>
             </div>
 
             {/* Submit Button */}

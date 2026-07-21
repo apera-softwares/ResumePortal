@@ -176,6 +176,10 @@ export default function JobsCreation() {
       toast.error("Please select a location.");
       return;
     }
+    if (!formData.type) {
+      toast.error("Please select a job type.");
+      return;
+    }
     const token = localStorage.getItem("token");
 
     try {
@@ -511,21 +515,22 @@ export default function JobsCreation() {
 
                 {/* Job Type */}
                 <div>
-                  <label className="block mb-1 text-gray-700 dark:text-gray-300 font-medium">Job Type</label>
-                  <select
+                  <label className="block mb-1 text-gray-700 dark:text-gray-300 font-medium">Job Type <span className="text-rose-500">*</span></label>
+                  <Select
                     name="type"
-                    value={formData.type}
-                    onChange={handleChnage}
-                    className="w-full border border-gray-300 dark:border-gray-700 rounded-lg p-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                    required
-                  >
-                    <option value="" className="text-gray-500">Select Job Type</option>
-                    {jobTypes.map((type) => (
-                      <option key={type} value={type}>
-                        {type.replace("_", " ").toLowerCase().split(" ").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")}
-                      </option>
-                    ))}
-                  </select>
+                    value={formData.type ? {
+                      value: formData.type,
+                      label: formData.type.replace("_", " ").toLowerCase().split(" ").map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")
+                    } : null}
+                    onChange={(selected: any) => setFormData(prev => ({ ...prev, type: selected ? selected.value : "" }))}
+                    options={jobTypes.map((type) => ({
+                      value: type,
+                      label: type.replace("_", " ").toLowerCase().split(" ").map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")
+                    }))}
+                    styles={selectStyles}
+                    placeholder="Select Job Type"
+                    isSearchable
+                  />
                 </div>
 
                 {/* Submit */}
