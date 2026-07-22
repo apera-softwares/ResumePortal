@@ -320,7 +320,8 @@ interface Candidate {
   id: string;
   firstName: string;
   lastName: string;
-  resume: string;
+  resume?: string;
+  resumePdf?: string;
   resumeText?: string;
   cleanedResume?: string;
   editedHtml?: string;
@@ -359,6 +360,7 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
 
   const [isLoading, setIsLoading] = useState(true);
   const [candidateResume, setCandidateResume] = useState<string | null>(candidate.resume || null);
+  const [candidateResumePdf, setCandidateResumePdf] = useState<string | null>(candidate.resumePdf || null);
 
   const isLoadedRef = useRef(false);
 
@@ -435,6 +437,7 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
           setOriginalParsedHtml(data.resumeText || "");
           setIsPublic(data.isPublic || false);
           setCandidateResume(data.resume || null);
+          setCandidateResumePdf(data.resumePdf || candidate.resumePdf || null);
           if (!initialMode) {
             setViewMode(isPublicPage ? "preview" : "edit");
           }
@@ -610,7 +613,7 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
       );
     }
 
-    const resumeUrl = candidateResume ? `${API_URL}/uploads/${candidateResume}` : null;
+    const resumeUrl = candidateResumePdf || null;   // was: candidateResume ? `${API_URL}/uploads/${candidateResume}` : null
     const isPdf = candidateResume?.toLowerCase().endsWith(".pdf");
 
     if (isPdf && resumeUrl) {
@@ -675,8 +678,8 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
   };
 
   const handleOpenPdf = () => {
-    if (candidate.resume) {
-      window.open(`${API_URL}/uploads/${candidate.resume}`, "_blank");
+    if (candidateResumePdf) {
+      window.open(candidateResumePdf, "_blank");
     } else {
       toast.error("No resume file available.");
     }
@@ -797,6 +800,7 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
 
       setIsPublic(updatedCandidate.isPublic || false);
       setCandidateResume(updatedCandidate.resume || null);
+      setCandidateResumePdf(updatedCandidate.resumePdf || null); 
       onSave?.(updatedCandidate);
 
       const parsedContent = updatedCandidate.resumeText || "";
@@ -889,8 +893,8 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
                 {isEditMode ? "Resume Visual Editor" : "View Resume"}
               </h4>
               <p className="text-xs text-gray-500 mt-1">
-                {isEditMode 
-                  ? `Edit and format resume layout for ${candidate.firstName} ${candidate.lastName}` 
+                {isEditMode
+                  ? `Edit and format resume layout for ${candidate.firstName} ${candidate.lastName}`
                   : `View resume layout for ${candidate.firstName} ${candidate.lastName}`}
               </p>
             </div>
@@ -1099,8 +1103,8 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
                 {isEditMode ? "Resume Visual Editor" : "View Resume"}
               </h4>
               <p className="text-xs text-gray-500 mt-1">
-                {isEditMode 
-                  ? `Edit and format resume layout for ${candidate.firstName} ${candidate.lastName}` 
+                {isEditMode
+                  ? `Edit and format resume layout for ${candidate.firstName} ${candidate.lastName}`
                   : `View resume layout for ${candidate.firstName} ${candidate.lastName}`}
               </p>
             </div>

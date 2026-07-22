@@ -10,7 +10,8 @@ interface Candidate {
   id: string;
   firstName: string;
   lastName: string;
-  resume: string;
+  resume?: string;
+  resumePdf?: string;
   resumeText?: string;
   cleanedResume?: string;
   editedHtml?: string;
@@ -43,7 +44,7 @@ export default function MyResumePage() {
 
       if (response.ok) {
         const result = await response.json();
-        const { user, candidate: cand } = result.data;
+        const { user, candidate: cand, resumePdf } = result.data;
         setUserRole(user.role);
 
         if (user.role !== "CANDIDATE") {
@@ -52,8 +53,19 @@ export default function MyResumePage() {
           return;
         }
 
-        if (cand && cand.resume) {
-          setCandidate(cand);
+        // if (cand && cand.resume) {
+        //   setCandidate({
+        //     ...cand,
+        //     resumePdf,
+        //   });
+        // } else {
+        //   setCandidate(null);
+        // }
+        if (cand) {
+          setCandidate({
+            ...cand,
+            resumePdf,
+          });
         } else {
           setCandidate(null);
         }
@@ -107,25 +119,25 @@ export default function MyResumePage() {
     return (
       <div className="min-h-[85vh] w-full flex flex-col items-center justify-center p-4 sm:p-6 bg-gray-50 dark:bg-gray-950 font-outfit transition-colors duration-300">
         <div className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
-          
+
           {/* Left Side: Value Proposition & Onboarding Guide */}
           <div className="lg:col-span-5 flex flex-col justify-between bg-gradient-to-br from-blue-600 to-indigo-700 text-white rounded-3xl p-8 sm:p-10 shadow-2xl relative overflow-hidden">
             {/* Background design elements */}
             <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -mr-20 -mt-20"></div>
             <div className="absolute bottom-0 left-0 w-64 h-64 bg-indigo-500/30 rounded-full blur-3xl -ml-20 -mb-20"></div>
-            
+
             <div className="relative z-10">
               <span className="bg-white/10 border border-white/20 text-xs font-semibold px-3 py-1.5 rounded-full uppercase tracking-wider">
                 Getting Started
               </span>
-              
+
               <h2 className="text-3xl sm:text-4xl font-extrabold mt-6 leading-tight">
                 Unlock Your Next Career Move
               </h2>
               <p className="text-blue-100 mt-4 text-sm sm:text-base leading-relaxed">
                 Upload your resume once to build a premium, recruiter-ready profile and start applying directly to active job openings.
               </p>
-              
+
               {/* Features list */}
               <div className="mt-8 space-y-6">
                 <div className="flex gap-4">
@@ -165,7 +177,7 @@ export default function MyResumePage() {
                 </div>
               </div>
             </div>
-            
+
             {/* Visual representation card */}
             <div className="mt-8 pt-6 border-t border-white/10 relative z-10 hidden sm:block">
               <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/10 flex items-center justify-between">
@@ -184,7 +196,7 @@ export default function MyResumePage() {
               </div>
             </div>
           </div>
-          
+
           {/* Right Side: Form Card */}
           <div className="lg:col-span-7 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl shadow-xl overflow-hidden p-6 sm:p-8 flex flex-col justify-between">
             <div className="w-full">
@@ -204,7 +216,11 @@ export default function MyResumePage() {
         onClose={() => router.push("/dashboard")}
         initialMode="original"
         onSave={(updatedCandidate) => {
-          setCandidate({ ...candidate, ...updatedCandidate });
+          setCandidate({
+            ...candidate,
+            ...updatedCandidate,
+            resumePdf: updatedCandidate.resumePdf || candidate.resumePdf,
+          });
         }}
       />
     </div>
