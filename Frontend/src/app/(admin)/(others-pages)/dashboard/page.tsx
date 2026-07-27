@@ -44,6 +44,7 @@ export default function DashboardPage() {
   const API_URL = process.env.NEXT_PUBLIC_API_URL;
   const { isOpen, openModal, closeModal } = useModal();
   const { theme } = useTheme();
+  const { name: contextName, role: contextRole } = useUser();
   const isDark = theme === 'dark';
 
   const [role, setRole] = useState("");
