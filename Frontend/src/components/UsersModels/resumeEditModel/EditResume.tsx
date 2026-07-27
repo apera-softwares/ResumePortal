@@ -388,6 +388,11 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
     }
   }, [initialMode]);
 
+  useEffect(() => {
+    setCandidateResume(candidate.resume || null);
+    setCandidateResumePdf(candidate.resumePdf || null);
+  }, [candidate.resume, candidate.resumePdf]);
+
   const handleEditResumeClick = () => {
     setIsEditMode(true);
     setViewMode("edit");

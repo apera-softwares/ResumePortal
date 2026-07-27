@@ -834,3 +834,10 @@ html.lenis, html.lenis body {
   pointer-events: none;
 }
 
+/* Custom scrollbar smooth behavior */
+.custom-scrollbar {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
+

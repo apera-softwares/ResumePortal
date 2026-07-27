@@ -46,6 +46,7 @@ export default function UsersTable({
   const { theme } = useTheme();
   const isDark = theme === "dark";
 
+  const [isLoading, setIsLoading] = useState(true);
   const [data, setData] = useState<User[]>([]);
   const { isOpen, openModal, closeModal } = useModal();
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
@@ -91,6 +92,7 @@ export default function UsersTable({
   }, [searchTerm]);
 
   const fetchData = async () => {
+    setIsLoading(true);
     const token = localStorage.getItem("token");
     let fetchUrl = `${API_URL}/users?page=${currentPage}&limit=${ITEMS_PER_PAGE}`;
 
@@ -118,6 +120,8 @@ export default function UsersTable({
       setTotalCount(userData.pagination?.total || 0);
     } catch (error) {
       console.error('Error fetching users:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -392,6 +396,7 @@ export default function UsersTable({
       color: isDark ? '#ffffff' : '#111827',
     }),
   };
+
 
   return (
     <div className="min-h-[70vh] flex flex-col gap-6 bg-transparent">

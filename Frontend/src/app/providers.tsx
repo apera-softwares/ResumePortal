@@ -3,6 +3,7 @@
 import { SidebarProvider } from '@/context/SidebarContext';
 import { ThemeProvider } from '@/context/ThemeContext';
 import { FontProvider } from '@/context/FontContext';
+import { UserProvider } from '@/context/UserContext';
 import { Toaster } from 'react-hot-toast';
 import axios from 'axios';
 import SmoothScroll from '@/components/SmoothScroll';
@@ -79,23 +80,25 @@ if (typeof window !== "undefined") {
 }
 
 function PageLoaderWrapper() {
-  const { isLoading, loadingMessage } = useLoader();
+  const { isLoading, isFadingOut, loadingMessage } = useLoader();
   if (!isLoading) return null;
-  return <PageLoader message={loadingMessage} />;
+  return <PageLoader message={loadingMessage} isFadingOut={isFadingOut} />;
 }
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <ThemeProvider>
       <FontProvider>
-        <SidebarProvider>
-          <LoaderProvider>
-            <SmoothScroll />
-            {children}
-            <PageLoaderWrapper />
-            <Toaster position="top-center" containerStyle={{ zIndex: 9999999 }} />
-          </LoaderProvider>
-        </SidebarProvider>
+        <UserProvider>
+          <SidebarProvider>
+            <LoaderProvider>
+              <SmoothScroll />
+              {children}
+              <PageLoaderWrapper />
+              <Toaster position="top-center" containerStyle={{ zIndex: 9999999 }} />
+            </LoaderProvider>
+          </SidebarProvider>
+        </UserProvider>
       </FontProvider>
     </ThemeProvider>
   );

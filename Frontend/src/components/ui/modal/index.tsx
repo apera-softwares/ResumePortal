@@ -7,16 +7,16 @@ interface ModalProps {
   onClose: () => void;
   className?: string;
   children: React.ReactNode;
-  showCloseButton?: boolean; // New prop to control close button visibility
-  isFullscreen?: boolean; // Default to false for backwards compatibility
+  showCloseButton?: boolean;
+  isFullscreen?: boolean;
 }
 
 export const Modal: React.FC<ModalProps> = ({
   isOpen,
   onClose,
   children,
-  className,
-  showCloseButton = true, // Default to true for backwards compatibility
+  className = "",
+  showCloseButton = true,
   isFullscreen = false,
 }) => {
   const modalRef = useRef<HTMLDivElement>(null);
@@ -58,14 +58,14 @@ export const Modal: React.FC<ModalProps> = ({
   if (!isOpen || !mounted) return null;
 
   const contentClasses = isFullscreen
-    ? "w-full h-full"
-    : "relative z-10 w-full rounded-3xl bg-white dark:bg-gray-900 border border-gray-150/80 dark:border-gray-800/80 shadow-2xl overflow-hidden";
+    ? "w-full h-full overflow-y-auto"
+    : "relative z-10 w-full max-h-[88vh] rounded-3xl bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-800/80 shadow-2xl overflow-y-auto custom-scrollbar";
 
   return createPortal(
-    <div className={`fixed inset-0 flex items-center justify-center overflow-y-auto modal z-[999999] ${isFullscreen ? "p-0" : "p-4 sm:p-6 md:p-10"}`}>
+    <div className={`fixed inset-0 flex items-center justify-center modal z-[999999] ${isFullscreen ? "p-0" : "p-4 sm:p-6"}`}>
       {!isFullscreen && (
         <div
-          className="absolute inset-0 w-full h-full bg-black/60 backdrop-blur-md"
+          className="absolute inset-0 w-full h-full bg-black/60 backdrop-blur-md transition-opacity"
           onClick={onClose}
         ></div>
       )}
@@ -77,11 +77,13 @@ export const Modal: React.FC<ModalProps> = ({
         {showCloseButton && (
           <button
             onClick={onClose}
-            className="absolute right-3 top-3 z-999 flex h-9.5 w-9.5 items-center justify-center rounded-full bg-gray-100 text-gray-400 transition-colors hover:bg-gray-200 hover:text-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white sm:right-6 sm:top-6 sm:h-11 sm:w-11"
+            type="button"
+            aria-label="Close Modal"
+            className="sticky top-4 right-4 sm:top-6 sm:right-6 float-right z-50 flex h-9.5 w-9.5 items-center justify-center rounded-full bg-gray-100/90 hover:bg-gray-200 text-gray-500 transition-all dark:bg-gray-800/90 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white backdrop-blur-xs cursor-pointer shadow-xs"
           >
             <svg
-              width="24"
-              height="24"
+              width="20"
+              height="20"
               viewBox="0 0 24 24"
               fill="none"
               xmlns="http://www.w3.org/2000/svg"

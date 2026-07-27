@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import Label from "@/components/form/Label";
 import Input from "@/components/form/input/InputField";
+import { useUser } from "@/context/UserContext";
 
 interface SkillItem {
   id: string;
@@ -18,6 +19,7 @@ interface CandidateSkill {
 
 export default function ProfilePage() {
   const router = useRouter();
+  const { updateUser } = useUser();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const replaceFileInputRef = useRef<HTMLInputElement>(null);
 
@@ -68,6 +70,7 @@ export default function ProfilePage() {
         setName(user.name || "");
         setEmail(user.email || "");
         setRole(user.role || "");
+        updateUser({ name: user.name, email: user.email, role: user.role });
 
         if (candidate) {
           setHasCandidateRecord(true);
@@ -137,16 +140,7 @@ export default function ProfilePage() {
       if (response.ok) {
         toast.dismiss(saveToast);
         toast.success("Profile updated successfully!");
-        const storedUser = localStorage.getItem("user");
-        if (storedUser) {
-          try {
-            const userObj = JSON.parse(storedUser);
-            userObj.name = name;
-            localStorage.setItem("user", JSON.stringify(userObj));
-          } catch (e) {
-            console.error("Error parsing user object from localStorage:", e);
-          }
-        }
+        updateUser({ name, email });
         fetchProfile();
       } else {
         const errData = await response.json();

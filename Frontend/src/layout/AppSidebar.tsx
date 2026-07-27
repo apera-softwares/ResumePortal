@@ -5,6 +5,7 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useSidebar } from "../context/SidebarContext";
 import { useLoader } from "../context/LoaderContext";
+import { useUser } from "../context/UserContext";
 import { ListIcon, TableIcon, TimeIcon, UserCircleIcon, GridIcon, BellIcon } from "../icons/index";
 
 type NavItem = {
@@ -44,6 +45,7 @@ const AdminRoute: NavItem[] = [
 
 const AppSidebar: React.FC = () => {
   const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
+  const { name, role } = useUser();
   const pathname = usePathname();
 
   const isActive = (path: string) => path === pathname;
@@ -57,46 +59,32 @@ const AppSidebar: React.FC = () => {
     if (targetNames.includes(name.toLowerCase())) {
       let msg = "";
       if (name.toLowerCase() === "candidates") {
-        msg = "candidate is loading..";
+        msg = "Loading Candidates...";
       } else if (name.toLowerCase() === "jobs") {
-        msg = "jobs loading..";
+        msg = "Loading Jobs...";
       } else if (name.toLowerCase() === "users") {
-        msg = "users loading..";
+        msg = "Loading Users...";
       } else if (name.toLowerCase() === "skills") {
-        msg = "skills loading..";
+        msg = "Loading Skills...";
       } else {
-        msg = `${name.toLowerCase()} is loading..`;
+        msg = `Loading ${name}...`;
       }
       startLoading(msg);
     }
   };
 
-  const [role, setRole] = useState("")
-  const [name, setName] = useState('');
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
-    const localStorageRole = localStorage.getItem("role")
-    const localStoragename = localStorage.getItem("name")
-    setRole(localStorageRole || "")
-    setName(localStoragename || "")
-  }, [])
+  }, []);
 
   if (!mounted) {
     return null;
   }
 
-  const handleLogOut = async () => {
-    if (confirm("Are you sure you want to log out?")) {
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
-      try {
-        await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3003"}/users/logout`, { method: "POST" });
-      } catch (e) { }
-      window.location.href = "/login";
-    }
-  };
+  const firstName = name ? name.trim().split(/\s+/)[0] : "";
+  const avatarInitial = name ? name.charAt(0).toUpperCase() : "U";
 
   const candidateRoutes: NavItem[] = [
     {
@@ -159,12 +147,15 @@ const AppSidebar: React.FC = () => {
             <div className="flex items-center gap-2  ">
               {isExpanded || isHovered || isMobileOpen ? (
                 <>
-                  <div className="w-12 h-12  rounded-full bg-blue-800 flex items-center justify-center text-white font-bold">
-                    {name.charAt(0).toLocaleUpperCase()}
+                  <div className="w-12 h-12  rounded-full bg-blue-800 flex items-center justify-center text-white font-bold text-lg">
+                    {avatarInitial}
                   </div>
                   <div className="flex flex-col">
-                    <h4 className="text-lg font-semibold text-center text-gray-800 dark:text-white/90 xl:text-left">
-                      {name}
+                    <h4
+                      className="text-lg font-semibold text-center text-gray-800 dark:text-white/90 xl:text-left"
+                      title={name}
+                    >
+                      {firstName}
                     </h4>
                     <p className="text-xs  text-gray-500 dark:text-gray-400">
                       {role}
@@ -173,8 +164,8 @@ const AppSidebar: React.FC = () => {
                 </>
               ) : (
                 <>
-                  <div className="w-12 h-12  rounded-full bg-blue-800 flex items-center justify-center text-white font-bold">
-                    {name.charAt(0).toLocaleUpperCase()}
+                  <div className="w-12 h-12  rounded-full bg-blue-800 flex items-center justify-center text-white font-bold text-lg">
+                    {avatarInitial}
                   </div>
                 </>
               )}

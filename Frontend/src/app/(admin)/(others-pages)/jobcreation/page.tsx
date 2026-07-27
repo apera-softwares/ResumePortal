@@ -229,6 +229,7 @@ export default function JobsCreation() {
     }
   };
 
+  const [isLoading, setIsLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [searchTerm, setSearchTerm] = useState("");
@@ -333,6 +334,7 @@ export default function JobsCreation() {
 
   useEffect(() => {
     const fetchJobs = async () => {
+      setIsLoading(true);
       try {
         const queryParams = new URLSearchParams();
         queryParams.append("page", String(currentPage));
@@ -368,6 +370,8 @@ export default function JobsCreation() {
         }
       } catch (error) {
         console.error("Error fetching jobs:", error);
+      } finally {
+        setIsLoading(false);
       }
     };
 
@@ -379,15 +383,23 @@ export default function JobsCreation() {
   return (
     <>
       <div className="relative">
-        <Modal isOpen={isOpen} onClose={closeModal} className="max-w-[700px] m-4">
-          <div className="relative w-full flex max-w-[700px] rounded-3xl bg-white dark:bg-gray-900 p-4 lg:p-11">
-            <div className="max-w-2xl w-full mx-auto bg-white dark:bg-gray-950 h-[75vh] overflow-y-scroll custom-scrollbar shadow-md rounded-2xl p-6 mt-8 border border-gray-100 dark:border-gray-800/80">
-              <h2 className="text-2xl font-semibold mb-6 text-gray-900 dark:text-white">{editJobId ? "Edit Job Listing" : "Add Job Listing"}</h2>
-              <form onSubmit={handlSubmit} className="space-y-5">
+        <Modal isOpen={isOpen} onClose={closeModal} className="max-w-[700px]">
+          <div className="relative w-full p-3 sm:p-6">
+            <div className="px-2 pr-14 mb-4">
+              <h4 className="mb-2 text-2xl font-bold text-gray-900 dark:text-white">
+                {editJobId ? "Edit Job Listing" : "Add Job Listing"}
+              </h4>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Fill in the details below to publish or edit your recruitment listing.
+              </p>
+            </div>
+
+            <form className="flex flex-col justify-start" onSubmit={handlSubmit}>
+              <div className="custom-scrollbar max-h-[58vh] md:max-h-[65vh] overflow-y-auto px-2 pb-3 space-y-5" data-lenis-prevent>
                 {/* Title */}
                 <div>
-                  <label className="block mb-1 text-gray-700 dark:text-gray-300 font-medium">
-                    Job Title <span className="text-red-500">*</span>
+                  <label className="block mb-1 text-gray-700 dark:text-gray-300 font-medium text-sm">
+                    Job Title <span className="text-rose-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -395,22 +407,22 @@ export default function JobsCreation() {
                     value={formData.title}
                     onChange={handleChnage}
                     placeholder="Enter job title"
-                    className="w-full border border-gray-300 dark:border-gray-700 rounded-lg p-2 focus:ring-2 focus:ring-blue-400 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                    className="w-full border border-gray-300 dark:border-gray-700 rounded-xl p-2.5 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm transition-all"
                     required
                   />
                 </div>
 
                 {/* Description */}
                 <div>
-                  <label className="block mb-1 text-gray-700 dark:text-gray-300 font-medium">
-                    Description <span className="text-red-500">*</span>
+                  <label className="block mb-1 text-gray-700 dark:text-gray-300 font-medium text-sm">
+                    Description <span className="text-rose-500">*</span>
                   </label>
                   <textarea
                     name="description"
                     value={formData.description}
                     onChange={handleChnage}
                     placeholder="Enter job description"
-                    className="w-full border border-gray-300 dark:border-gray-700 rounded-lg p-2 focus:ring-2 focus:ring-blue-400 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                    className="w-full border border-gray-300 dark:border-gray-700 rounded-xl p-2.5 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm transition-all"
                     rows={4}
                     required
                   ></textarea>
@@ -419,7 +431,7 @@ export default function JobsCreation() {
                 {/* Client */}
                 {userRole !== "CLIENT" ? (
                   <div>
-                    <label className="block mb-1 text-gray-700 dark:text-gray-300 font-medium">Client</label>
+                    <label className="block mb-1 text-gray-700 dark:text-gray-300 font-medium text-sm">Client</label>
                     <CreatableSelect
                       name="client"
                       value={formData.client ? { value: formData.client, label: formData.client } : null}
@@ -432,19 +444,19 @@ export default function JobsCreation() {
                   </div>
                 ) : (
                   <div>
-                    <label className="block mb-1 text-gray-700 dark:text-gray-300 font-medium">Client</label>
+                    <label className="block mb-1 text-gray-700 dark:text-gray-300 font-medium text-sm">Client</label>
                     <input
                       type="text"
                       value={formData.client || userCompany}
                       disabled
-                      className="w-full border border-gray-300 dark:border-gray-700 rounded-lg p-2 bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 cursor-not-allowed"
+                      className="w-full border border-gray-300 dark:border-gray-700 rounded-xl p-2.5 bg-gray-100 dark:bg-gray-800/60 text-gray-500 dark:text-gray-400 cursor-not-allowed text-sm"
                     />
                   </div>
                 )}
 
                 {/* Skills */}
                 <div>
-                  <label className="block mb-1 text-gray-700 dark:text-gray-300 font-medium">Skills</label>
+                  <label className="block mb-1 text-gray-700 dark:text-gray-300 font-medium text-sm">Skills</label>
                   <Select
                     name="skills"
                     value={skills.map((skill: any) => ({
@@ -464,8 +476,8 @@ export default function JobsCreation() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block mb-1 text-gray-700 dark:text-gray-300 font-medium">
-                      Salary <span className="text-red-500">*</span>
+                    <label className="block mb-1 text-gray-700 dark:text-gray-300 font-medium text-sm">
+                      Salary <span className="text-rose-500">*</span>
                     </label>
                     <input
                       type="number"
@@ -473,26 +485,26 @@ export default function JobsCreation() {
                       value={formData.salary || ""}
                       onChange={handleChnage}
                       placeholder="e.g. 80000"
-                      className="w-full border border-gray-300 dark:border-gray-700 rounded-lg p-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                      className="w-full border border-gray-300 dark:border-gray-700 rounded-xl p-2.5 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm transition-all"
                       required
                     />
                   </div>
                   <div>
-                    <label className="block mb-1 text-gray-700 dark:text-gray-300 font-medium">Internal Salary</label>
+                    <label className="block mb-1 text-gray-700 dark:text-gray-300 font-medium text-sm">Internal Salary</label>
                     <input
                       type="number"
                       name="internalSalary"
                       value={formData.internalSalary || ""}
                       onChange={handleChnage}
                       placeholder="e.g. 100000"
-                      className="w-full border border-gray-300 dark:border-gray-700 rounded-lg p-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                      className="w-full border border-gray-300 dark:border-gray-700 rounded-xl p-2.5 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm transition-all"
                     />
                   </div>
                 </div>
 
                 {/* Location */}
                 <div>
-                  <label className="block mb-1 text-gray-700 dark:text-gray-300 font-medium">Location</label>
+                  <label className="block mb-1 text-gray-700 dark:text-gray-300 font-medium text-sm">Location</label>
                   <CreatableSelect
                     name="location"
                     value={formData.location ? {
@@ -515,7 +527,7 @@ export default function JobsCreation() {
 
                 {/* Job Type */}
                 <div>
-                  <label className="block mb-1 text-gray-700 dark:text-gray-300 font-medium">Job Type <span className="text-rose-500">*</span></label>
+                  <label className="block mb-1 text-gray-700 dark:text-gray-300 font-medium text-sm">Job Type <span className="text-rose-500">*</span></label>
                   <Select
                     name="type"
                     value={formData.type ? {
@@ -532,16 +544,25 @@ export default function JobsCreation() {
                     isSearchable
                   />
                 </div>
+              </div>
 
-                {/* Submit */}
+              {/* Fixed Footer Action Buttons */}
+              <div className="flex items-center gap-3 px-2 mt-5 pt-4 border-t border-gray-100 dark:border-gray-800 lg:justify-end">
+                <button
+                  type="button"
+                  onClick={closeModal}
+                  className="px-5 py-2.5 text-sm font-semibold rounded-xl border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all cursor-pointer"
+                >
+                  Cancel
+                </button>
                 <button
                   type="submit"
-                  className="w-full bg-blue-600 text-white rounded-lg py-2 font-semibold hover:bg-blue-700 transition-all"
+                  className="px-6 py-2.5 text-sm font-semibold bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white rounded-xl shadow-md shadow-blue-500/10 hover:shadow-lg hover:shadow-blue-500/20 active:scale-[0.98] transition-all cursor-pointer"
                 >
                   {editJobId ? "Save Changes" : "Create Job"}
                 </button>
-              </form>
-            </div>
+              </div>
+            </form>
           </div>
         </Modal>
       </div>
