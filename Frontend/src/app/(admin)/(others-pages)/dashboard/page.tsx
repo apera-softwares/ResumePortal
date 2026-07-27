@@ -8,6 +8,7 @@ import ResumeUploadForm from "@/components/ResumeUploadForm/ResumeUploadForm";
 import toast from "react-hot-toast";
 import dynamic from 'next/dynamic';
 import { useTheme } from '@/context/ThemeContext';
+import { useUser } from '@/context/UserContext';
 import {
   Users,
   Briefcase,
@@ -233,10 +234,12 @@ export default function DashboardPage() {
   };
 
   useEffect(() => {
-    setRole(localStorage.getItem("role") || "USER");
-    setUserName(localStorage.getItem("name") || "Recruiter");
+    const currentRole = contextRole || (typeof window !== "undefined" ? localStorage.getItem("role") || "USER" : "USER");
+    const currentName = contextName || (typeof window !== "undefined" ? localStorage.getItem("name") || "Recruiter" : "Recruiter");
+    setRole(currentRole);
+    setUserName(currentName);
     fetchDashboardData();
-  }, []);
+  }, [contextName, contextRole]);
 
   // Line / Area overview chart (Balance Overview)
   const pipelineOverviewOptions = {

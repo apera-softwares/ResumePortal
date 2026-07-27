@@ -112,6 +112,12 @@ export default function LogInForm() {
           role: data.data.role,
         };
         localStorage.setItem("user", JSON.stringify(userObj));
+        if (data.data.name) localStorage.setItem("name", data.data.name);
+        if (data.data.role) localStorage.setItem("role", data.data.role);
+        if (data.data.email) localStorage.setItem("email", data.data.email);
+        if (data.data.id) localStorage.setItem("userId", data.data.id);
+
+        window.dispatchEvent(new CustomEvent("user-updated", { detail: userObj }));
       }
 
       router.push("/dashboard");
