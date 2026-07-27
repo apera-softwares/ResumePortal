@@ -3,23 +3,28 @@ import React from "react";
 
 interface PageLoaderProps {
   message: string;
+  isFadingOut?: boolean;
 }
 
-export const PageLoader: React.FC<PageLoaderProps> = ({ message }) => {
+export const PageLoader: React.FC<PageLoaderProps> = ({ message, isFadingOut = false }) => {
   return (
-    <div className="fixed inset-0 z-[999999] flex flex-col items-center justify-center bg-gray-900/20 dark:bg-gray-950/40 backdrop-blur-md transition-all duration-300 ease-out">
-      <div className="flex flex-col items-center space-y-6 p-8 rounded-2xl bg-white/95 dark:bg-gray-900/95 shadow-2xl border border-gray-100 dark:border-gray-800/80 max-w-xs w-full mx-4 transform scale-100 animate-in fade-in zoom-in-95 duration-200">
+    <div
+      className={`fixed inset-0 z-[999999] flex flex-col items-center justify-center bg-gray-900/30 dark:bg-gray-950/50 backdrop-blur-md transition-all duration-300 ease-out ${
+        isFadingOut ? "opacity-0 pointer-events-none scale-95" : "opacity-100 scale-100"
+      }`}
+    >
+      <div className="flex flex-col items-center space-y-6 p-8 rounded-3xl bg-white/95 dark:bg-gray-900/95 shadow-2xl border border-gray-100 dark:border-gray-800/80 max-w-xs w-full mx-4 transform transition-transform duration-300">
         
         {/* Premium Spinner */}
         <div className="relative w-16 h-16">
           {/* Pulsing Backlight Effect */}
-          <div className="absolute inset-0 rounded-full bg-blue-500/10 dark:bg-blue-400/10 blur-xl animate-pulse"></div>
+          <div className="absolute inset-0 rounded-full bg-blue-500/20 dark:bg-blue-400/20 blur-xl animate-pulse"></div>
           
           {/* Outer track */}
           <div className="absolute inset-0 rounded-full border-4 border-gray-100 dark:border-gray-800"></div>
           
           {/* Rotating gradient ring */}
-          <div className="absolute inset-0 rounded-full border-4 border-t-blue-600 border-r-transparent border-b-transparent border-l-transparent animate-spin"></div>
+          <div className="absolute inset-0 rounded-full border-4 border-t-blue-600 border-r-blue-500 border-b-transparent border-l-transparent animate-spin"></div>
           
           {/* Inner ring track */}
           <div className="absolute inset-2 rounded-full border border-blue-500/10 dark:border-blue-400/10"></div>

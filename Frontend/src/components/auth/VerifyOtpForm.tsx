@@ -110,6 +110,12 @@ export default function VerifyOtpForm() {
             role: userData.role,
           };
           localStorage.setItem("user", JSON.stringify(userObj));
+          if (userData.name) localStorage.setItem("name", userData.name);
+          if (userData.role) localStorage.setItem("role", userData.role);
+          if (userData.email || email) localStorage.setItem("email", userData.email || email);
+          if (userData.id) localStorage.setItem("userId", userData.id);
+
+          window.dispatchEvent(new CustomEvent("user-updated", { detail: userObj }));
         } else {
           // Finalize login (if user came from Login and backend didn't send token)
           const tempRole = localStorage.getItem("tempRole");
@@ -141,6 +147,12 @@ export default function VerifyOtpForm() {
             role: tempRole || "",
           };
           localStorage.setItem("user", JSON.stringify(userObj));
+          if (userObj.name) localStorage.setItem("name", userObj.name);
+          if (userObj.role) localStorage.setItem("role", userObj.role);
+          if (userObj.email) localStorage.setItem("email", userObj.email);
+          if (userObj.id) localStorage.setItem("userId", userObj.id);
+
+          window.dispatchEvent(new CustomEvent("user-updated", { detail: userObj }));
         }
 
         if (tokenToUse) {

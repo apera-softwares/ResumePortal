@@ -215,12 +215,15 @@ export default function MyResumePage() {
         isInline={true}
         onClose={() => router.push("/dashboard")}
         initialMode="original"
-        onSave={(updatedCandidate) => {
-          setCandidate({
-            ...candidate,
-            ...updatedCandidate,
-            resumePdf: updatedCandidate.resumePdf || candidate.resumePdf,
-          });
+        // onSave={(updatedCandidate) => {
+        //   setCandidate({
+        //     ...candidate,
+        //     ...updatedCandidate,
+        //     resumePdf: updatedCandidate.resumePdf || candidate.resumePdf,
+        //   });
+        // }}
+        onSave={() => {
+          fetchProfile();
         }}
       />
     </div>

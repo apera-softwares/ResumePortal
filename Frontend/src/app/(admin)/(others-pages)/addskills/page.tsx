@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 
 const AddSkills = () => {
   const API_URL = process.env.NEXT_PUBLIC_API_URL;
+  const [isLoading, setIsLoading] = useState(true);
   const [skill, setSkill] = useState('');
   const [skills, setSkills] = useState<{ id: string; name: string }[]>([]);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -24,6 +25,7 @@ const AddSkills = () => {
 
   useEffect(() => {
     const fetchSkills = async () => {
+      setIsLoading(true);
       try {
         const res = await fetch(`${API_URL}/skills`, {
           method: "GET",
@@ -38,6 +40,8 @@ const AddSkills = () => {
         setSkills(data);
       } catch (error) {
         console.error("Error fetching skills:", error);
+      } finally {
+        setIsLoading(false);
       }
     };
 
@@ -51,9 +55,17 @@ const AddSkills = () => {
 
   }
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    console.log(skill, "im skill")
     e.preventDefault();
-    if (!skill.trim()) return
+    if (!skill.trim()) {
+      toast.error("Please enter skill first");
+      return;
+    }
+
+    if (skills.some((s) => s.name.toLowerCase() === skill.trim().toLowerCase())) {
+      toast.error("This skill already exists!");
+      return;
+    }
+
     const token = localStorage.getItem("token");
     try {
       const response = await fetch(`${API_URL}/skills/create`, {
@@ -62,19 +74,18 @@ const AddSkills = () => {
           'Authorization': `Bearer ${token}`,
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({ name: skill }),
+        body: JSON.stringify({ name: skill.trim() }),
       });
-      console.log(JSON.stringify({ name: skill }),)
-      if (!response.ok) throw new Error("something went Wrong !")
+      if (!response.ok) throw new Error("Something went wrong!");
       const skillsData = await response.json();
-      console.log(skillsData, "im the data");
 
-      setSkills(prev => [...prev, skillsData])
-      setSkill('')
+      setSkills(prev => [...prev, skillsData]);
+      setSkill('');
       toast.success("Skill added successfully!");
 
     } catch (error) {
-      console.error("Error creating Job:", error);
+      console.error("Error creating skill:", error);
+      toast.error("Failed to add skill.");
     }
   }
 
@@ -124,29 +135,32 @@ const AddSkills = () => {
           </button>
         </form>
 
-        {/* Optional: Skill list preview area */}
-        <div className="mt-8 border-t border-gray-200 dark:border-gray-800 pt-4 max-h-64 text-gray-600 dark:text-gray-300 overflow-y-auto custom-scrollbar">
-
-          <ul className="list-disc list-inside">
-            {skills.map((s, index) => (
-              <li key={index} className="flex border border-gray-100 dark:border-gray-800/60 py-2 pr-4 pl-4 rounded-xl justify-between items-center mb-2 bg-gray-50/50 dark:bg-gray-900/50">
-                <span className="text-gray-800 dark:text-gray-200 font-medium">{s.name}</span>
-                <div className="relative group">
-                  <button
-                    onClick={() => setDeleteConfirmId(s.id)}
-                    className="p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-rose-600 dark:text-rose-400 bg-rose-50/50 hover:bg-rose-100/70 dark:bg-rose-950/20 dark:hover:bg-rose-950/40 transition-all shadow-xs cursor-pointer"
-                  >
-                    <Trash className="h-4 w-4" />
-                  </button>
-                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2.5 px-2 py-1 rounded-lg bg-rose-600 text-white text-[10px] font-semibold whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 translate-y-1 group-hover:translate-y-0 transition-all duration-150 z-50 shadow-md">
-                    Delete Skill
-                    <div className="absolute top-full left-1/2 -translate-x-1/2 border-[4px] border-transparent border-t-rose-600" />
+        {/* Skill list preview area */}
+        <div className="mt-8 border-t border-gray-200 dark:border-gray-800 pt-6 custom-scrollbar max-h-[55vh] overflow-y-auto px-2 pb-3 space-y-2" data-lenis-prevent>
+          {skills.length === 0 ? (
+            <p className="text-center text-sm text-gray-400 py-6">No skills added yet.</p>
+          ) : (
+            <ul className="space-y-2">
+              {skills.map((s, index) => (
+                <li key={s.id || index} className="flex border border-gray-200/60 dark:border-gray-800/80 py-3 px-4 rounded-xl justify-between items-center bg-gray-50/60 dark:bg-gray-800/40 hover:bg-white dark:hover:bg-gray-800/80 transition-all shadow-2xs">
+                  <span className="text-gray-800 dark:text-gray-200 font-medium text-sm sm:text-base">{s.name}</span>
+                  <div className="relative group">
+                    <button
+                      type="button"
+                      onClick={() => setDeleteConfirmId(s.id)}
+                      className="p-2 rounded-xl border border-gray-200 dark:border-gray-700 text-rose-600 dark:text-rose-400 bg-rose-50/50 hover:bg-rose-100/70 dark:bg-rose-950/30 dark:hover:bg-rose-950/60 transition-all cursor-pointer"
+                    >
+                      <Trash className="h-4 w-4" />
+                    </button>
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 rounded-lg bg-rose-600 text-white text-[10px] font-semibold whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 translate-y-1 group-hover:translate-y-0 transition-all duration-150 z-50 shadow-md">
+                      Delete Skill
+                      <div className="absolute top-full left-1/2 -translate-x-1/2 border-[4px] border-transparent border-t-rose-600" />
+                    </div>
                   </div>
-                </div>
-              </li>
-            ))}
-          </ul>
-
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </div>
 

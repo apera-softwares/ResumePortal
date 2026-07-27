@@ -1,5 +1,6 @@
 "use client";
 import { useSidebar } from "@/context/SidebarContext";
+import { useUser } from "@/context/UserContext";
 import { useRouter } from "next/navigation";
 import React, { useState, useEffect, useRef } from "react";
 import toast from "react-hot-toast";
@@ -10,9 +11,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || (typeof window !== "undefined
 
 const AppHeader: React.FC = () => {
   const router = useRouter();
-  const [userName, setUserName] = useState("Admin User");
-  const [userRole, setUserRole] = useState("ADMIN");
-  const [userEmail, setUserEmail] = useState("admin@resumeportal.com");
+  const { name: userName, role: userRole, email: userEmail } = useUser();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isApplicationMenuOpen, setApplicationMenuOpen] = useState(false);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
@@ -30,10 +29,6 @@ const AppHeader: React.FC = () => {
       if (cookieToken && !localStorage.getItem("token")) {
         localStorage.setItem("token", cookieToken);
       }
-
-      setUserName(localStorage.getItem("name") || "Admin User");
-      setUserRole(localStorage.getItem("role") || "ADMIN");
-      setUserEmail(localStorage.getItem("email") || "admin@resumeportal.com");
     }
   }, []);
 
