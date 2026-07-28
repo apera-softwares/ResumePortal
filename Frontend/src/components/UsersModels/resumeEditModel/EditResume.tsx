@@ -328,6 +328,50 @@ interface Candidate {
   isPublic?: boolean;
 }
 
+const generateFallbackResumeHtml = (candData: any) => {
+  const firstName = candData?.firstName || "Candidate";
+  const lastName = candData?.lastName || "";
+  const fullName = `${firstName} ${lastName}`.trim();
+  const email = candData?.email || "";
+  const mobile = candData?.mobile || "";
+  const currentLocation = candData?.currentLocation || "";
+  const yoe = candData?.yearsOfExperience ? `${candData.yearsOfExperience} Years Experience` : "";
+  const education = candData?.education || "";
+  const skills = Array.isArray(candData?.skills)
+    ? candData.skills.map((s: any) => s.name || s.skill?.name).filter(Boolean).join(", ")
+    : "";
+
+  return `
+    <div style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 24px; color: #1e293b; background: #ffffff;">
+      <div style="border-bottom: 2px solid #2563eb; padding-bottom: 12px; margin-bottom: 20px;">
+        <h1 style="margin: 0; font-size: 28px; color: #1e3a8a; font-weight: 700;">${fullName}</h1>
+        <p style="margin: 6px 0 0 0; color: #64748b; font-size: 14px;">
+          ${[email, mobile, currentLocation, yoe].filter(Boolean).join(" | ")}
+        </p>
+      </div>
+
+      ${skills ? `
+      <div style="margin-bottom: 20px;">
+        <h3 style="font-size: 16px; color: #1e3a8a; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; margin-bottom: 8px;">Key Skills</h3>
+        <p style="margin: 0; font-size: 14px; color: #334155;">${skills}</p>
+      </div>` : ""}
+
+      ${education ? `
+      <div style="margin-bottom: 20px;">
+        <h3 style="font-size: 16px; color: #1e3a8a; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; margin-bottom: 8px;">Education</h3>
+        <p style="margin: 0; font-size: 14px; color: #334155;">${education}</p>
+      </div>` : ""}
+
+      <div style="margin-bottom: 20px;">
+        <h3 style="font-size: 16px; color: #1e3a8a; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; margin-bottom: 8px;">Professional Overview</h3>
+        <p style="margin: 0; font-size: 14px; color: #334155; line-height: 1.6;">
+          Professional resume summary and background overview. (Use this editor to format sections, update details, and customize your resume layout).
+        </p>
+      </div>
+    </div>
+  `;
+};
+
 interface EditResumeProps {
   candidate: Candidate;
   onSave?: (updatedCandidate: Candidate & Record<string, unknown>) => void;
@@ -436,12 +480,36 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
         });
         if (response.ok) {
           const data = await response.json();
-          const sourceHtml = data.editedHtml || data.resumeText || "";
+          let sourceHtml = data.editedHtml || data.resumeText || "";
+
+          // If sourceHtml is empty but a resume file exists, attempt auto-reparsing via backend endpoint
+          if (!sourceHtml && (data.resume || data.resumePdf)) {
+            try {
+              const reparseRes = await fetch(`${API_URL}/candidates/${candidate.id}/reparse-resume`, {
+                method: "POST",
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                  "Content-Type": "application/json",
+                },
+              });
+              if (reparseRes.ok) {
+                const reparsedData = await reparseRes.json();
+                sourceHtml = reparsedData.editedHtml || reparsedData.resumeText || "";
+              }
+            } catch (reparseErr) {
+              console.warn("Auto-reparse attempt failed:", reparseErr);
+            }
+          }
+
+          // If sourceHtml is still empty, construct an editable fallback resume template from candidate profile details
+          if (!sourceHtml) {
+            sourceHtml = generateFallbackResumeHtml(data);
+          }
 
           setStyleHeader("");
           setPreviewHtml(sourceHtml);
           setRawHtml(sourceHtml);
-          setOriginalParsedHtml(data.resumeText || "");
+          setOriginalParsedHtml(data.resumeText || sourceHtml);
           setIsPublic(data.isPublic || false);
           setCandidateResume(data.resume || null);
           setCandidateResumePdf(data.resumePdf || candidate.resumePdf || null);
