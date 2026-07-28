@@ -1000,14 +1000,6 @@ export class CandidateService {
     }
   }
 
-  async reparseCandidateResume(id: string) {
-    const candidate = await this.prisma.candidate.findUnique({ where: { id } });
-    if (!candidate) throw new NotFoundException('Candidate not found');
-    candidate.resumeText = '';
-    await this.ensureResumeTextParsed(candidate);
-    return this.mapCandidate(candidate);
-  }
-
   private cleanContactDetails(text: string): string {
     if (!text) return '';
 
@@ -2226,6 +2218,14 @@ export class CandidateService {
     });
 
     return this.mapCandidate(updated);
+  }
+
+  async reparseCandidateResume(id: string) {
+    const candidate = await this.prisma.candidate.findUnique({ where: { id } });
+    if (!candidate) throw new NotFoundException('Candidate not found');
+    candidate.resumeText = '';
+    await this.ensureResumeTextParsed(candidate);
+    return this.mapCandidate(candidate);
   }
 }
 
