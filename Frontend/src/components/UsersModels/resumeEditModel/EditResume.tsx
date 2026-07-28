@@ -691,6 +691,19 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
   };
 
   const renderOriginalResumeContent = () => {
+    const resumeUrl = candidateResumePdf || (candidateResume ? (candidateResume.startsWith("http") ? candidateResume : `${API_URL}/uploads/${candidateResume}`) : null);
+    const isPdf = Boolean(candidateResume?.toLowerCase().endsWith(".pdf") || candidateResumePdf?.includes(".pdf") || candidateResume);
+
+    if (resumeUrl && isPdf) {
+      return (
+        <iframe
+          src={`${resumeUrl}#toolbar=0&navpanes=0`}
+          className="w-full h-full border-none bg-gray-400"
+          title="Original Resume Document"
+        />
+      );
+    }
+
     if (originalParsedHtml) {
       return (
         <iframe
@@ -698,19 +711,6 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
           className="w-full h-full border-none bg-gray-400"
           title="Original Resume HTML"
           sandbox="allow-same-origin"
-        />
-      );
-    }
-
-    const resumeUrl = candidateResumePdf || (candidateResume ? (candidateResume.startsWith("http") ? candidateResume : `${API_URL}/uploads/${candidateResume}`) : null);
-    const isPdf = candidateResume?.toLowerCase().endsWith(".pdf");
-
-    if (isPdf && resumeUrl) {
-      return (
-        <iframe
-          src={`${resumeUrl}#toolbar=0&navpanes=0`}
-          className="w-full h-full border-none bg-gray-400"
-          title="Original Resume PDF"
         />
       );
     }
