@@ -890,22 +890,55 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
       setIsPublic(updatedCandidate.isPublic || false);
       setCandidateResume(updatedCandidate.resume || null);
       setCandidateResumePdf(updatedCandidate.resumePdf || null);
-      onSave?.(updatedCandidate);
 
-      const parsedContent = updatedCandidate.resumeText || "";
-      if (parsedContent) {
-        // Clear styleHeader; our converter processes and inlines all styles
-        setStyleHeader("");
+      let parsedContent = updatedCandidate.resumeText || "";
+      let isRealParsedPdfText = Boolean(parsedContent && parsedContent.trim() !== "");
 
-        setPreviewHtml(parsedContent);
-        setRawHtml(parsedContent);
-        setOriginalParsedHtml(parsedContent);
-        setViewMode("preview");
-        setEditorKey(prev => prev + 1); // Reset CanvasResumeEditor state and force remount with new parsed HTML
-        toast.success("Resume updated and parsed successfully!", { id: uploadToast });
-      } else {
-        toast.success("Resume updated! Text parsing is processing in background.", { id: uploadToast });
+      // If backend update-resume didn't return parsed text, trigger auto-reparse
+      if (!isRealParsedPdfText) {
+        try {
+          const reparseRes = await fetch(`${API_URL}/candidates/${candidate.id}/reparse-resume`, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+          });
+          if (reparseRes.ok) {
+            const reparsedData = await reparseRes.json();
+            if (reparsedData.resumeText && reparsedData.resumeText.trim() !== "") {
+              parsedContent = reparsedData.resumeText;
+              isRealParsedPdfText = true;
+            }
+            if (reparsedData.resumePdf) {
+              setCandidateResumePdf(reparsedData.resumePdf);
+            }
+          }
+        } catch (reparseErr) {
+          console.warn("Auto-reparse attempt failed after file replace:", reparseErr);
+        }
       }
+
+      // If still no real parsed PDF text, generate fallback HTML using updatedCandidate profile
+      const finalHtmlContent = isRealParsedPdfText ? parsedContent : generateFallbackResumeHtml(updatedCandidate);
+
+      setStyleHeader("");
+      setPreviewHtml(finalHtmlContent);
+      setRawHtml(finalHtmlContent);
+      setOriginalParsedHtml(finalHtmlContent);
+      setEditorKey(prev => prev + 1);
+
+      // If parsed HTML from PDF exists, default to preview.
+      // Otherwise, default to review (Original Resume PDF Viewer) so the user immediately sees their newly uploaded PDF file!
+      if (isRealParsedPdfText) {
+        setViewMode("preview");
+        toast.success("Resume replaced and parsed successfully!", { id: uploadToast });
+      } else {
+        setViewMode("review");
+        toast.success("Resume replaced! Viewing newly uploaded document.", { id: uploadToast });
+      }
+
+      onSave?.(updatedCandidate);
     } catch (err) {
       console.error("File update failed:", err);
       toast.error("Failed to update resume file.", { id: uploadToast });
