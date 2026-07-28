@@ -215,6 +215,17 @@ export class CandidateController {
     return this.candidateService.remove(id);
   }
 
+  // ── Force re-parse resume PDF/Word to HTML ──────────────────────────────────
+  @Post(':id/reparse-resume')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Force re-parse resume PDF/Word to HTML' })
+  @UseGuards(AuthGuard)
+  @SetMetadata('roles', [Role.ADMIN, Role.HR])
+  @UseGuards(RoleGuard)
+  async reparseResume(@Param('id') id: string) {
+    return this.candidateService.reparseCandidateResume(id);
+  }
+
   // ── Generate AI-cleaned resume doc ─────────────────────────────────────────
   @Post(':id/clean-resume')
   @ApiBearerAuth()

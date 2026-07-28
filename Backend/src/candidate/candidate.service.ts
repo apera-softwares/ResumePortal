@@ -872,6 +872,16 @@ export class CandidateService {
       }
     }
 
+    if (
+      candidate &&
+      candidate.id &&
+      !candidate.editedHtml &&
+      (!candidate.resumeText || candidate.resumeText.trim() === '') &&
+      candidate.resume
+    ) {
+      await this.ensureResumeTextParsed(candidate);
+    }
+
     return {
       ...candidate,
       calculatedBudget,
@@ -882,6 +892,120 @@ export class CandidateService {
         name: cs.skill?.name || cs.name || '',
       })),
     };
+  }
+
+  public async ensureResumeTextParsed(candidate: any): Promise<string> {
+    if (!candidate) return '';
+    if (candidate.editedHtml) return candidate.editedHtml;
+    if (candidate.resumeText && candidate.resumeText.trim() !== '') return candidate.resumeText;
+    if (!candidate.resume) return '';
+
+    const uniqueFileName = candidate.resume;
+    const fileExtension = extname(uniqueFileName).toLowerCase();
+    const filePath = join(process.cwd(), 'uploads', uniqueFileName);
+
+    let tempFileCreated = false;
+    try {
+      if (!fs.existsSync(filePath)) {
+        console.log(`[Auto-Parse] Fetching resume file from R2/S3 for candidate ${candidate.id}: ${uniqueFileName}`);
+        const getCommand = new GetObjectCommand({
+          Bucket: process.env.S3_BUCKET!,
+          Key: uniqueFileName,
+        });
+        const s3Response = await client.send(getCommand);
+        const streamToBuffer = async (stream: any): Promise<Buffer> => {
+          return new Promise((resolve, reject) => {
+            const chunks: any[] = [];
+            stream.on('data', (chunk: any) => chunks.push(chunk));
+            stream.on('error', reject);
+            stream.on('end', () => resolve(Buffer.concat(chunks)));
+          });
+        };
+        const responseBuffer = await streamToBuffer(s3Response.Body);
+
+        const dir = join(process.cwd(), 'uploads');
+        if (!fs.existsSync(dir)) {
+          fs.mkdirSync(dir, { recursive: true });
+        }
+        fs.writeFileSync(filePath, responseBuffer);
+        tempFileCreated = true;
+      }
+
+      let extractedText = '';
+
+      if (fs.existsSync(filePath)) {
+        if (fileExtension === '.pdf') {
+          const outputDir = join(process.cwd(), 'uploads');
+          const htmlFileName = uniqueFileName.replace(/\.pdf$/i, '.html');
+          const htmlFilePath = join(outputDir, htmlFileName);
+
+          try {
+            const command = `pdftohtml -s -noframes -c -dataurls "${filePath}" "${htmlFilePath}"`;
+            execSync(command);
+
+            if (fs.existsSync(htmlFilePath)) {
+              const rawHtml = fs.readFileSync(htmlFilePath, 'utf8');
+              extractedText = cleanPdftohtmlOutline(rawHtml);
+              fs.unlinkSync(htmlFilePath);
+              console.log(`[Auto-Parse] pdftohtml conversion succeeded for candidate ${candidate.id}`);
+            }
+          } catch (execError: any) {
+            console.error('[Auto-Parse] pdftohtml failed:', execError?.message || execError);
+          }
+        } else if (fileExtension === '.docx' || fileExtension === '.doc') {
+          const outputDir = join(process.cwd(), 'uploads');
+          const htmlFileName = uniqueFileName.replace(/\.(docx|doc)$/i, '.html');
+          const htmlFilePath = join(outputDir, htmlFileName);
+
+          try {
+            const command = `libreoffice --headless --convert-to html --outdir "${outputDir}" "${filePath}"`;
+            execSync(command);
+
+            if (fs.existsSync(htmlFilePath)) {
+              const rawHtml = fs.readFileSync(htmlFilePath, 'utf8');
+              extractedText = cleanPdftohtmlOutline(rawHtml);
+              fs.unlinkSync(htmlFilePath);
+              console.log(`[Auto-Parse] LibreOffice conversion succeeded for candidate ${candidate.id}`);
+            }
+          } catch (libreOfficeError: any) {
+            try {
+              const buffer = fs.readFileSync(filePath);
+              const result = await mammoth.convertToHtml({ buffer });
+              extractedText = result.value || '';
+            } catch (mErr) {
+              console.error('[Auto-Parse] Mammoth conversion failed:', mErr);
+            }
+          }
+        }
+      }
+
+      if (extractedText && extractedText.trim() !== '') {
+        candidate.resumeText = extractedText;
+        if (!candidate.id.startsWith('user-')) {
+          await this.prisma.candidate.update({
+            where: { id: candidate.id },
+            data: { resumeText: extractedText },
+          }).catch(err => console.error('[Auto-Parse] Failed to persist resumeText:', err));
+        }
+      }
+
+      return extractedText;
+    } catch (err) {
+      console.error(`[Auto-Parse] Error extracting text for candidate ${candidate.id}:`, err);
+      return '';
+    } finally {
+      if (tempFileCreated && fs.existsSync(filePath)) {
+        try { fs.unlinkSync(filePath); } catch (e) {}
+      }
+    }
+  }
+
+  async reparseCandidateResume(id: string) {
+    const candidate = await this.prisma.candidate.findUnique({ where: { id } });
+    if (!candidate) throw new NotFoundException('Candidate not found');
+    candidate.resumeText = '';
+    await this.ensureResumeTextParsed(candidate);
+    return this.mapCandidate(candidate);
   }
 
   private cleanContactDetails(text: string): string {
