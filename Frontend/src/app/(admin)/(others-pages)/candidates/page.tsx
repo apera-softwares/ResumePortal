@@ -39,8 +39,32 @@ const getCustomSelectStyles = (isDark: boolean) => ({
     borderRadius: '0.75rem',
     border: isDark ? '1px solid #374151' : '1px solid #e5e7eb',
     boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
-    overflow: 'hidden',
-    zIndex: 9999,
+    zIndex: 99999,
+  }),
+  menuPortal: (provided: any) => ({
+    ...provided,
+    zIndex: 99999,
+  }),
+  menuList: (provided: any) => ({
+    ...provided,
+    maxHeight: '240px',
+    overflowY: 'auto',
+    scrollBehavior: 'smooth',
+    WebkitOverflowScrolling: 'touch',
+    padding: '4px',
+    '::-webkit-scrollbar': {
+      width: '6px',
+    },
+    '::-webkit-scrollbar-track': {
+      background: 'transparent',
+    },
+    '::-webkit-scrollbar-thumb': {
+      background: isDark ? '#4b5563' : '#cbd5e1',
+      borderRadius: '9999px',
+    },
+    '::-webkit-scrollbar-thumb:hover': {
+      background: isDark ? '#6b7280' : '#94a3b8',
+    },
   }),
   singleValue: (provided: any) => ({
     ...provided,
@@ -77,14 +101,18 @@ const getCustomSelectStyles = (isDark: boolean) => ({
   option: (provided: any, state: any) => ({
     ...provided,
     backgroundColor: state.isSelected
-      ? '#3b82f6'
+      ? isDark
+        ? '#1e293b'
+        : '#eff6ff'
       : state.isFocused
         ? isDark
           ? '#1f2937'
           : '#f3f4f6'
         : 'transparent',
     color: state.isSelected
-      ? '#ffffff'
+      ? isDark
+        ? '#60a5fa'
+        : '#2563eb'
       : isDark
         ? '#f9fafb'
         : '#111827',
@@ -93,7 +121,7 @@ const getCustomSelectStyles = (isDark: boolean) => ({
     fontSize: '0.875rem',
     cursor: 'pointer',
     '&:active': {
-      backgroundColor: '#3b82f6',
+      backgroundColor: isDark ? '#334155' : '#dbeafe',
     },
   }),
 });
@@ -101,14 +129,16 @@ const getCustomSelectStyles = (isDark: boolean) => ({
 const CustomOption = (props: any) => {
   return (
     <components.Option {...props}>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2.5 px-1 py-0.5 select-none cursor-pointer">
         <input
           type="checkbox"
           checked={props.isSelected}
           onChange={() => null}
-          className="h-4 w-4 rounded border-gray-300 dark:border-gray-650 bg-white dark:bg-gray-800 text-blue-600 focus:ring-blue-500 dark:focus:ring-blue-600 cursor-pointer"
+          className="h-4 w-4 rounded border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-blue-600 focus:ring-blue-500 cursor-pointer pointer-events-none"
         />
-        <span className="text-sm font-medium text-gray-700 dark:text-gray-200">{props.label}</span>
+        <span className={`text-sm font-medium ${props.isSelected ? 'text-blue-600 dark:text-blue-400 font-semibold' : 'text-gray-700 dark:text-gray-200'}`}>
+          {props.label}
+        </span>
       </div>
     </components.Option>
   );
@@ -609,7 +639,7 @@ function CandidatesContent() {
                   onClick={() => setIsFilterOpen(false)}
                 />
                 
-                <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl shadow-2xl p-5 z-50 flex flex-col gap-4">
+                <div className="absolute right-0 mt-2 w-80 max-h-[85vh] overflow-y-auto bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl shadow-2xl p-5 z-50 flex flex-col gap-4">
                   <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-2">
                     <span className="text-sm font-bold text-gray-900 dark:text-white">Filters</span>
                     {activeFiltersCount > 0 && (
@@ -638,6 +668,7 @@ function CandidatesContent() {
                       onFocus={fetchJobs}
                       options={jobs.map((j) => ({ value: j.id, label: j.title }))}
                       styles={getCustomSelectStyles(isDark)}
+                      menuPortalTarget={typeof document !== "undefined" ? document.body : undefined}
                       placeholder="Select Job..."
                       isClearable
                     />
@@ -652,6 +683,7 @@ function CandidatesContent() {
                       onChange={(selected: any) => setLocationFilter(selected || [])}
                       options={cityOptions}
                       styles={getCustomSelectStyles(isDark)}
+                      menuPortalTarget={typeof document !== "undefined" ? document.body : undefined}
                       placeholder="Select Location..."
                       isMulti
                       closeMenuOnSelect={false}
@@ -670,6 +702,7 @@ function CandidatesContent() {
                       onFocus={fetchAvailableSkills}
                       options={availableSkills.map((s) => ({ value: s, label: s }))}
                       styles={getCustomSelectStyles(isDark)}
+                      menuPortalTarget={typeof document !== "undefined" ? document.body : undefined}
                       placeholder="Select Skill..."
                       isMulti
                       closeMenuOnSelect={false}
@@ -687,6 +720,7 @@ function CandidatesContent() {
                       onChange={(selected: any) => setExpFilter(selected)}
                       options={EXPERIENCE_OPTIONS}
                       styles={getCustomSelectStyles(isDark)}
+                      menuPortalTarget={typeof document !== "undefined" ? document.body : undefined}
                       placeholder="Select Experience..."
                       isClearable
                     />
