@@ -49,8 +49,32 @@ const getCustomSelectStyles = (isDark: boolean) => ({
     borderRadius: '0.75rem',
     border: isDark ? '1px solid #1f2937' : '1px solid #e5e7eb',
     boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
-    overflow: 'hidden',
-    zIndex: 9999,
+    zIndex: 99999,
+  }),
+  menuPortal: (provided: any) => ({
+    ...provided,
+    zIndex: 99999,
+  }),
+  menuList: (provided: any) => ({
+    ...provided,
+    maxHeight: '240px',
+    overflowY: 'auto',
+    scrollBehavior: 'smooth',
+    WebkitOverflowScrolling: 'touch',
+    padding: '4px',
+    '::-webkit-scrollbar': {
+      width: '6px',
+    },
+    '::-webkit-scrollbar-track': {
+      background: 'transparent',
+    },
+    '::-webkit-scrollbar-thumb': {
+      background: isDark ? '#4b5563' : '#cbd5e1',
+      borderRadius: '9999px',
+    },
+    '::-webkit-scrollbar-thumb:hover': {
+      background: isDark ? '#6b7280' : '#94a3b8',
+    },
   }),
   singleValue: (provided: any) => ({
     ...provided,
