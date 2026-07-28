@@ -23,9 +23,6 @@ const client = new S3Client({
   },
 });
 
-console.log("ACCESS_KEY_ID", process.env.ACCESS_KEY_ID)
-console.log("SECRET_ACCESS_KEY", process.env.SECRET_ACCESS_KEY)
-
 @Injectable()
 export class UsersService {
 
@@ -139,7 +136,9 @@ export class UsersService {
 
   // ── Get All Users ──────────────────────────────────────────────────────────
   async getAllUsers(page = 1, limit = 10, search?: string, role?: string) {
-    const skip = (page - 1) * limit;
+    const pageNum = page && !isNaN(page) && page > 0 ? Math.floor(page) : 1;
+    const limitNum = limit && !isNaN(limit) && limit > 0 ? Math.floor(limit) : 10;
+    const skip = (pageNum - 1) * limitNum;
 
     const where: any = {};
     const conditions: any[] = [{ role: { in: ['HR', 'CLIENT'] } }];
@@ -168,7 +167,7 @@ export class UsersService {
       this.prisma.user.findMany({
         where,
         skip,
-        take: limit,
+        take: limitNum,
         orderBy: { createdAt: 'desc' },
         include: {
           client: true,
@@ -177,7 +176,10 @@ export class UsersService {
       this.prisma.user.count({ where }),
     ]);
 
-    const mappedUsers = users.map((u) => ({
+    const totalPages = Math.ceil(total / limitNum) || 1;
+    const isPageOutOfBounds = total > 0 && pageNum > totalPages;
+
+    const mappedUsers = isPageOutOfBounds ? [] : users.map((u) => ({
       id: u.id,
       name: u.name,
       firstName: u.firstName,
@@ -189,11 +191,20 @@ export class UsersService {
       createdAt: u.createdAt,
     }));
 
+    let message = 'Users fetched successfully';
+    if (total === 0) {
+      message = 'No users found';
+    } else if (isPageOutOfBounds) {
+      message = `Requested page ${pageNum} exceeds total available pages (${totalPages})`;
+    } else if (mappedUsers.length === 0) {
+      message = 'No users found for this page';
+    }
+
     return {
       statusCode: 200,
-      message: 'Users fetched successfully',
+      message,
       data: mappedUsers,
-      pagination: { total, page, limit, totalPages: Math.ceil(total / limit) },
+      pagination: { total, page: pageNum, limit: limitNum, totalPages },
     };
   }
 

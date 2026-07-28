@@ -16,7 +16,8 @@ import { execSync } from 'child_process';
 
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { CandidateCreatedEvent } from 'src/envent/events';
-import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 const client = new S3Client({
   region: "auto",
@@ -456,7 +457,7 @@ export class CandidateService {
       }),
     ]);
 
-    const mappedCandidates = candidates.map((c) => this.mapCandidate(c));
+    const mappedCandidates = await Promise.all(candidates.map((c) => this.mapCandidate(c)));
 
     // Synthesize candidates from candidateUsers who don't have a Candidate record
     const existingEmails = new Set(mappedCandidates.map((c) => c.email.toLowerCase()));
@@ -582,13 +583,27 @@ export class CandidateService {
     });
 
     const total = allCandidates.length;
-    const pageNum = page || 1;
-    const limitNum = limit || total;
-    const totalPages = Math.ceil(total / limitNum);
+    const pageNum = page && !isNaN(page) && page > 0 ? Math.floor(page) : 1;
+    const limitNum = limit && !isNaN(limit) && limit > 0 ? Math.floor(limit) : (total || 10);
+    const totalPages = Math.ceil(total / limitNum) || 1;
 
-    const paginatedCandidates = allCandidates.slice((pageNum - 1) * limitNum, pageNum * limitNum);
+    const isPageOutOfBounds = total > 0 && pageNum > totalPages;
+    const paginatedCandidates = isPageOutOfBounds
+      ? []
+      : allCandidates.slice((pageNum - 1) * limitNum, pageNum * limitNum);
+
+    let message = 'Candidates fetched successfully';
+    if (total === 0) {
+      message = 'No candidates found';
+    } else if (isPageOutOfBounds) {
+      message = `Requested page ${pageNum} exceeds total available pages (${totalPages})`;
+    } else if (paginatedCandidates.length === 0) {
+      message = 'No candidates found for this page';
+    }
 
     return {
+      statusCode: 200,
+      message,
       data: paginatedCandidates,
       total,
       page: pageNum,
@@ -600,6 +615,8 @@ export class CandidateService {
   // Get candidate by ID
   async findOne(id: string, userId?: string, role?: string) {
     const roleUpper = role?.toUpperCase();
+    let candidate: any = null;
+
     if (id.startsWith('user-')) {
       if (roleUpper === 'CLIENT') {
         throw new ForbiddenException('Access denied. You do not have permission to view this profile.');
@@ -609,46 +626,73 @@ export class CandidateService {
         where: { id: userIdFromMock },
       });
       if (!user) throw new NotFoundException(`User with ID ${userIdFromMock} not found`);
-      const parts = user.name.trim().split(/\s+/);
-      const firstName = parts[0] || 'Candidate';
-      const lastName = parts.slice(1).join(' ') || '';
-      return {
-        id,
-        firstName,
-        lastName,
-        email: user.email,
-        mobile: '',
-        yearsOfExperience: 0,
-        education: '',
-        noticePeriod: 0,
-        currentLocation: '',
-        preferredWorkMode: '',
-        budget: '',
-        preferredJobLocations: [],
-        expectedCtc: null,
-        currentCtc: null,
-        resume: '',
-        resumeText: '',
-        cleanedResume: null,
-        resumeJson: null,
-        editedHtml: null,
-        parsedHtml: null,
-        isPublic: false,
-        userId: user.id,
-        appliedJobs: [],
-        skills: [],
-        createdAt: user.createdAt,
-        updatedAt: user.createdAt,
-      };
-    }
 
-    const candidate = await this.prisma.candidate.findUnique({
-      where: { id },
-      include: {
-        skills: { include: { skill: true } },
-        appliedJobs: { include: { job: { include: { client: true } } } },
-      },
-    });
+      // Check if a real Candidate database record exists for this user (by userId OR email)!
+      candidate = await this.prisma.candidate.findFirst({
+        where: {
+          OR: [
+            { userId: user.id },
+            { email: user.email.toLowerCase() },
+          ],
+        },
+        include: {
+          skills: { include: { skill: true } },
+          appliedJobs: { include: { job: { include: { client: true } } } },
+        },
+      });
+
+      if (candidate) {
+        // Auto-heal userId link if missing
+        if (!candidate.userId) {
+          await this.prisma.candidate.update({
+            where: { id: candidate.id },
+            data: { userId: user.id },
+          });
+          candidate.userId = user.id;
+        }
+      } else {
+        // Fallback: Return synthesized candidate structure if no DB Candidate record exists yet
+        const parts = user.name.trim().split(/\s+/);
+        const firstName = parts[0] || 'Candidate';
+        const lastName = parts.slice(1).join(' ') || '';
+        return {
+          id,
+          firstName,
+          lastName,
+          email: user.email,
+          mobile: '',
+          yearsOfExperience: 0,
+          education: '',
+          noticePeriod: 0,
+          currentLocation: '',
+          preferredWorkMode: '',
+          budget: '',
+          preferredJobLocations: [],
+          expectedCtc: null,
+          currentCtc: null,
+          resume: '',
+          resumeText: '',
+          cleanedResume: null,
+          resumeJson: null,
+          editedHtml: null,
+          parsedHtml: null,
+          isPublic: false,
+          userId: user.id,
+          appliedJobs: [],
+          skills: [],
+          createdAt: user.createdAt,
+          updatedAt: user.createdAt,
+        };
+      }
+    } else {
+      candidate = await this.prisma.candidate.findUnique({
+        where: { id },
+        include: {
+          skills: { include: { skill: true } },
+          appliedJobs: { include: { job: { include: { client: true } } } },
+        },
+      });
+    }
 
     if (!candidate) throw new NotFoundException(`Candidate with ID ${id} not found`);
 
@@ -660,7 +704,7 @@ export class CandidateService {
         throw new ForbiddenException('Access denied. No company associated with your client account.');
       }
       const hasAppliedToClientJob = candidate.appliedJobs.some(
-        (aj) => aj.job?.clientId === userObj.clientId,
+        (aj: any) => aj.job?.clientId === userObj.clientId,
       );
       if (!hasAppliedToClientJob) {
         throw new ForbiddenException('Access denied. You do not have permission to view this candidate.');
@@ -686,10 +730,11 @@ export class CandidateService {
           where: { id: candidate.id },
           data: { userId },
         });
+        candidate.userId = userId;
       }
     }
 
-    return this.mapCandidate(candidate);
+    return await this.mapCandidate(candidate);
   }
 
   // delete candidate by id
@@ -701,6 +746,19 @@ export class CandidateService {
       });
       if (!user) {
         throw new NotFoundException(`Candidate with ID ${id} not found`);
+      }
+      const existingCandidate = await this.prisma.candidate.findFirst({
+        where: {
+          OR: [
+            { userId: user.id },
+            { email: user.email.toLowerCase() },
+          ],
+        },
+      });
+      if (existingCandidate) {
+        await this.prisma.candidate.delete({
+          where: { id: existingCandidate.id },
+        });
       }
       return await this.prisma.user.delete({
         where: { id: userId },
@@ -761,7 +819,7 @@ export class CandidateService {
     });
   }
 
-  private mapCandidate(candidate: any) {
+  private async mapCandidate(candidate: any) {
     if (!candidate) return null;
 
     // Calculate the LPM budget from the raw LPA string input
@@ -780,9 +838,45 @@ export class CandidateService {
       }
     }
 
+    let resumePdf: string | null = candidate.resumePdf || null;
+    if (!resumePdf && candidate.resume) {
+      if (candidate.resume.startsWith('http://') || candidate.resume.startsWith('https://')) {
+        resumePdf = candidate.resume;
+      } else {
+        try {
+          const command = new GetObjectCommand({
+            Bucket: process.env.S3_BUCKET,
+            Key: candidate.resume,
+          });
+          resumePdf = await getSignedUrl(client, command, { expiresIn: 3600 });
+        } catch (err) {
+          console.error(`[mapCandidate] Failed to sign URL for key ${candidate.resume}:`, err);
+        }
+      }
+    }
+
+    let cleanedResumePdf: string | null = candidate.cleanedResumePdf || null;
+    if (!cleanedResumePdf && candidate.cleanedResume) {
+      if (candidate.cleanedResume.startsWith('http://') || candidate.cleanedResume.startsWith('https://')) {
+        cleanedResumePdf = candidate.cleanedResume;
+      } else {
+        try {
+          const command = new GetObjectCommand({
+            Bucket: process.env.S3_BUCKET,
+            Key: candidate.cleanedResume,
+          });
+          cleanedResumePdf = await getSignedUrl(client, command, { expiresIn: 3600 });
+        } catch (err) {
+          console.error(`[mapCandidate] Failed to sign URL for cleaned key ${candidate.cleanedResume}:`, err);
+        }
+      }
+    }
+
     return {
       ...candidate,
       calculatedBudget,
+      resumePdf,
+      cleanedResumePdf,
       skills: (candidate.skills || []).map((cs: any) => ({
         id: cs.skill?.id || cs.skillId,
         name: cs.skill?.name || cs.name || '',
@@ -885,7 +979,7 @@ export class CandidateService {
         createdAt: 'desc',
       },
     });
-    return candidates.map((c) => this.mapCandidate(c));
+    return Promise.all(candidates.map((c) => this.mapCandidate(c)));
   }
 
   async updateStatus(id: string, status: CandidateStatus) {
@@ -922,8 +1016,13 @@ export class CandidateService {
       });
       if (!user) throw new NotFoundException(`User with ID ${userId} not found`);
 
-      candidate = await this.prisma.candidate.findUnique({
-        where: { email: user.email },
+      candidate = await this.prisma.candidate.findFirst({
+        where: {
+          OR: [
+            { userId: user.id },
+            { email: user.email.toLowerCase() },
+          ],
+        },
       });
 
       if (!candidate) {
@@ -935,7 +1034,7 @@ export class CandidateService {
           data: {
             firstName,
             lastName,
-            email: user.email,
+            email: user.email.toLowerCase(),
             yearsOfExperience: 0,
             noticePeriod: 0,
             resume: '',
@@ -943,7 +1042,7 @@ export class CandidateService {
             isPublic,
           },
         });
-        return this.mapCandidate(candidate);
+        return await this.mapCandidate(candidate);
       }
     } else {
       candidate = await this.prisma.candidate.findUnique({
@@ -963,7 +1062,7 @@ export class CandidateService {
         appliedJobs: { include: { job: true } },
       },
     });
-    return this.mapCandidate(updated);
+    return await this.mapCandidate(updated);
   }
 
   async uploadCleanedResume(
@@ -984,9 +1083,40 @@ export class CandidateService {
       );
     }
 
-    const candidate = await this.prisma.candidate.findUnique({
-      where: { id },
-    });
+    let candidate: any = null;
+    if (id.startsWith('user-')) {
+      const userId = id.replace('user-', '');
+      const user = await this.prisma.user.findUnique({ where: { id: userId } });
+      if (!user) throw new NotFoundException(`User with ID ${userId} not found`);
+
+      candidate = await this.prisma.candidate.findFirst({
+        where: {
+          OR: [
+            { userId: user.id },
+            { email: user.email.toLowerCase() },
+          ],
+        },
+      });
+
+      if (!candidate) {
+        const parts = user.name.trim().split(/\s+/);
+        candidate = await this.prisma.candidate.create({
+          data: {
+            firstName: parts[0] || 'Candidate',
+            lastName: parts.slice(1).join(' ') || '',
+            email: user.email.toLowerCase(),
+            yearsOfExperience: 0,
+            noticePeriod: 0,
+            resume: '',
+            userId: user.id,
+          },
+        });
+      }
+    } else {
+      candidate = await this.prisma.candidate.findUnique({
+        where: { id },
+      });
+    }
 
     if (!candidate) {
       throw new NotFoundException(`Candidate with ID ${id} not found`);
@@ -1017,41 +1147,22 @@ export class CandidateService {
           err,
         );
       }
-
-      const oldFilePath = join(
-        process.cwd(),
-        'uploads',
-        candidate.cleanedResume,
-      );
-      try {
-        if (fs.existsSync(oldFilePath)) {
-          fs.unlinkSync(oldFilePath);
-        }
-      } catch (err) {
-        console.error(
-          `Error deleting old local cleaned resume file: ${candidate.cleanedResume}`,
-          err,
-        );
-      }
     }
 
-    // Extract text from the new file: write buffer to a temp file, extract, then delete temp file
-    let extractedText = '';
+    // Save temporary local file for pdftohtml conversion
     const tempFilePath = join(process.cwd(), 'uploads', cleanedKey);
-    try {
-      const dir = join(process.cwd(), 'uploads');
-      if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true });
-      }
-      fs.writeFileSync(tempFilePath, file.buffer);
+    fs.writeFileSync(tempFilePath, file.buffer);
 
+    let extractedText = '';
+
+    try {
       if (fileExtension === '.pdf') {
         const outputDir = join(process.cwd(), 'uploads');
         const htmlFileName = cleanedKey.replace(/\.pdf$/i, '.html');
         const htmlFilePath = join(outputDir, htmlFileName);
 
         try {
-          // Convert to HTML using pdftohtml to preserve exact styles, positions, and fonts
+          // Convert to HTML using pdftohtml
           const command = `pdftohtml -s -noframes -c -dataurls "${tempFilePath}" "${htmlFilePath}"`;
           execSync(command);
 
@@ -1060,7 +1171,7 @@ export class CandidateService {
             extractedText = cleanPdftohtmlOutline(rawHtml);
             fs.unlinkSync(htmlFilePath);
             console.log(
-              `[Cleaned Upload] pdftohtml conversion succeeded for candidate ID: ${id}`,
+              `[Cleaned Upload] pdftohtml conversion succeeded for candidate ID: ${candidate.id}`,
             );
           }
         } catch (execError) {
@@ -1071,40 +1182,34 @@ export class CandidateService {
         }
       } else if (fileExtension === '.docx' || fileExtension === '.doc') {
         const outputDir = join(process.cwd(), 'uploads');
-        const htmlFileName = cleanedKey.replace(/\.(docx|doc)$/i, '.html');
+        const htmlFileName = cleanedKey.replace(
+          /\.(docx|doc)$/i,
+          '.html',
+        );
         const htmlFilePath = join(outputDir, htmlFileName);
 
         try {
-          // Convert to HTML using headless LibreOffice to preserve exact layout and styles of Word files
-          const command = `libreoffice --headless --convert-to html --outdir "${outputDir}" "${tempFilePath}"`;
+          const command = `libreoffice --headless --convert-to html "${tempFilePath}" --outdir "${outputDir}"`;
           execSync(command);
 
           if (fs.existsSync(htmlFilePath)) {
-            extractedText = fs.readFileSync(htmlFilePath, 'utf8');
+            const rawHtml = fs.readFileSync(htmlFilePath, 'utf8');
+            extractedText = cleanPdftohtmlOutline(rawHtml);
             fs.unlinkSync(htmlFilePath);
             console.log(
-              `[Cleaned Upload] LibreOffice Word-to-HTML conversion succeeded for candidate ID: ${id}`,
+              `[Cleaned Upload] LibreOffice docx to HTML succeeded for candidate ID: ${candidate.id}`,
             );
           }
-        } catch (libreOfficeError) {
-          console.warn(
-            '[Cleaned Upload] LibreOffice conversion failed, falling back to Mammoth:',
-            libreOfficeError.message,
+        } catch (execError) {
+          console.error(
+            '[Cleaned Upload] LibreOffice docx conversion failed:',
+            execError.message,
           );
-          try {
-            const result = await mammoth.convertToHtml({ buffer: file.buffer });
-            extractedText = result.value || '';
-          } catch (mammothError) {
-            console.error(
-              '[Cleaned Upload] Fallback Mammoth DOCX conversion failed:',
-              mammothError,
-            );
-          }
         }
       }
     } catch (error) {
       console.error(
-        'Error extracting text from uploaded cleaned resume:',
+        '[Cleaned Upload] Error processing document text:',
         error,
       );
     } finally {
@@ -1117,7 +1222,7 @@ export class CandidateService {
 
     // Update candidate record
     const updated = await this.prisma.candidate.update({
-      where: { id },
+      where: { id: candidate.id },
       data: {
         cleanedResume: cleanedKey,
         resumeText: extractedText || resumeText || undefined,
@@ -1572,9 +1677,14 @@ export class CandidateService {
         throw new NotFoundException(`User with ID ${userId} not found`);
       }
 
-      // Check if a Candidate record already exists for this email
-      candidate = await this.prisma.candidate.findUnique({
-        where: { email: user.email },
+      // Check if a Candidate record already exists for this email or userId
+      candidate = await this.prisma.candidate.findFirst({
+        where: {
+          OR: [
+            { userId: user.id },
+            { email: user.email.toLowerCase() },
+          ],
+        },
       });
 
       if (!candidate) {
@@ -1820,7 +1930,7 @@ export class CandidateService {
       },
     });
 
-    return this.mapCandidate(updatedCandidate);
+    return await this.mapCandidate(updatedCandidate);
   }
 
   async applyToJob(candidateId: string, jobId: string) {

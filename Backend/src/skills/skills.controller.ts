@@ -8,10 +8,10 @@ import {
   SetMetadata,
   Put,
   Req,
-  ParseIntPipe,
+  Query,
   ForbiddenException,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { SkillsService } from './skills.service';
 import { CreateSkillDto } from 'src/Validations/skills/create-skill.dto';
 
@@ -45,9 +45,18 @@ export class SkillsController {
 
   @Get()
   @ApiOperation({ summary: 'Get all skills' })
+  @ApiQuery({ name: 'page', required: false, type: String })
+  @ApiQuery({ name: 'limit', required: false, type: String })
+  @ApiQuery({ name: 'search', required: false, type: String })
   @ApiResponse({ status: 200, description: 'List of all skills' })
-  async getAll() {
-    return await this.skillsService.findAll();
+  async getAll(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('search') search?: string,
+  ) {
+    const pageNum = page ? parseInt(page, 10) : undefined;
+    const limitNum = limit ? parseInt(limit, 10) : undefined;
+    return await this.skillsService.findAll(pageNum, limitNum, search);
   }
 
   @Get(':id')

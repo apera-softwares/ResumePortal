@@ -129,6 +129,10 @@ export class JobsService {
     userId?: string,
     role?: string,
   ) {
+    // Validate & sanitize pagination inputs
+    const pageNum = page && !isNaN(page) && page > 0 ? Math.floor(page) : 1;
+    const limitNum = limit && !isNaN(limit) && limit > 0 ? Math.floor(limit) : undefined;
+
     const where: any = {};
 
     const roleUpper = role?.toUpperCase();
@@ -163,8 +167,8 @@ export class JobsService {
       where.type = type.trim().toUpperCase();
     }
 
-    const skip = page && limit ? (page - 1) * limit : undefined;
-    const take = limit ?? undefined;
+    const skip = limitNum ? (pageNum - 1) * limitNum : undefined;
+    const take = limitNum;
 
     const [jobs, total] = await Promise.all([
       this.prisma.job.findMany({
@@ -187,14 +191,26 @@ export class JobsService {
       this.prisma.job.count({ where }),
     ]);
 
+    const totalPages = limitNum ? Math.ceil(total / limitNum) || 1 : 1;
+    const isPageOutOfBounds = limitNum && total > 0 && pageNum > totalPages;
+
+    let message = 'Jobs fetched successfully';
+    if (total === 0) {
+      message = 'No jobs found';
+    } else if (isPageOutOfBounds) {
+      message = `Requested page ${pageNum} exceeds total available pages (${totalPages})`;
+    } else if (jobs.length === 0) {
+      message = 'No jobs found for this page';
+    }
+
     return {
-      message: 'Jobs fetched successfully',
+      message,
       statusCode: 200,
-      data: jobs.map((job) => this.mapJob(job)),
+      data: isPageOutOfBounds ? [] : jobs.map((job) => this.mapJob(job)),
       total,
-      page: page || 1,
-      limit: limit || total,
-      totalPages: limit ? Math.ceil(total / limit) : 1,
+      page: pageNum,
+      limit: limitNum || total,
+      totalPages,
     };
   }
 
