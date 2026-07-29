@@ -898,37 +898,66 @@ export class CandidateService {
     if (!candidate) return '';
     if (candidate.editedHtml) return candidate.editedHtml;
     if (candidate.resumeText && candidate.resumeText.trim() !== '') return candidate.resumeText;
-    if (!candidate.resume) return '';
 
-    const uniqueFileName = candidate.resume;
+    const rawResumeField = candidate.resume || candidate.resumePdf || '';
+    if (!rawResumeField) return '';
+
+    const uniqueFileName = extractCleanResumeKey(rawResumeField);
+    if (!uniqueFileName) return '';
+
     const fileExtension = extname(uniqueFileName).toLowerCase();
     const filePath = join(process.cwd(), 'uploads', uniqueFileName);
 
     let tempFileCreated = false;
     try {
       if (!fs.existsSync(filePath)) {
-        console.log(`[Auto-Parse] Fetching resume file from R2/S3 for candidate ${candidate.id}: ${uniqueFileName}`);
-        const getCommand = new GetObjectCommand({
-          Bucket: process.env.S3_BUCKET!,
-          Key: uniqueFileName,
-        });
-        const s3Response = await client.send(getCommand);
-        const streamToBuffer = async (stream: any): Promise<Buffer> => {
-          return new Promise((resolve, reject) => {
-            const chunks: any[] = [];
-            stream.on('data', (chunk: any) => chunks.push(chunk));
-            stream.on('error', reject);
-            stream.on('end', () => resolve(Buffer.concat(chunks)));
-          });
-        };
-        const responseBuffer = await streamToBuffer(s3Response.Body);
+        console.log(`[Auto-Parse] Fetching resume file for candidate ${candidate.id}: ${uniqueFileName}`);
 
-        const dir = join(process.cwd(), 'uploads');
-        if (!fs.existsSync(dir)) {
-          fs.mkdirSync(dir, { recursive: true });
+        if (rawResumeField.startsWith('http://') || rawResumeField.startsWith('https://')) {
+          try {
+            const httpRes = await fetch(rawResumeField);
+            if (httpRes.ok) {
+              const arrayBuffer = await httpRes.arrayBuffer();
+              const dir = join(process.cwd(), 'uploads');
+              if (!fs.existsSync(dir)) {
+                fs.mkdirSync(dir, { recursive: true });
+              }
+              fs.writeFileSync(filePath, Buffer.from(arrayBuffer));
+              tempFileCreated = true;
+              console.log(`[Auto-Parse] Successfully fetched resume via HTTP for candidate ${candidate.id}`);
+            }
+          } catch (httpErr) {
+            console.error(`[Auto-Parse] Failed HTTP fetch for candidate ${candidate.id}:`, httpErr);
+          }
         }
-        fs.writeFileSync(filePath, responseBuffer);
-        tempFileCreated = true;
+
+        if (!fs.existsSync(filePath) && process.env.S3_BUCKET) {
+          try {
+            const getCommand = new GetObjectCommand({
+              Bucket: process.env.S3_BUCKET,
+              Key: uniqueFileName,
+            });
+            const s3Response = await client.send(getCommand);
+            const streamToBuffer = async (stream: any): Promise<Buffer> => {
+              return new Promise((resolve, reject) => {
+                const chunks: any[] = [];
+                stream.on('data', (chunk: any) => chunks.push(chunk));
+                stream.on('error', reject);
+                stream.on('end', () => resolve(Buffer.concat(chunks)));
+              });
+            };
+            const responseBuffer = await streamToBuffer(s3Response.Body);
+
+            const dir = join(process.cwd(), 'uploads');
+            if (!fs.existsSync(dir)) {
+              fs.mkdirSync(dir, { recursive: true });
+            }
+            fs.writeFileSync(filePath, responseBuffer);
+            tempFileCreated = true;
+          } catch (s3Err) {
+            console.error(`[Auto-Parse] Failed S3 fetch for candidate ${candidate.id}:`, s3Err);
+          }
+        }
       }
 
       let extractedText = '';
@@ -981,7 +1010,7 @@ export class CandidateService {
 
       if (extractedText && extractedText.trim() !== '') {
         candidate.resumeText = extractedText;
-        if (!candidate.id.startsWith('user-')) {
+        if (candidate.id && !candidate.id.startsWith('user-')) {
           await this.prisma.candidate.update({
             where: { id: candidate.id },
             data: { resumeText: extractedText },
@@ -2221,12 +2250,55 @@ export class CandidateService {
   }
 
   async reparseCandidateResume(id: string) {
-    const candidate = await this.prisma.candidate.findUnique({ where: { id } });
-    if (!candidate) throw new NotFoundException('Candidate not found');
+    let candidate: any = null;
+    if (id.startsWith('user-')) {
+      const userIdFromMock = id.replace('user-', '');
+      const user = await this.prisma.user.findUnique({ where: { id: userIdFromMock } });
+      if (user) {
+        candidate = await this.prisma.candidate.findFirst({
+          where: { OR: [{ userId: user.id }, { email: user.email.toLowerCase() }] },
+        });
+      }
+    } else {
+      candidate = await this.prisma.candidate.findUnique({ where: { id } });
+    }
+
+    if (!candidate) {
+      throw new NotFoundException('Candidate record not found for resume re-parsing');
+    }
+
     candidate.resumeText = '';
-    await this.ensureResumeTextParsed(candidate);
+    const parsedText = await this.ensureResumeTextParsed(candidate);
+
+    if (parsedText && candidate.id && !candidate.id.startsWith('user-')) {
+      await this.prisma.candidate.update({
+        where: { id: candidate.id },
+        data: { resumeText: parsedText },
+      }).catch(err => console.error('[reparseCandidateResume] Failed to persist resumeText:', err));
+    }
+
     return this.mapCandidate(candidate);
   }
+}
+
+function extractCleanResumeKey(resumeStr: string): string {
+  if (!resumeStr) return '';
+  let key = resumeStr;
+  if (key.includes('?')) {
+    key = key.split('?')[0];
+  }
+  if (key.startsWith('http://') || key.startsWith('https://')) {
+    try {
+      const urlObj = new URL(key);
+      key = decodeURIComponent(urlObj.pathname.split('/').pop() || '');
+    } catch (e) {
+      key = key.substring(key.lastIndexOf('/') + 1);
+    }
+  }
+  if (key.startsWith('uploads/')) {
+    key = key.replace(/^uploads\//, '');
+  }
+  return key;
 }
 
 function cleanPdftohtmlOutline(html: string): string {
