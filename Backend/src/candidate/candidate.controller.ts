@@ -220,9 +220,14 @@ export class CandidateController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Force re-parse resume PDF/Word to HTML' })
   @UseGuards(AuthGuard)
-  @SetMetadata('roles', [Role.ADMIN, Role.HR])
+  @SetMetadata('roles', [Role.ADMIN, Role.HR, Role.CANDIDATE])
   @UseGuards(RoleGuard)
-  async reparseResume(@Param('id') id: string) {
+  async reparseResume(@Param('id') id: string, @Req() req: any) {
+    const user = req.user;
+    if (user.role === Role.CANDIDATE) {
+      const candidate = await this.candidateService.findOne(id);
+      await this.validateCandidateAccess(candidate, user);
+    }
     return this.candidateService.reparseCandidateResume(id);
   }
 
@@ -231,10 +236,15 @@ export class CandidateController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Generate AI-cleaned resume doc' })
   @UseGuards(AuthGuard)
-  @SetMetadata('roles', [Role.ADMIN, Role.HR])
+  @SetMetadata('roles', [Role.ADMIN, Role.HR, Role.CANDIDATE])
   @UseGuards(RoleGuard)
   @ApiResponse({ status: 200, description: 'Cleaned resume doc details' })
-  async cleanResume(@Param('id') id: string) {
+  async cleanResume(@Param('id') id: string, @Req() req: any) {
+    const user = req.user;
+    if (user.role === Role.CANDIDATE) {
+      const candidate = await this.candidateService.findOne(id);
+      await this.validateCandidateAccess(candidate, user);
+    }
     return this.candidateService.generateCleanedDoc(id);
   }
 
@@ -254,13 +264,19 @@ export class CandidateController {
   })
   @UseInterceptors(FileInterceptor('file', { storage }))
   @UseGuards(AuthGuard)
-  @SetMetadata('roles', [Role.ADMIN, Role.HR])
+  @SetMetadata('roles', [Role.ADMIN, Role.HR, Role.CANDIDATE])
   @UseGuards(RoleGuard)
   async uploadCleanedResume(
     @Param('id') id: string,
+    @Req() req: any,
     @UploadedFile() file: Express.Multer.File,
     @Body('resumeText') resumeText?: string,
   ) {
+    const user = req.user;
+    if (user.role === Role.CANDIDATE) {
+      const candidate = await this.candidateService.findOne(id);
+      await this.validateCandidateAccess(candidate, user);
+    }
     return this.candidateService.uploadCleanedResume(id, file, resumeText);
   }
 
@@ -301,7 +317,7 @@ export class CandidateController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Export resume HTML as PDF' })
   @UseGuards(AuthGuard)
-  @SetMetadata('roles', [Role.ADMIN, Role.HR, Role.CLIENT])
+  @SetMetadata('roles', [Role.ADMIN, Role.HR, Role.CLIENT, Role.CANDIDATE])
   @UseGuards(RoleGuard)
   @ApiBody({ schema: { type: 'object', properties: { html: { type: 'string' } } } })
   @ApiResponse({ status: 200, description: 'PDF file stream' })
@@ -326,7 +342,7 @@ export class CandidateController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Export resume HTML as DOCX' })
   @UseGuards(AuthGuard)
-  @SetMetadata('roles', [Role.ADMIN, Role.HR, Role.CLIENT])
+  @SetMetadata('roles', [Role.ADMIN, Role.HR, Role.CLIENT, Role.CANDIDATE])
   @UseGuards(RoleGuard)
   @ApiBody({ schema: { type: 'object', properties: { html: { type: 'string' } } } })
   @ApiResponse({ status: 200, description: 'DOCX file stream' })
