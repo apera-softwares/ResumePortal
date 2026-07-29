@@ -54,42 +54,45 @@ export default function GuestPage() {
     <div className="min-h-screen w-full flex flex-col relative bg-gray-50 dark:bg-gray-950 transition-colors duration-300">
       {/* Premium Glassmorphic Header */}
       <header className="sticky top-0 z-50 w-full backdrop-blur-md bg-white/80 dark:bg-gray-950/80 border-b border-gray-100 dark:border-gray-900 transition-all duration-300">
-        <div className="max-w-7xl mx-auto flex justify-between items-center px-4 sm:px-6 lg:px-8 h-16 sm:h-20">
+        <div className="max-w-7xl mx-auto flex justify-between items-center px-3 sm:px-6 lg:px-8 h-16 sm:h-20 gap-2">
           {/* Brand Logo Container */}
-          <div className="flex items-center">
+          <div className="flex items-center shrink-0">
             <img 
               src="/images/brand/brand-logo-png.png" 
               alt="Brand Logo" 
-              className="h-9 sm:h-11 w-auto object-contain transition-transform duration-300 hover:scale-102 dark:brightness-110" 
+              className="h-7 sm:h-11 w-auto object-contain transition-transform duration-300 hover:scale-102 dark:brightness-110" 
             />
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex items-center gap-2.5 sm:gap-3.5">
-            {/* Theme Toggle Button */}
+          {/* Action Buttons & Top Right Dark Mode Toggle */}
+          <div className="flex items-center gap-1.5 sm:gap-3.5 shrink-0 overflow-x-auto no-scrollbar py-1">
+            {/* Theme Toggle Button (Top Right Position) */}
             <button
               onClick={toggleTheme}
-              className="p-2 sm:p-2.5 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all shadow-sm hover:shadow"
+              className="p-2 sm:p-2.5 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all shadow-xs hover:shadow active:scale-95 shrink-0"
               aria-label="Toggle Theme"
+              title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
             >
               {isDarkMode ? (
                 // Sun Icon (Switch to Light Mode)
-                <svg className="w-4.5 h-4.5 sm:w-5 sm:h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <svg className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-12.728l.707.707m12.728 12.728l.707.707M12 8a4 4 0 100 8 4 4 0 000-8z" />
                 </svg>
               ) : (
                 // Moon Icon (Switch to Dark Mode)
-                <svg className="w-4.5 h-4.5 sm:w-5 sm:h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <svg className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
                 </svg>
               )}
             </button>
+
+            {/* Candidate Button */}
             <button 
               onClick={() => routes.push('/public-candidates')} 
-              className="group flex items-center gap-2 px-3.5 py-2 sm:px-4.5 sm:py-2.5 text-xs sm:text-sm font-semibold rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800/80 text-gray-700 dark:text-gray-200 shadow-sm hover:shadow transition-all duration-200 hover:scale-[1.01] active:scale-[0.99]"
+              className="group flex items-center gap-1.5 px-2.5 py-1.5 sm:px-4 sm:py-2.5 text-xs sm:text-sm font-semibold rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800/80 text-gray-700 dark:text-gray-200 shadow-xs hover:shadow transition-all shrink-0"
             >
               <svg 
-                className="w-4 h-4 text-gray-500 dark:text-gray-400 group-hover:text-blue-500 dark:group-hover:text-blue-400 transition-colors" 
+                className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-500 dark:text-gray-400 group-hover:text-blue-500 dark:group-hover:text-blue-400 transition-colors" 
                 fill="none" 
                 stroke="currentColor" 
                 viewBox="0 0 24 24" 
@@ -100,12 +103,13 @@ export default function GuestPage() {
               <span>Candidate</span>
             </button>
 
+            {/* Upload Resume Button */}
             <button 
               onClick={openModal} 
-              className="group flex items-center gap-2 px-3.5 py-2 sm:px-4.5 sm:py-2.5 text-xs sm:text-sm font-semibold rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800/80 text-gray-700 dark:text-gray-200 shadow-sm hover:shadow transition-all duration-200 hover:scale-[1.01] active:scale-[0.99]"
+              className="group flex items-center gap-1.5 px-2.5 py-1.5 sm:px-4 sm:py-2.5 text-xs sm:text-sm font-semibold rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800/80 text-gray-700 dark:text-gray-200 shadow-xs hover:shadow transition-all shrink-0"
             >
               <svg 
-                className="w-4 h-4 text-gray-500 dark:text-gray-400 group-hover:text-blue-500 dark:group-hover:text-blue-400 transition-colors" 
+                className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-500 dark:text-gray-400 group-hover:text-blue-500 dark:group-hover:text-blue-400 transition-colors" 
                 fill="none" 
                 stroke="currentColor" 
                 viewBox="0 0 24 24" 
@@ -113,17 +117,20 @@ export default function GuestPage() {
               >
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
               </svg>
-              <span>Upload Resume</span>
+              <span className="hidden sm:inline">Upload Resume</span>
+              <span className="inline sm:hidden">Upload</span>
             </button>
             
+            {/* Go to Dashboard / LogIn Button */}
             {isLoggedIn ? (
               <button 
                 onClick={() => routes.push('/dashboard')} 
-                className="flex items-center gap-1.5 px-4 py-2 sm:px-5 sm:py-2.5 text-xs sm:text-sm font-semibold rounded-xl text-white bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-indigo-700 shadow-md shadow-blue-500/10 hover:shadow-lg hover:shadow-blue-500/20 transition-all duration-200 hover:scale-[1.01] active:scale-[0.99]"
+                className="flex items-center gap-1 px-3 py-1.5 sm:px-5 sm:py-2.5 text-xs sm:text-sm font-semibold rounded-xl text-white bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-indigo-700 shadow-sm transition-all shrink-0"
               >
-                <span>Go to Dashboard</span>
+                <span className="hidden sm:inline">Go to Dashboard</span>
+                <span className="inline sm:hidden">Dashboard</span>
                 <svg 
-                  className="w-4.5 h-4.5" 
+                  className="w-3.5 h-3.5 sm:w-4 sm:h-4" 
                   fill="none" 
                   stroke="currentColor" 
                   viewBox="0 0 24 24" 
@@ -135,11 +142,11 @@ export default function GuestPage() {
             ) : (
               <button 
                 onClick={handleLogin} 
-                className="flex items-center gap-1.5 px-4 py-2 sm:px-5 sm:py-2.5 text-xs sm:text-sm font-semibold rounded-xl text-white bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-indigo-700 shadow-md shadow-blue-500/10 hover:shadow-lg hover:shadow-blue-500/20 transition-all duration-200 hover:scale-[1.01] active:scale-[0.99]"
+                className="flex items-center gap-1 px-3 py-1.5 sm:px-5 sm:py-2.5 text-xs sm:text-sm font-semibold rounded-xl text-white bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-indigo-700 shadow-sm transition-all shrink-0"
               >
                 <span>LogIn</span>
                 <svg 
-                  className="w-4 h-4" 
+                  className="w-3.5 h-3.5 sm:w-4 sm:h-4" 
                   fill="none" 
                   stroke="currentColor" 
                   viewBox="0 0 24 24" 
