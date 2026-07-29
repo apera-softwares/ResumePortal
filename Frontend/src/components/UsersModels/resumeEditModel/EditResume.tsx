@@ -1221,15 +1221,17 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
             )}
 
 
-            {isEditMode && (
-              <button
-                onClick={handleExportPdf}
-                disabled={isSaving || isUploadingFile}
-                className="px-3 py-1.5 text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-955/40 rounded-lg transition-all disabled:opacity-50"
-              >
-                Export PDF
-              </button>
-            )}
+            <button
+              onClick={handleExportPdf}
+              disabled={isSaving || isUploadingFile}
+              className="px-3.5 py-1.5 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 active:bg-rose-800 rounded-lg transition-all shadow-sm flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              title="Download candidate resume as PDF"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <span>Export PDF</span>
+            </button>
           </div>
         </div>
 
@@ -1457,15 +1459,17 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
               )}
 
 
-              {isEditMode && (
-                <button
-                  onClick={handleExportPdf}
-                  disabled={isSaving || isUploadingFile}
-                  className="px-3 py-1.5 text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-955/40 rounded-lg transition-all disabled:opacity-50"
-                >
-                  Export PDF
-                </button>
-              )}
+              <button
+                onClick={handleExportPdf}
+                disabled={isSaving || isUploadingFile}
+                className="px-3.5 py-1.5 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 active:bg-rose-800 rounded-lg transition-all shadow-sm flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                title="Download candidate resume as PDF"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <span>Export PDF</span>
+              </button>
             </div>
           </div>
 
