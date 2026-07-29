@@ -49,31 +49,62 @@ export class CandidateCreatedListener {
         return;
       }
 
-      const uniqueFileName = candidate.resume;
+      const rawResumeField = candidate.resume;
+      let rawResumeKey = rawResumeField;
+      if (rawResumeKey.includes('?')) rawResumeKey = rawResumeKey.split('?')[0];
+      if (rawResumeKey.startsWith('http://') || rawResumeKey.startsWith('https://')) {
+        try {
+          const urlObj = new URL(rawResumeKey);
+          rawResumeKey = decodeURIComponent(urlObj.pathname.split('/').pop() || '');
+        } catch (e) {
+          rawResumeKey = rawResumeKey.substring(rawResumeKey.lastIndexOf('/') + 1);
+        }
+      }
+      if (rawResumeKey.startsWith('uploads/')) rawResumeKey = rawResumeKey.replace(/^uploads\//, '');
+
+      const uniqueFileName = rawResumeKey;
       const fileExtension = extname(uniqueFileName).toLowerCase();
       const filePath = join(process.cwd(), 'uploads', uniqueFileName);
 
       let tempFileCreated = false;
       if (!fs.existsSync(filePath)) {
-        console.log(`[Event Handler] File not found locally, attempting to fetch from R2/S3: ${uniqueFileName}`);
-        try {
-          const getCommand = new GetObjectCommand({
-            Bucket: process.env.S3_BUCKET!,
-            Key: uniqueFileName,
-          });
-          const s3Response = await client.send(getCommand);
-          const responseBuffer = await streamToBuffer(s3Response.Body);
+        console.log(`[Event Handler] File not found locally, attempting to fetch for candidate: ${uniqueFileName}`);
 
-          // Ensure directory exists
-          const dir = join(process.cwd(), 'uploads');
-          if (!fs.existsSync(dir)) {
-            fs.mkdirSync(dir, { recursive: true });
+        if (rawResumeField.startsWith('http://') || rawResumeField.startsWith('https://')) {
+          try {
+            const httpRes = await fetch(rawResumeField);
+            if (httpRes.ok) {
+              const arrayBuffer = await httpRes.arrayBuffer();
+              const dir = join(process.cwd(), 'uploads');
+              if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+              fs.writeFileSync(filePath, Buffer.from(arrayBuffer));
+              tempFileCreated = true;
+              console.log(`[Event Handler] Successfully downloaded file via HTTP to: ${filePath}`);
+            }
+          } catch (httpErr) {
+            console.error(`[Event Handler] Failed to fetch file via HTTP:`, httpErr);
           }
-          fs.writeFileSync(filePath, responseBuffer);
-          tempFileCreated = true;
-          console.log(`[Event Handler] Successfully downloaded file from R2/S3 to temp local path: ${filePath}`);
-        } catch (s3Error) {
-          console.error(`[Event Handler] Failed to fetch file from R2/S3:`, s3Error);
+        }
+
+        if (!fs.existsSync(filePath) && process.env.S3_BUCKET) {
+          try {
+            const getCommand = new GetObjectCommand({
+              Bucket: process.env.S3_BUCKET,
+              Key: uniqueFileName,
+            });
+            const s3Response = await client.send(getCommand);
+            const responseBuffer = await streamToBuffer(s3Response.Body);
+
+            const dir = join(process.cwd(), 'uploads');
+            if (!fs.existsSync(dir)) {
+              fs.mkdirSync(dir, { recursive: true });
+            }
+            fs.writeFileSync(filePath, responseBuffer);
+            tempFileCreated = true;
+            console.log(`[Event Handler] Successfully downloaded file from R2/S3 to temp local path: ${filePath}`);
+          } catch (s3Error) {
+            console.error(`[Event Handler] Failed to fetch file from R2/S3:`, s3Error);
+          }
         }
       }
 
