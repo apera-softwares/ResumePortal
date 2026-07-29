@@ -894,10 +894,10 @@ export class CandidateService {
     };
   }
 
-  public async ensureResumeTextParsed(candidate: any): Promise<string> {
+  public async ensureResumeTextParsed(candidate: any, forceReparse: boolean = false): Promise<string> {
     if (!candidate) return '';
-    if (candidate.editedHtml) return candidate.editedHtml;
-    if (candidate.resumeText && candidate.resumeText.trim() !== '') return candidate.resumeText;
+    if (!forceReparse && candidate.editedHtml) return candidate.editedHtml;
+    if (!forceReparse && candidate.resumeText && candidate.resumeText.trim() !== '') return candidate.resumeText;
 
     const rawResumeField = candidate.resume || candidate.resumePdf || '';
     if (!rawResumeField) return '';
@@ -2268,7 +2268,8 @@ export class CandidateService {
     }
 
     candidate.resumeText = '';
-    const parsedText = await this.ensureResumeTextParsed(candidate);
+    candidate.editedHtml = null;
+    const parsedText = await this.ensureResumeTextParsed(candidate, true);
 
     if (parsedText && candidate.id && !candidate.id.startsWith('user-')) {
       await this.prisma.candidate.update({

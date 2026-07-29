@@ -483,9 +483,39 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
     setCandidateResumePdf(candidate.resumePdf || null);
   }, [candidate.resume, candidate.resumePdf]);
 
-  const handleEditResumeClick = () => {
+  const handleEditResumeClick = async () => {
     setIsEditMode(true);
     setViewMode("edit");
+
+    // If current rawHtml is empty OR contains placeholder fallback text ("Professional Overview"), force auto-reparse
+    const isFallback = !rawHtml || rawHtml.includes("Professional Overview") || rawHtml.includes("generateFallbackResumeHtml");
+    if (isFallback && (candidateResume || candidateResumePdf || candidate.resume || candidate.resumePdf)) {
+      const loadToast = toast.loading("Loading uploaded resume for editing...");
+      try {
+        const token = localStorage.getItem("token");
+        const reparseRes = await fetch(`${API_URL}/candidates/${candidate.id}/reparse-resume`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        });
+        if (reparseRes.ok) {
+          const reparsedData = await reparseRes.json();
+          const cleanSource = sanitizeResumeHtmlForEditor(reparsedData.editedHtml || reparsedData.resumeText || "");
+          if (cleanSource) {
+            setRawHtml(cleanSource);
+            setPreviewHtml(cleanSource);
+            setEditorKey(prev => prev + 1);
+          }
+        }
+      } catch (err) {
+        console.warn("Reparse on edit failed:", err);
+      } finally {
+        toast.dismiss(loadToast);
+      }
+    }
+
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       params.set("mode", "edit");
@@ -1118,37 +1148,13 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
             {!isEditMode ? (
               <div className="inline-flex rounded-xl border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-800 shadow-xs">
                 <button
-                  onClick={() => setViewMode("preview")}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${viewMode === "preview"
-                      ? "bg-white text-blue-600 shadow-xs dark:bg-gray-900 dark:text-blue-400 border border-gray-200 dark:border-gray-700"
-                      : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                    }`}
-                >
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                  </svg>
-                  Edited Resume
-                  {viewMode === "preview" && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
-                  )}
-                </button>
-
-                <div className="w-px h-4 bg-gray-200 dark:bg-gray-700 my-auto mx-0.5" />
-
-                <button
                   onClick={() => setViewMode("review")}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${viewMode === "review"
-                      ? "bg-white text-blue-600 shadow-xs dark:bg-gray-900 dark:text-blue-400 border border-gray-200 dark:border-gray-700"
-                      : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                    }`}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-white text-blue-600 shadow-xs dark:bg-gray-900 dark:text-blue-400 border border-gray-200 dark:border-gray-700"
                 >
                   <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
-                  Original Resume
-                  {viewMode === "review" && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
-                  )}
+                  <span>Original Resume</span>
                 </button>
               </div>
             ) : (
@@ -1356,37 +1362,13 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
               {!isEditMode ? (
                 <div className="inline-flex rounded-xl border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-800 shadow-xs">
                   <button
-                    onClick={() => setViewMode("preview")}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${viewMode === "preview"
-                        ? "bg-white text-blue-600 shadow-xs dark:bg-gray-900 dark:text-blue-400 border border-gray-200 dark:border-gray-700"
-                        : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                      }`}
-                  >
-                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                    </svg>
-                    Edited Resume
-                    {viewMode === "preview" && (
-                      <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
-                    )}
-                  </button>
-
-                  <div className="w-px h-4 bg-gray-200 dark:bg-gray-700 my-auto mx-0.5" />
-
-                  <button
                     onClick={() => setViewMode("review")}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${viewMode === "review"
-                        ? "bg-white text-blue-600 shadow-xs dark:bg-gray-900 dark:text-blue-400 border border-gray-200 dark:border-gray-700"
-                        : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                      }`}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-white text-blue-600 shadow-xs dark:bg-gray-900 dark:text-blue-400 border border-gray-200 dark:border-gray-700"
                   >
                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
-                    Original Resume
-                    {viewMode === "review" && (
-                      <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
-                    )}
+                    <span>Original Resume</span>
                   </button>
                 </div>
               ) : (
