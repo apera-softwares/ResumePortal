@@ -894,10 +894,10 @@ export class CandidateService {
     };
   }
 
-  public async ensureResumeTextParsed(candidate: any): Promise<string> {
+  public async ensureResumeTextParsed(candidate: any, forceReparse: boolean = false): Promise<string> {
     if (!candidate) return '';
-    if (candidate.editedHtml) return candidate.editedHtml;
-    if (candidate.resumeText && candidate.resumeText.trim() !== '') return candidate.resumeText;
+    if (!forceReparse && candidate.editedHtml) return candidate.editedHtml;
+    if (!forceReparse && candidate.resumeText && candidate.resumeText.trim() !== '') return candidate.resumeText;
 
     const rawResumeField = candidate.resume || candidate.resumePdf || '';
     if (!rawResumeField) return '';
@@ -2268,7 +2268,8 @@ export class CandidateService {
     }
 
     candidate.resumeText = '';
-    const parsedText = await this.ensureResumeTextParsed(candidate);
+    candidate.editedHtml = null;
+    const parsedText = await this.ensureResumeTextParsed(candidate, true);
 
     if (parsedText && candidate.id && !candidate.id.startsWith('user-')) {
       await this.prisma.candidate.update({
@@ -2329,29 +2330,15 @@ function cleanPdftohtmlOutline(html: string): string {
     }
   );
 
-  // Neutralize absolute positioning & nowrap inside <style> blocks to allow smooth editing & flow line breaks
+  // Normalize white-space: nowrap inside <style> blocks to allow pre-wrap
   cleaned = cleaned.replace(/<style\b[^>]*>([\s\S]*?)<\/style>/gi, (match, styleContent) => {
     const cleanedStyle = styleContent
-      .replace(/position\s*:\s*absolute/gi, "position: relative")
-      .replace(/white-space\s*:\s*nowrap/gi, "white-space: pre-wrap")
-      .replace(/\btop\s*:\s*\d+px/gi, "top: auto")
-      .replace(/\bleft\s*:\s*\d+px/gi, "left: auto");
+      .replace(/white-space\s*:\s*nowrap/gi, "white-space: pre-wrap");
     return `<style>${cleanedStyle}</style>`;
   });
 
-  // Neutralize inline styles on block elements
+  // Normalize white-space: nowrap in inline styles to pre-wrap
   cleaned = cleaned.replace(/white-space\s*:\s*nowrap/gi, "white-space: pre-wrap");
-  cleaned = cleaned.replace(
-    /style=["']([^"']*)["']/gi,
-    (match, styleStr) => {
-      let c = styleStr
-        .replace(/position\s*:\s*absolute;?/gi, "position: relative;")
-        .replace(/\btop\s*:\s*[^;"]+;?/gi, "")
-        .replace(/\bleft\s*:\s*[^;"]+;?/gi, "")
-        .replace(/white-space\s*:\s*nowrap;?/gi, "white-space: pre-wrap;");
-      return `style="${c.trim()}"`;
-    }
-  );
 
   return cleaned;
 }

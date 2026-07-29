@@ -456,13 +456,13 @@ export default function CanvasResumeEditor({
 
   const wrapperClass = hasPages
     ? "w-auto bg-transparent border-none shadow-none p-0 text-gray-900 dark:text-gray-100 transition-all duration-200 ease-out"
-    : "w-[816px] min-h-[1056px] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-sm shadow-2xl p-[1.2in] text-gray-900 dark:text-gray-100 transition-all duration-200 ease-out";
+    : "w-full max-w-[816px] min-h-[1056px] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-sm shadow-2xl p-4 sm:p-8 md:p-[1.2in] text-gray-900 dark:text-gray-100 transition-all duration-200 ease-out box-border mx-auto overflow-x-auto";
 
   return (
     <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-2xl overflow-hidden shadow-inner">
       {/* Top Sticky Toolbar */}
-      <div className="sticky top-0 z-20 flex flex-wrap items-center justify-between gap-y-2 gap-x-4 p-3 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-xs">
-        <div className="flex flex-wrap items-center gap-1.5">
+      <div className="sticky top-0 z-20 flex items-center justify-between gap-2 p-2 sm:p-3 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-xs max-w-full overflow-hidden">
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 max-w-full">
           {/* History */}
           <button
             onClick={() => editor.chain().focus().undo().run()}
@@ -797,7 +797,7 @@ export default function CanvasResumeEditor({
       </div>
 
       {/* Main Pages Canvas Container */}
-      <div className="flex-1 overflow-auto p-6 flex flex-col items-center bg-gray-100 dark:bg-gray-950/70" style={{ minWidth: 0 }}>
+      <div className="flex-1 overflow-auto p-2 sm:p-6 flex flex-col items-center bg-gray-100 dark:bg-gray-950/70" style={{ minWidth: 0 }}>
         <div
           style={{
             transform: `scale(${zoom})`,

@@ -324,6 +324,7 @@ export default function PublicJoblisting() {
               </svg>
               <div className="flex-1 min-w-0">
                 <Select
+                  instanceId="public-job-type-select"
                   value={searchType ? { value: searchType, label: searchType === "All" ? "All Job Types" : searchType } : null}
                   onChange={(selected: any) => setSearchType(selected ? selected.value : "All")}
                   options={[
@@ -500,7 +501,7 @@ export default function PublicJoblisting() {
                             <span>Applied</span>
                           </>
                         ) : (
-                          <span>Apply Now</span>
+                          <span>Apply</span>
                         )}
                       </button>
                     </div>
@@ -585,7 +586,7 @@ export default function PublicJoblisting() {
                             <td className="px-6 py-4 text-center">
                               <button
                                 onClick={() => handleApply(job.id)}
-                                className={`px-4 py-1.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all duration-200 mx-auto ${
+                                className={`px-4 py-1.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all duration-200 mx-auto whitespace-nowrap ${
                                   isApplied
                                     ? "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-700 cursor-default"
                                     : "bg-blue-600 hover:bg-blue-700 text-white hover:scale-[1.01] active:scale-[0.99] shadow-xs"
@@ -599,7 +600,7 @@ export default function PublicJoblisting() {
                                     <span>Applied</span>
                                   </>
                                 ) : (
-                                  <span>Apply Now</span>
+                                  <span>Apply</span>
                                 )}
                               </button>
                             </td>

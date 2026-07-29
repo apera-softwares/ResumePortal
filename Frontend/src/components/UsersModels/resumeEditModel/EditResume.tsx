@@ -110,30 +110,61 @@ const exactEditorFontSizes = ["9px", "10px", "11px", "12px", "13px", "14px", "16
 function buildIframeDocument(html: string, editable = false): string {
   const bodyHtml = html || "<div></div>";
   const hasDocumentShell = /<!doctype|<html[\s>]/i.test(bodyHtml);
+  const scaleScript = `
+    <script>
+      function applyFitScale() {
+        var vw = window.innerWidth;
+        var targets = document.querySelectorAll('div[id$="-div"], div[id^="page"], .a4-page, [style*="width:892px"], [style*="width: 892px"]');
+        if (!targets.length) {
+          targets = document.querySelectorAll('body > div');
+        }
+        targets.forEach(function(el) {
+          var ew = el.offsetWidth || 800;
+          if (ew > 0 && vw < ew + 24) {
+            var scale = Math.max(0.3, (vw - 24) / ew);
+            el.style.transform = 'scale(' + scale + ')';
+            el.style.transformOrigin = 'top left';
+            el.style.marginBottom = '-' + (el.offsetHeight * (1 - scale) - 15) + 'px';
+            el.style.marginRight = '-' + (el.offsetWidth * (1 - scale)) + 'px';
+          } else {
+            el.style.transform = 'none';
+            el.style.marginBottom = '25px';
+            el.style.marginRight = 'auto';
+          }
+        });
+      }
+      window.addEventListener('resize', applyFitScale);
+      window.addEventListener('load', applyFitScale);
+      document.addEventListener('DOMContentLoaded', applyFitScale);
+      setTimeout(applyFitScale, 50);
+      setTimeout(applyFitScale, 300);
+    </script>
+  `;
   const chromeStyles = `
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=3.0" />
     <style>
       html, body {
         min-height: 100%;
         margin: 0;
-        background: #9ca3af;
+        background: #f1f5f9;
         display: flex;
         flex-direction: column;
         align-items: center;
+        width: 100%;
       }
       body {
         overflow-y: auto;
-        overflow-x: hidden;
-        width: 100%;
-        padding: 20px 0;
+        overflow-x: auto;
+        padding: 12px;
         box-sizing: border-box;
       }
       /* Centering page wrappers of pdftohtml output */
       div[id$="-div"], div[id^="page"], .a4-page, [style*="width:892px"], [style*="width: 892px"] {
         margin-left: auto !important;
         margin-right: auto !important;
-        margin-top: 10px !important;
+        margin-top: 0 !important;
         margin-bottom: 25px !important;
-        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.15) !important;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2), 0 4px 6px -2px rgba(0, 0, 0, 0.1) !important;
         position: relative !important;
         background: #ffffff;
       }
@@ -151,7 +182,7 @@ function buildIframeDocument(html: string, editable = false): string {
   `;
 
   if (hasDocumentShell) {
-    const withStyles = bodyHtml.replace(/<\/head>/i, `${chromeStyles}</head>`);
+    const withStyles = bodyHtml.replace(/<\/head>/i, `${chromeStyles}</head>`).replace(/<\/body>/i, `${scaleScript}</body>`);
     if (!editable) return withStyles;
     return withStyles.replace(/<body([^>]*)>/i, `<body$1 contenteditable="true" spellcheck="false">`);
   }
@@ -162,7 +193,7 @@ function buildIframeDocument(html: string, editable = false): string {
 <meta charset="utf-8" />
 ${chromeStyles}
 </head>
-<body${editable ? ' contenteditable="true" spellcheck="false"' : ""}>${bodyHtml}</body>
+<body${editable ? ' contenteditable="true" spellcheck="false"' : ""}>${bodyHtml}${scaleScript}</body>
 </html>`;
 }
 
@@ -260,7 +291,7 @@ function ExactHtmlResumeEditor({ html, title, onChange }: ExactHtmlResumeEditorP
 
   return (
     <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-gray-200 bg-gray-100 shadow-inner dark:border-gray-800 dark:bg-gray-950">
-      <div className="flex flex-wrap items-center gap-1.5 border-b border-gray-200 bg-white p-2.5 dark:border-gray-800 dark:bg-gray-900">
+      <div className="flex items-center gap-1.5 border-b border-gray-200 bg-white p-2 sm:p-2.5 dark:border-gray-800 dark:bg-gray-900 overflow-x-auto no-scrollbar max-w-full">
         <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => runCommand("undo")} className={toolbarButtonClass} title="Undo">
           <Undo2 className="h-4 w-4" />
         </button>
@@ -354,7 +385,7 @@ function ExactHtmlResumeEditor({ html, title, onChange }: ExactHtmlResumeEditorP
         title={title}
         srcDoc={initialDocumentRef.current}
         className="min-h-0 flex-1 bg-gray-400"
-        sandbox="allow-same-origin"
+        sandbox="allow-same-origin allow-scripts"
       />
     </div>
   );
@@ -465,6 +496,23 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
     }
   }, []);
 
+  // Auto-calculate scale zoom for small mobile devices (375px) so canvas fits nicely
+  useEffect(() => {
+    const calculateAutoZoom = () => {
+      if (typeof window !== "undefined") {
+        if (window.innerWidth < 640) {
+          const calculatedScale = Math.max(0.35, Math.min(0.85, (window.innerWidth - 32) / 816));
+          setZoom(calculatedScale);
+        } else {
+          setZoom(1.0);
+        }
+      }
+    };
+    calculateAutoZoom();
+    window.addEventListener("resize", calculateAutoZoom);
+    return () => window.removeEventListener("resize", calculateAutoZoom);
+  }, [isOpen]);
+
   // Sync viewMode and isEditMode with initialMode when routing parameters change
   useEffect(() => {
     if (initialMode) {
@@ -483,9 +531,39 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
     setCandidateResumePdf(candidate.resumePdf || null);
   }, [candidate.resume, candidate.resumePdf]);
 
-  const handleEditResumeClick = () => {
+  const handleEditResumeClick = async () => {
     setIsEditMode(true);
     setViewMode("edit");
+
+    // If current rawHtml is empty OR contains placeholder fallback text ("Professional Overview"), force auto-reparse
+    const isFallback = !rawHtml || rawHtml.includes("Professional Overview") || rawHtml.includes("generateFallbackResumeHtml");
+    if (isFallback && (candidateResume || candidateResumePdf || candidate.resume || candidate.resumePdf)) {
+      const loadToast = toast.loading("Loading uploaded resume for editing...");
+      try {
+        const token = localStorage.getItem("token");
+        const reparseRes = await fetch(`${API_URL}/candidates/${candidate.id}/reparse-resume`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        });
+        if (reparseRes.ok) {
+          const reparsedData = await reparseRes.json();
+          const cleanSource = sanitizeResumeHtmlForEditor(reparsedData.editedHtml || reparsedData.resumeText || "");
+          if (cleanSource) {
+            setRawHtml(cleanSource);
+            setPreviewHtml(cleanSource);
+            setEditorKey(prev => prev + 1);
+          }
+        }
+      } catch (err) {
+        console.warn("Reparse on edit failed:", err);
+      } finally {
+        toast.dismiss(loadToast);
+      }
+    }
+
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       params.set("mode", "edit");
@@ -706,7 +784,7 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
             title={`${candidate.firstName} ${candidate.lastName} resume preview`}
             srcDoc={buildIframeDocument(displayHtml)}
             className="h-full w-full bg-gray-400 border-none"
-            sandbox="allow-same-origin"
+            sandbox="allow-same-origin allow-scripts"
           />
         </div>
       );
@@ -737,7 +815,10 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
 
   const renderOriginalResumeContent = () => {
     const resumeUrl = candidateResumePdf || (candidateResume ? (candidateResume.startsWith("http") ? candidateResume : `${API_URL}/uploads/${candidateResume}`) : null);
-    const isPdf = Boolean(candidateResume?.toLowerCase().endsWith(".pdf") || candidateResumePdf?.includes(".pdf") || candidateResume);
+    const isPdf = Boolean(
+      (candidateResumePdf && candidateResumePdf.toLowerCase().includes(".pdf")) ||
+      (candidateResume && candidateResume.toLowerCase().endsWith(".pdf"))
+    );
 
     if (resumeUrl && isPdf) {
       return (
@@ -755,7 +836,7 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
           srcDoc={buildIframeDocument(originalParsedHtml)}
           className="w-full h-full border-none bg-gray-400"
           title="Original Resume HTML"
-          sandbox="allow-same-origin"
+          sandbox="allow-same-origin allow-scripts"
         />
       );
     }
@@ -1115,43 +1196,7 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
               </button>
             )}
 
-            {!isEditMode ? (
-              <div className="inline-flex rounded-xl border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-800 shadow-xs">
-                <button
-                  onClick={() => setViewMode("preview")}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${viewMode === "preview"
-                      ? "bg-white text-blue-600 shadow-xs dark:bg-gray-900 dark:text-blue-400 border border-gray-200 dark:border-gray-700"
-                      : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                    }`}
-                >
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                  </svg>
-                  Edited Resume
-                  {viewMode === "preview" && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
-                  )}
-                </button>
-
-                <div className="w-px h-4 bg-gray-200 dark:bg-gray-700 my-auto mx-0.5" />
-
-                <button
-                  onClick={() => setViewMode("review")}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${viewMode === "review"
-                      ? "bg-white text-blue-600 shadow-xs dark:bg-gray-900 dark:text-blue-400 border border-gray-200 dark:border-gray-700"
-                      : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                    }`}
-                >
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  Original Resume
-                  {viewMode === "review" && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
-                  )}
-                </button>
-              </div>
-            ) : (
+            {!isEditMode ? null : (
               <div className="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-800">
                 <button
                   onClick={() => setViewMode("review")}
@@ -1299,21 +1344,21 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
         isFullscreen={true}
         className="bg-white dark:bg-gray-900"
       >
-        <div className="flex flex-col gap-4 p-5 md:p-6 bg-white dark:bg-gray-900 h-screen w-screen overflow-hidden box-border">
+        <div className="flex flex-col gap-3 sm:gap-4 p-2.5 sm:p-5 md:p-6 bg-white dark:bg-gray-900 h-screen w-screen overflow-hidden box-border">
           {/* Header */}
-          <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 border-b border-gray-150 dark:border-gray-800 pb-4">
+          <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 border-b border-gray-150 dark:border-gray-800 pb-3 sm:pb-4">
             <div>
-              <h4 className="text-xl font-bold text-gray-900 dark:text-white">
+              <h4 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">
                 {isEditMode ? "Resume Visual Editor" : "View Resume"}
               </h4>
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-[11px] sm:text-xs text-gray-500 mt-0.5">
                 {isEditMode
                   ? `Edit and format resume layout for ${candidate.firstName} ${candidate.lastName}`
                   : `View resume layout for ${candidate.firstName} ${candidate.lastName}`}
               </p>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2 pr-12 sm:pr-16">
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 pr-10 sm:pr-16">
               {!isEditMode && role !== "CLIENT" && role !== "CANDIDATE" && !isPublicPage && (
                 <button
                   onClick={handleEditResumeClick}
@@ -1353,43 +1398,7 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
                 </button>
               )}
 
-              {!isEditMode ? (
-                <div className="inline-flex rounded-xl border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-800 shadow-xs">
-                  <button
-                    onClick={() => setViewMode("preview")}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${viewMode === "preview"
-                        ? "bg-white text-blue-600 shadow-xs dark:bg-gray-900 dark:text-blue-400 border border-gray-200 dark:border-gray-700"
-                        : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                      }`}
-                  >
-                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                    </svg>
-                    Edited Resume
-                    {viewMode === "preview" && (
-                      <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
-                    )}
-                  </button>
-
-                  <div className="w-px h-4 bg-gray-200 dark:bg-gray-700 my-auto mx-0.5" />
-
-                  <button
-                    onClick={() => setViewMode("review")}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${viewMode === "review"
-                        ? "bg-white text-blue-600 shadow-xs dark:bg-gray-900 dark:text-blue-400 border border-gray-200 dark:border-gray-700"
-                        : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                      }`}
-                  >
-                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    Original Resume
-                    {viewMode === "review" && (
-                      <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
-                    )}
-                  </button>
-                </div>
-              ) : (
+              {!isEditMode ? null : (
                 <div className="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-800">
                   <button
                     onClick={() => setViewMode("review")}
