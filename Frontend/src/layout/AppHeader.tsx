@@ -4,14 +4,15 @@ import { useUser } from "@/context/UserContext";
 import { useRouter } from "next/navigation";
 import React, { useState, useEffect, useRef } from "react";
 import toast from "react-hot-toast";
-import { ThemeToggleButton } from "@/components/common/ThemeToggleButton";
 import { Modal } from "@/components/ui/modal";
+import { useTheme } from "@/context/ThemeContext";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || (typeof window !== "undefined" ? `http://${window.location.hostname}:3003` : "http://localhost:3003");
 
 const AppHeader: React.FC = () => {
   const router = useRouter();
   const { name: userName, role: userRole, email: userEmail } = useUser();
+  const { theme, toggleTheme } = useTheme();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isApplicationMenuOpen, setApplicationMenuOpen] = useState(false);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
@@ -113,8 +114,6 @@ const AppHeader: React.FC = () => {
           } items-center justify-between w-full gap-4 px-5 py-4 lg:flex shadow-theme-md lg:justify-end lg:px-0 lg:shadow-none`}
         >
           <div className="flex items-center gap-4">
-            <ThemeToggleButton />
-            
             {/* User Dropdown */}
             <div className="relative">
               <button
@@ -169,6 +168,29 @@ const AppHeader: React.FC = () => {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                       </svg>
                       <span>Profile</span>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        toggleTheme();
+                      }}
+                      className="w-full text-left px-4 py-2.5 text-xs font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/60 transition-all flex items-center justify-between cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2">
+                        {theme === "dark" ? (
+                          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                          </svg>
+                        ) : (
+                          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                          </svg>
+                        )}
+                        <span>Theme ({theme === "dark" ? "Dark" : "Light"})</span>
+                      </div>
+                      <div className={`w-8 h-4 flex items-center rounded-full p-0.5 transition-colors ${theme === "dark" ? "bg-blue-600 justify-end" : "bg-gray-300 dark:bg-gray-700 justify-start"}`}>
+                        <div className="w-3 h-3 rounded-full bg-white shadow-xs" />
+                      </div>
                     </button>
 
                     <button
