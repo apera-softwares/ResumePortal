@@ -1145,19 +1145,7 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
               </button>
             )}
 
-            {!isEditMode ? (
-              <div className="inline-flex rounded-xl border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-800 shadow-xs">
-                <button
-                  onClick={() => setViewMode("review")}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-white text-blue-600 shadow-xs dark:bg-gray-900 dark:text-blue-400 border border-gray-200 dark:border-gray-700"
-                >
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  <span>Original Resume</span>
-                </button>
-              </div>
-            ) : (
+            {!isEditMode ? null : (
               <div className="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-800">
                 <button
                   onClick={() => setViewMode("review")}
@@ -1359,19 +1347,7 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
                 </button>
               )}
 
-              {!isEditMode ? (
-                <div className="inline-flex rounded-xl border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-800 shadow-xs">
-                  <button
-                    onClick={() => setViewMode("review")}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-white text-blue-600 shadow-xs dark:bg-gray-900 dark:text-blue-400 border border-gray-200 dark:border-gray-700"
-                  >
-                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    <span>Original Resume</span>
-                  </button>
-                </div>
-              ) : (
+              {!isEditMode ? null : (
                 <div className="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-800">
                   <button
                     onClick={() => setViewMode("review")}
