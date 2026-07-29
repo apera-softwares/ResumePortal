@@ -1174,15 +1174,6 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
               </>
             )}
 
-            {!isPublicPage && isEditMode && (
-              <button
-                onClick={handleExportWord}
-                disabled={isSaving || isUploadingFile}
-                className="px-3 py-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 rounded-lg transition-all disabled:opacity-50"
-              >
-                Export Word
-              </button>
-            )}
 
             {isEditMode && (
               <button
@@ -1419,15 +1410,6 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
                 </>
               )}
 
-              {!isPublicPage && isEditMode && (
-                <button
-                  onClick={handleExportWord}
-                  disabled={isSaving || isUploadingFile}
-                  className="px-3 py-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-955/40 rounded-lg transition-all disabled:opacity-50"
-                >
-                  Export Word
-                </button>
-              )}
 
               {isEditMode && (
                 <button

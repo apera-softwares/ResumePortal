@@ -803,6 +803,18 @@ input:-webkit-autofill:active {
   background: #4b5563; /* gray-600 */
 }
 
+@keyframes scan {
+  0%, 100% {
+    top: 5%;
+    opacity: 0.3;
+  }
+  50% {
+    top: 90%;
+    opacity: 0.9;
+  }
+}
+
+
 /* Firefox compatibility */
 * {
   scrollbar-width: thin;
