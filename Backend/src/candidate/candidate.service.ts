@@ -913,9 +913,16 @@ export class CandidateService {
       if (!fs.existsSync(filePath)) {
         console.log(`[Auto-Parse] Fetching resume file for candidate ${candidate.id}: ${uniqueFileName}`);
 
-        if (rawResumeField.startsWith('http://') || rawResumeField.startsWith('https://')) {
+        const httpUrl =
+          candidate.resumePdf && candidate.resumePdf.startsWith('http')
+            ? candidate.resumePdf
+            : rawResumeField.startsWith('http')
+              ? rawResumeField
+              : null;
+
+        if (httpUrl) {
           try {
-            const httpRes = await fetch(rawResumeField);
+            const httpRes = await fetch(httpUrl);
             if (httpRes.ok) {
               const arrayBuffer = await httpRes.arrayBuffer();
               const dir = join(process.cwd(), 'uploads');
@@ -979,7 +986,22 @@ export class CandidateService {
               console.log(`[Auto-Parse] pdftohtml conversion succeeded for candidate ${candidate.id}`);
             }
           } catch (execError: any) {
-            console.error('[Auto-Parse] pdftohtml failed:', execError?.message || execError);
+            console.warn('[Auto-Parse] pdftohtml failed, attempting pdf-parse fallback:', execError?.message || execError);
+          }
+
+          // Fallback to pdf-parse if pdftohtml failed or produced empty text
+          if (!extractedText || extractedText.trim() === '') {
+            try {
+              const pdfParse = require('pdf-parse');
+              const buffer = fs.readFileSync(filePath);
+              const pdfData = await pdfParse(buffer);
+              if (pdfData && pdfData.text && pdfData.text.trim()) {
+                extractedText = formatPdfTextToHtml(pdfData.text);
+                console.log(`[Auto-Parse] pdf-parse fallback succeeded for candidate ${candidate.id}`);
+              }
+            } catch (pdfParseErr: any) {
+              console.error('[Auto-Parse] pdf-parse fallback failed:', pdfParseErr?.message || pdfParseErr);
+            }
           }
         } else if (fileExtension === '.docx' || fileExtension === '.doc') {
           const outputDir = join(process.cwd(), 'uploads');
@@ -1000,7 +1022,7 @@ export class CandidateService {
             try {
               const buffer = fs.readFileSync(filePath);
               const result = await mammoth.convertToHtml({ buffer });
-              extractedText = result.value || '';
+              extractedText = result.value ? `<div style="font-family: Arial, sans-serif; padding: 24px; color: #1e293b;">${result.value}</div>` : '';
             } catch (mErr) {
               console.error('[Auto-Parse] Mammoth conversion failed:', mErr);
             }
@@ -2342,3 +2364,28 @@ function cleanPdftohtmlOutline(html: string): string {
 
   return cleaned;
 }
+
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function formatPdfTextToHtml(rawText: string): string {
+  if (!rawText || !rawText.trim()) return '';
+  const lines = rawText.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  if (lines.length === 0) return '';
+
+  const paragraphs = lines.map((line) => {
+    if (line.length < 40 && !line.endsWith('.')) {
+      return `<h3 style="font-size: 16px; font-weight: bold; color: #1e3a8a; margin-top: 16px; margin-bottom: 8px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px;">${escapeHtml(line)}</h3>`;
+    }
+    return `<p style="font-size: 14px; line-height: 1.6; color: #334155; margin-bottom: 10px;">${escapeHtml(line)}</p>`;
+  });
+
+  return `<div style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 24px; color: #1e293b; background: #ffffff;">\n${paragraphs.join('\n')}\n</div>`;
+}
+

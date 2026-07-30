@@ -130,11 +130,32 @@ export class CandidateCreatedListener {
                 `[Event Handler] pdftohtml conversion succeeded for candidate ID: ${candidateId}`,
               );
             }
-          } catch (execError) {
-            console.error(
-              '[Event Handler] pdftohtml conversion failed:',
-              execError.message,
+          } catch (execError: any) {
+            console.warn(
+              '[Event Handler] pdftohtml conversion failed, trying pdf-parse fallback:',
+              execError?.message || execError,
             );
+          }
+
+          if (!resumeText || resumeText.trim() === '') {
+            try {
+              const pdfParse = require('pdf-parse');
+              const pdfData = await pdfParse(buffer);
+              if (pdfData && pdfData.text && pdfData.text.trim()) {
+                const lines = pdfData.text.split(/\r?\n/).map((l: string) => l.trim()).filter(Boolean);
+                const paragraphs = lines.map((line: string) => {
+                  const escaped = line.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                  if (line.length < 40 && !line.endsWith('.')) {
+                    return `<h3 style="font-size: 16px; font-weight: bold; color: #1e3a8a; margin-top: 16px; margin-bottom: 8px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px;">${escaped}</h3>`;
+                  }
+                  return `<p style="font-size: 14px; line-height: 1.6; color: #334155; margin-bottom: 10px;">${escaped}</p>`;
+                });
+                resumeText = `<div style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 24px; color: #1e293b; background: #ffffff;">\n${paragraphs.join('\n')}\n</div>`;
+                console.log(`[Event Handler] pdf-parse fallback succeeded for candidate ID: ${candidateId}`);
+              }
+            } catch (pdfParseErr: any) {
+              console.error('[Event Handler] pdf-parse fallback failed:', pdfParseErr?.message || pdfParseErr);
+            }
           }
         } else if (fileExtension === '.docx' || fileExtension === '.doc') {
           const outputDir = join(process.cwd(), 'uploads');
