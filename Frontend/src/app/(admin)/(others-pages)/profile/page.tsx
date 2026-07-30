@@ -245,22 +245,22 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="min-h-[80vh] w-full flex flex-col gap-6 font-outfit px-4 sm:px-6 py-6 bg-gray-50 dark:bg-gray-950 transition-colors duration-300">
+    <div className="min-h-[80vh] w-full flex flex-col gap-6 font-outfit px-4 sm:px-6 py-6 bg-gray-50 dark:bg-[#0B0C10] transition-colors duration-300">
       <div className="max-w-5xl mx-auto w-full">
         
         {/* Profile Header Banner */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-gradient-to-r from-brand-500 via-indigo-600 to-purple-600 text-white rounded-3xl p-6 md:p-8 shadow-lg relative overflow-hidden mb-6 border border-white/10">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-gradient-to-br from-[#181A2F] via-[#121424] to-[#0A0B10] text-white rounded-3xl p-6 md:p-8 shadow-md relative overflow-hidden mb-6 border border-white/[0.08]">
           <div className="absolute right-0 bottom-0 top-0 w-1/3 opacity-10 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-white via-transparent to-transparent pointer-events-none"></div>
           <div className="space-y-2 z-10">
-            <span className="bg-white/20 text-white text-[10px] px-3 py-1 rounded-full font-bold uppercase tracking-wider">
+            <span className="bg-white/10 text-white text-[10px] px-3 py-1 rounded-full font-bold uppercase tracking-wider backdrop-blur-xs border border-white/10">
               {role} Profile
             </span>
             <h1 className="text-2xl md:text-3xl font-extrabold">{name || "User Profile"}</h1>
-            <p className="text-indigo-100 text-xs md:text-sm max-w-md">
+            <p className="text-indigo-100 text-xs md:text-sm max-w-md opacity-90">
               Manage your personal details, contact information, and professional preferences.
             </p>
           </div>
-          <div className="mt-4 md:mt-0 z-10 w-16 h-16 bg-white/15 backdrop-blur-md rounded-2xl flex items-center justify-center text-2xl font-bold text-white border border-white/10">
+          <div className="mt-4 md:mt-0 z-10 w-16 h-16 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center text-2xl font-bold text-white border border-white/10 shadow-sm">
             {name ? name.charAt(0).toUpperCase() : "U"}
           </div>
         </div>
@@ -270,7 +270,7 @@ export default function ProfilePage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             
             {/* Account Credentials Card */}
-            <div className="md:col-span-1 bg-white dark:bg-gray-900 border border-gray-150/85 dark:border-gray-800/85 rounded-3xl p-6 shadow-xl shadow-gray-100/10 dark:shadow-none flex flex-col justify-between">
+            <div className="md:col-span-1 bg-white dark:bg-[#11131F] border border-gray-150 dark:border-white/[0.08] rounded-3xl p-6 shadow-xl shadow-gray-100/10 dark:shadow-none flex flex-col justify-between">
               <div>
                 <h3 className="text-base font-bold text-gray-900 dark:text-white border-b border-gray-100 dark:border-gray-850 pb-3 mb-5">
                   Account Credentials
@@ -305,7 +305,7 @@ export default function ProfilePage() {
             </div>
 
             {/* Resume Upload Wizard (Drag-and-Drop) */}
-            <div className="md:col-span-2 bg-white dark:bg-gray-900 border border-gray-150/85 dark:border-gray-800/85 rounded-3xl p-8 shadow-xl shadow-gray-100/10 dark:shadow-none flex flex-col items-center justify-center text-center">
+            <div className="md:col-span-2 bg-white dark:bg-[#11131F] border border-gray-150 dark:border-white/[0.08] rounded-3xl p-8 shadow-xl shadow-gray-100/10 dark:shadow-none flex flex-col items-center justify-center text-center">
               <div 
                 onDragEnter={handleDrag}
                 onDragOver={handleDrag}
@@ -360,7 +360,7 @@ export default function ProfilePage() {
             <div className="lg:col-span-1 flex flex-col gap-6">
               
               {/* Account Credentials */}
-              <div className="bg-white dark:bg-gray-900 border border-gray-150/85 dark:border-gray-800/85 rounded-3xl p-6 shadow-xl shadow-gray-100/10 dark:shadow-none">
+              <div className="bg-white dark:bg-[#11131F] border border-gray-150 dark:border-white/[0.08] rounded-3xl p-6 shadow-xl shadow-gray-100/10 dark:shadow-none">
                 <h3 className="text-base font-bold text-gray-900 dark:text-white border-b border-gray-100 dark:border-gray-855 pb-3 mb-4">
                   Account Credentials
                 </h3>
@@ -388,7 +388,7 @@ export default function ProfilePage() {
 
               {/* Resume Status Card */}
               {role === "CANDIDATE" && (
-                <div className="bg-white dark:bg-gray-900 border border-gray-150/85 dark:border-gray-800/85 rounded-3xl p-6 shadow-xl shadow-gray-100/10 dark:shadow-none">
+                <div className="bg-white dark:bg-[#11131F] border border-gray-150 dark:border-white/[0.08] rounded-3xl p-6 shadow-xl shadow-gray-100/10 dark:shadow-none">
                   <h3 className="text-base font-bold text-gray-900 dark:text-white border-b border-gray-100 dark:border-gray-855 pb-3 mb-4">
                     Uploaded Resume
                   </h3>
@@ -458,7 +458,7 @@ export default function ProfilePage() {
             <div className="lg:col-span-2 flex flex-col gap-6">
               
               {/* Professional Profile Form */}
-              <div className="bg-white dark:bg-gray-900 border border-gray-150/85 dark:border-gray-800/85 rounded-3xl p-6 shadow-xl shadow-gray-100/10 dark:shadow-none">
+              <div className="bg-white dark:bg-[#11131F] border border-gray-150 dark:border-white/[0.08] rounded-3xl p-6 shadow-xl shadow-gray-100/10 dark:shadow-none">
                 <h3 className="text-base font-bold text-gray-900 dark:text-white border-b border-gray-100 dark:border-gray-855 pb-3 mb-5">
                   Professional Profile
                 </h3>
@@ -555,7 +555,7 @@ export default function ProfilePage() {
 
               {/* Parsed & Extracted Skills */}
               {skills.length > 0 && (
-                <div className="bg-white dark:bg-gray-900 border border-gray-150/85 dark:border-gray-800/85 rounded-3xl p-6 shadow-xl shadow-gray-100/10 dark:shadow-none">
+                <div className="bg-white dark:bg-[#11131F] border border-gray-150 dark:border-white/[0.08] rounded-3xl p-6 shadow-xl shadow-gray-100/10 dark:shadow-none">
                   <h3 className="text-base font-bold text-gray-900 dark:text-white border-b border-gray-100 dark:border-gray-855 pb-3 mb-4 flex items-center justify-between">
                     <span>Extracted Skills</span>
                     <span className="text-[10px] font-bold bg-brand-500/10 text-brand-600 dark:text-brand-400 px-2.5 py-0.5 rounded-md uppercase tracking-wider border border-brand-500/20">
