@@ -41,9 +41,10 @@ FROM --platform=linux/amd64 node:20-bookworm-slim AS production
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install OpenSSL for Prisma, LibreOffice, Chromium, and standard fonts
+# Install OpenSSL for Prisma, Poppler-utils (pdftohtml), LibreOffice, Chromium, and standard fonts
 RUN apt-get update && apt-get install -y --no-install-recommends \
     openssl \
+    poppler-utils \
     libreoffice-core \
     libreoffice-writer \
     chromium \
