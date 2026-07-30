@@ -73,10 +73,10 @@
   --color-gray-500: #667085;
   --color-gray-600: #475467;
   --color-gray-700: #344054;
-  --color-gray-800: #151d30;
-  --color-gray-900: #0b0f19;
-  --color-gray-950: #060814;
-  --color-gray-dark: #0a0d1a;
+  --color-gray-800: #1a1d2b;
+  --color-gray-900: #11131f;
+  --color-gray-950: #0b0c10;
+  --color-gray-dark: #0e1018;
 
   --color-orange-25: #fffaf5;
   --color-orange-50: #fff6ed;
@@ -188,8 +188,20 @@
     cursor: pointer;
   }
   body {
-    @apply relative font-normal font-outfit z-1 bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100;
+    @apply relative font-normal font-outfit z-1 bg-gray-50 dark:bg-[#0B0C10] text-gray-900 dark:text-gray-100;
   }
+}
+
+@utility yojak-card {
+  @apply bg-white dark:bg-[#11131F] border border-gray-200 dark:border-white/[0.08] shadow-sm rounded-2xl transition-all;
+}
+
+@utility yojak-pill {
+  @apply bg-gray-100 dark:bg-white/[0.04] border border-gray-200 dark:border-white/[0.08] text-gray-700 dark:text-gray-300 rounded-full px-3.5 py-1.5 text-xs font-medium tracking-wide transition-all;
+}
+
+@utility yojak-input {
+  @apply bg-white dark:bg-[#0B0C10] border border-gray-200 dark:border-white/[0.1] text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 rounded-xl px-4 py-2.5 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition-all;
 }
 
 @utility menu-item {
