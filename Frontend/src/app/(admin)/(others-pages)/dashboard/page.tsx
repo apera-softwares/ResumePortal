@@ -396,7 +396,7 @@ export default function DashboardPage() {
     <div className="space-y-6 max-w-[1600px] mx-auto">
 
       {/* ── Welcome & Interactive Header ── */}
-      <div className="relative flex flex-col md:flex-row justify-between items-start md:items-center bg-gradient-to-br from-[#181A2F] via-[#121424] to-[#0A0B10] text-white rounded-3xl p-6 md:p-8 shadow-md overflow-hidden transition-all border border-white/[0.08]">
+      <div className="relative flex flex-col md:flex-row justify-between items-start md:items-center bg-gradient-to-br from-indigo-600 via-blue-600 to-indigo-800 dark:from-[#181A2F] dark:via-[#121424] dark:to-[#0A0B10] text-white rounded-3xl p-6 md:p-8 shadow-md overflow-hidden transition-all border border-indigo-500/20 dark:border-white/[0.08]">
         <div className="absolute -right-10 -bottom-10 w-60 h-60 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none"></div>
         <div className="absolute left-1/3 top-0 w-32 h-32 bg-white/5 rounded-full blur-2xl pointer-events-none"></div>
 

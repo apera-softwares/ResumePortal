@@ -34,9 +34,7 @@ const AddSkills = () => {
         if (!res.ok) throw new Error("Something went wrong!");
 
         const data = await res.json();
-        console.log(data, "im response data");
 
-        // since API returns an array of skill objects
         setSkills(data);
       } catch (error) {
         console.error("Error fetching skills:", error);

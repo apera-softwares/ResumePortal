@@ -249,7 +249,7 @@ export default function ProfilePage() {
       <div className="max-w-5xl mx-auto w-full">
         
         {/* Profile Header Banner */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-gradient-to-br from-[#181A2F] via-[#121424] to-[#0A0B10] text-white rounded-3xl p-6 md:p-8 shadow-md relative overflow-hidden mb-6 border border-white/[0.08]">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-gradient-to-br from-indigo-600 via-blue-600 to-indigo-800 dark:from-[#181A2F] dark:via-[#121424] dark:to-[#0A0B10] text-white rounded-3xl p-6 md:p-8 shadow-md relative overflow-hidden mb-6 border border-indigo-500/20 dark:border-white/[0.08]">
           <div className="absolute right-0 bottom-0 top-0 w-1/3 opacity-10 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-white via-transparent to-transparent pointer-events-none"></div>
           <div className="space-y-2 z-10">
             <span className="bg-white/10 text-white text-[10px] px-3 py-1 rounded-full font-bold uppercase tracking-wider backdrop-blur-xs border border-white/10">
