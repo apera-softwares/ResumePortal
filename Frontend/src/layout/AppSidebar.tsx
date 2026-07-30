@@ -174,7 +174,7 @@ const AppSidebar: React.FC = () => {
   return (
     <>
       <aside
-        className={`fixed top-0 left-0 z-50 flex flex-col justify-between h-screen bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 text-gray-900 transition-all duration-300 ease-in-out px-4 py-6
+        className={`fixed top-0 left-0 z-50 flex flex-col justify-between h-screen bg-white dark:bg-[#0E1017] border-r border-gray-200 dark:border-white/[0.08] text-gray-900 transition-all duration-300 ease-in-out px-4 py-6
           ${isSidebarVisible ? "w-[290px]" : "w-[90px]"}
           ${isMobileOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}
         onMouseEnter={() => !isExpanded && setIsHovered(true)}
@@ -193,7 +193,7 @@ const AppSidebar: React.FC = () => {
           </div>
 
           {/* Profile Badge */}
-          <div className="mb-6 px-2 py-3 rounded-2xl bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800/80 transition-all">
+          <div className="mb-6 px-2 py-3 rounded-2xl bg-gray-50 dark:bg-[#131522] border border-gray-100 dark:border-white/[0.08] transition-all">
             <div className={`flex items-center gap-3 ${!isSidebarVisible ? "justify-center" : ""}`}>
               <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-700 to-indigo-700 flex items-center justify-center text-white font-bold text-base shadow-sm shrink-0">
                 {avatarInitial}
@@ -222,7 +222,7 @@ const AppSidebar: React.FC = () => {
                         if (isMobileOpen) toggleMobileSidebar();
                         nav.onClick?.();
                       }}
-                      className="menu-item group menu-item-inactive w-full text-left cursor-pointer border-none bg-transparent outline-none flex items-center px-3 py-2.5 rounded-xl transition-all hover:bg-gray-100 dark:hover:bg-gray-800"
+                      className="menu-item group menu-item-inactive w-full text-left cursor-pointer border-none bg-transparent outline-none flex items-center px-3 py-2.5 rounded-xl transition-all hover:bg-gray-100 dark:hover:bg-white/[0.05]"
                     >
                       <span className="menu-item-icon-inactive text-gray-500 dark:text-gray-400 min-w-[24px]">
                         {nav.icon}
@@ -237,8 +237,8 @@ const AppSidebar: React.FC = () => {
                       onClick={(e) => handleLinkClick(e, nav.path, nav.name)}
                       className={`menu-item group flex items-center px-3 py-2.5 rounded-xl transition-all ${
                         isActive(nav.path)
-                          ? "menu-item-active bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400 font-semibold"
-                          : "menu-item-inactive text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800/70"
+                          ? "menu-item-active bg-blue-50 text-blue-700 dark:bg-brand-500/15 dark:text-brand-400 dark:border dark:border-brand-500/30 font-semibold"
+                          : "menu-item-inactive text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/[0.05]"
                       }`}
                     >
                       <span className={`menu-item-icon min-w-[24px] ${isActive(nav.path) ? "text-blue-600 dark:text-blue-400" : "text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-200"}`}>
@@ -256,7 +256,7 @@ const AppSidebar: React.FC = () => {
         </div>
 
         {/* Bottom Section: Logout Button */}
-        <div className="pt-4 mt-auto border-t border-gray-150 dark:border-gray-800">
+        <div className="pt-4 mt-auto border-t border-gray-150 dark:border-white/[0.08]">
           <button
             onClick={() => setIsLogoutModalOpen(true)}
             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 active:bg-rose-100 dark:active:bg-rose-900/40 transition-all cursor-pointer font-semibold text-sm group ${

@@ -396,7 +396,7 @@ export default function DashboardPage() {
     <div className="space-y-6 max-w-[1600px] mx-auto">
 
       {/* ── Welcome & Interactive Header ── */}
-      <div className="relative flex flex-col md:flex-row justify-between items-start md:items-center bg-gradient-to-br from-slate-900 via-indigo-900 to-indigo-950 text-white rounded-3xl p-6 md:p-8 shadow-md overflow-hidden transition-all border border-indigo-950/15 dark:border-slate-800/40">
+      <div className="relative flex flex-col md:flex-row justify-between items-start md:items-center bg-gradient-to-br from-[#181A2F] via-[#121424] to-[#0A0B10] text-white rounded-3xl p-6 md:p-8 shadow-md overflow-hidden transition-all border border-white/[0.08]">
         <div className="absolute -right-10 -bottom-10 w-60 h-60 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none"></div>
         <div className="absolute left-1/3 top-0 w-32 h-32 bg-white/5 rounded-full blur-2xl pointer-events-none"></div>
 
@@ -442,7 +442,7 @@ export default function DashboardPage() {
       </div>
 
       {/* ── Dashboard Quick Actions Toolbar ── */}
-      <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 shadow-sm flex flex-wrap gap-2.5 items-center justify-between">
+      <div className="bg-white dark:bg-[#11131F] border border-gray-100 dark:border-white/[0.08] rounded-2xl p-4 shadow-sm flex flex-wrap gap-2.5 items-center justify-between">
         <div className="flex items-center gap-2 text-sm font-bold text-gray-800 dark:text-gray-200">
           <ClipboardList className="w-4.5 h-4.5 text-indigo-650" />
           <span>Quick Actions</span>
@@ -452,14 +452,14 @@ export default function DashboardPage() {
             <>
               <button
                 onClick={() => router.push('/dashboard/my-applications')}
-                className="px-3.5 py-1.5 text-xs font-semibold rounded-xl bg-gray-50 hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-200/60 dark:border-gray-700/60 transition-all cursor-pointer flex items-center gap-1.5"
+                className="px-3.5 py-1.5 text-xs font-semibold rounded-xl bg-gray-50 hover:bg-gray-100 dark:bg-white/[0.04] dark:hover:bg-white/[0.08] text-gray-700 dark:text-gray-300 border border-gray-200/60 dark:border-white/[0.08] transition-all cursor-pointer flex items-center gap-1.5"
               >
                 <span>My Applications</span>
                 <ChevronRight className="w-3.5 h-3.5" />
               </button>
               <button
                 onClick={() => router.push('/dashboard/jobs')}
-                className="px-3.5 py-1.5 text-xs font-semibold rounded-xl bg-gray-50 hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-200/60 dark:border-gray-700/60 transition-all cursor-pointer flex items-center gap-1.5"
+                className="px-3.5 py-1.5 text-xs font-semibold rounded-xl bg-gray-50 hover:bg-gray-100 dark:bg-white/[0.04] dark:hover:bg-white/[0.08] text-gray-700 dark:text-gray-300 border border-gray-200/60 dark:border-white/[0.08] transition-all cursor-pointer flex items-center gap-1.5"
               >
                 <span>Browse Vacancies</span>
                 <ChevronRight className="w-3.5 h-3.5" />
@@ -476,14 +476,14 @@ export default function DashboardPage() {
             <>
               <button
                 onClick={() => router.push('/candidates')}
-                className="px-3.5 py-1.5 text-xs font-semibold rounded-xl bg-gray-50 hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-200/60 dark:border-gray-700/60 transition-all cursor-pointer flex items-center gap-1.5"
+                className="px-3.5 py-1.5 text-xs font-semibold rounded-xl bg-gray-50 hover:bg-gray-100 dark:bg-white/[0.04] dark:hover:bg-white/[0.08] text-gray-700 dark:text-gray-300 border border-gray-200/60 dark:border-white/[0.08] transition-all cursor-pointer flex items-center gap-1.5"
               >
                 <span>Search Candidates</span>
                 <ChevronRight className="w-3.5 h-3.5" />
               </button>
               <button
                 onClick={() => router.push('/addskills')}
-                className="px-3.5 py-1.5 text-xs font-semibold rounded-xl bg-gray-50 hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-200/60 dark:border-gray-700/60 transition-all cursor-pointer flex items-center gap-1.5"
+                className="px-3.5 py-1.5 text-xs font-semibold rounded-xl bg-gray-50 hover:bg-gray-100 dark:bg-white/[0.04] dark:hover:bg-white/[0.08] text-gray-700 dark:text-gray-300 border border-gray-200/60 dark:border-white/[0.08] transition-all cursor-pointer flex items-center gap-1.5"
               >
                 <span>Skills Settings</span>
                 <ChevronRight className="w-3.5 h-3.5" />
