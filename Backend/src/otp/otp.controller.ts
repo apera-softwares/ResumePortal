@@ -12,6 +12,7 @@ export class OtpController {
   @ApiOperation({ summary: 'Send an OTP code to the provided email address' })
   @ApiResponse({ status: 201, description: 'OTP sent successfully' })
   @ApiResponse({ status: 400, description: 'Bad Request' })
+  @ApiResponse({ status: 500, description: 'Email delivery failed or SMTP misconfiguration' })
   async sendOtp(@Body() sendOtpDto: SendOtpDto) {
     return this.otpService.sendOtp(sendOtpDto.email);
   }

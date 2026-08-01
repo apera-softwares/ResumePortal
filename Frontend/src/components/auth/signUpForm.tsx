@@ -129,11 +129,21 @@ export default function SignUpForm() {
       }
 
       // Send OTP after successful signup
-      await axios.post(`${API_URL}/otp/send`, { email: formData.email }).catch((err) => {
+      let otpSent = true;
+      let otpErrMsg = "";
+      try {
+        await axios.post(`${API_URL}/otp/send`, { email: formData.email });
+      } catch (err: any) {
+        otpSent = false;
         console.error("Failed to send OTP", err);
-      });
+        otpErrMsg = err.response?.data?.message || "Failed to send verification email.";
+      }
 
-      toast.success("Account created! Please verify your email.");
+      if (otpSent) {
+        toast.success("Account created! Please verify your email.");
+      } else {
+        toast.error(`Account created, but verification email failed: ${otpErrMsg}`);
+      }
       
       // Store temp email and redirect
       if (typeof window !== "undefined") {
