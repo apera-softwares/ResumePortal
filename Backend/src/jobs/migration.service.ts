@@ -200,8 +200,6 @@ export class MigrationService {
     this.logger.log(`Sending extracted text from "${filename}" to DeepSeek AI...`);
     const parsedData = await this.deepSeekService.parseResumeText(rawText);
 
-    console.log("Parsed Data ", parsedData)
-
     // 4. Save Parsed JSON result back to Cloudflare R2 bucket under migration/parsed/
     const r2JsonPath = key.replace(/\.pdf$/i, '.json').replace(/^migration\//, 'migration/parsed/');
     const jsonOutput = {

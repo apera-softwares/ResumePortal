@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { CandidateCreatedEvent } from 'src/envent/events';
 import { PrismaService } from 'src/prisma.service';
@@ -30,6 +30,8 @@ async function streamToBuffer(stream: any): Promise<Buffer> {
 
 @Injectable()
 export class CandidateCreatedListener {
+  private readonly logger = new Logger(CandidateCreatedListener.name);
+
   constructor(
     private prisma: PrismaService,
     private deepSeekService: DeepSeekService,
@@ -38,7 +40,7 @@ export class CandidateCreatedListener {
   @OnEvent('candidate.created')
   async handleCandidateCreatedEvent(event: CandidateCreatedEvent) {
     const { candidateId } = event;
-    console.log(`[Event Handler] Starting processing for candidate ID: ${candidateId}`);
+    this.logger.log(`Starting background processing for candidate ID: ${candidateId}`);
 
     const tempDir = join(os.tmpdir(), 'resume_portal_temp');
     if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
@@ -52,7 +54,7 @@ export class CandidateCreatedListener {
       });
 
       if (!candidate || !candidate.resume) {
-        console.warn(`[Event Handler] Candidate or resume field missing for ID: ${candidateId}`);
+        this.logger.warn(`Candidate or resume field missing for ID: ${candidateId}`);
         return;
       }
 
@@ -81,12 +83,12 @@ export class CandidateCreatedListener {
           const s3Response = await client.send(getCommand);
           fileBuffer = await streamToBuffer(s3Response.Body);
         } catch (s3Err: any) {
-          console.error(`[Event Handler] Error fetching key "${rawKey}" from R2/S3:`, s3Err?.message || s3Err);
+          this.logger.error(`Error fetching key "${rawKey}" from R2/S3: ${s3Err?.message || s3Err}`);
         }
       }
 
       if (!fileBuffer) {
-        console.error(`[Event Handler] Could not retrieve file buffer for candidate ID: ${candidateId}`);
+        this.logger.error(`Could not retrieve file buffer for candidate ID: ${candidateId}`);
         return;
       }
 
@@ -104,7 +106,7 @@ export class CandidateCreatedListener {
             resumeText = fs.readFileSync(tempHtmlPath, 'utf8');
           }
         } catch (execError: any) {
-          console.warn('[Event Handler] pdftohtml conversion failed, falling back to pdf-parse');
+          this.logger.warn('pdftohtml conversion failed, falling back to pdf-parse');
         }
 
         if (!resumeText || resumeText.trim() === '') {
@@ -123,7 +125,7 @@ export class CandidateCreatedListener {
               resumeText = `<div style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 24px; color: #1e293b; background: #ffffff;">\n${paragraphs.join('\n')}\n</div>`;
             }
           } catch (pdfParseErr: any) {
-            console.error('[Event Handler] pdf-parse fallback failed:', pdfParseErr?.message || pdfParseErr);
+            this.logger.error(`pdf-parse fallback failed: ${pdfParseErr?.message || pdfParseErr}`);
           }
         }
       } else if (fileExtension === '.docx' || fileExtension === '.doc') {
@@ -140,7 +142,7 @@ export class CandidateCreatedListener {
             const result = await mammoth.convertToHtml({ buffer: fileBuffer });
             resumeText = result.value || '';
           } catch (mammothError: any) {
-            console.error('[Event Handler] Fallback Mammoth DOCX conversion failed:', mammothError?.message);
+            this.logger.error(`Fallback Mammoth DOCX conversion failed: ${mammothError?.message}`);
           }
         }
       }
@@ -149,14 +151,10 @@ export class CandidateCreatedListener {
       let parsedJson: any = null;
       if (resumeText && resumeText.trim() !== '') {
         try {
-          console.log(`[Event Handler] Sending extracted text to DeepSeek AI...`);
+          this.logger.log(`Sending extracted text to DeepSeek AI for candidate ID: ${candidateId}...`);
           parsedJson = await this.deepSeekService.parseResumeText(resumeText);
-          console.log(`\n======================================================`);
-          console.log(`[Event Handler] 📊 PARSED DEEPSEEK JSON FOR CANDIDATE ${candidateId}:`);
-          console.log(JSON.stringify(parsedJson, null, 2));
-          console.log(`======================================================\n`);
         } catch (aiErr: any) {
-          console.error(`[Event Handler] DeepSeek AI parsing error:`, aiErr?.message || aiErr);
+          this.logger.error(`DeepSeek AI parsing error for candidate ID ${candidateId}: ${aiErr?.message || aiErr}`);
         }
       }
 
@@ -169,9 +167,9 @@ export class CandidateCreatedListener {
         },
       });
 
-      console.log(`[Event Handler] Successfully processed candidate ID: ${candidateId}`);
+      this.logger.log(`Successfully processed candidate ID: ${candidateId}`);
     } catch (error: any) {
-      console.error(`[Event Handler] Processing error for candidate ID ${candidateId}:`, error?.message || error);
+      this.logger.error(`Processing error for candidate ID ${candidateId}: ${error?.message || error}`);
     } finally {
       // Guaranteed cleanup of temp OS files
       if (tempFilePath && fs.existsSync(tempFilePath)) {

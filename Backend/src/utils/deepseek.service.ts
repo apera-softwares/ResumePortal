@@ -19,13 +19,7 @@ export class DeepSeekService {
     let token = process.env.DEEPSEEK_API_KEY;
 
     if (!token) {
-      this.logger.warn('No DeepSeek token found in configuration.');
-    } else {
-      const tokenPreview =
-        token.length > 9
-          ? `${token.substring(0, 5)}...${token.slice(-4)}`
-          : '***';
-      this.logger.log(`Using token: ${tokenPreview} for API call to DeepSeek`);
+      this.logger.warn('No DeepSeek API key configured.');
     }
 
     try {
