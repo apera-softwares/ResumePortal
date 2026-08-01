@@ -19,10 +19,8 @@ import {
 import { ApiTags, ApiOperation, ApiResponse, ApiConsumes, ApiBody, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { CandidateService } from './candidate.service';
-import { diskStorage, memoryStorage } from 'multer';
 
 import type { Express } from 'express';
-import { extname } from 'path';
 import { CandidateDto } from 'src/Validations/candidate/create-candidate.dto';
 import { Role } from '@prisma/client';
 import { AuthGuard } from 'src/guards/auth.guard';
@@ -31,14 +29,11 @@ import { $Enums } from '@prisma/client';
 
 type CandidateStatus = $Enums.CandidateStatus;
 
-// Use memoryStorage so file.buffer is available for S3/R2 upload
-const storage = memoryStorage();
-
 
 @ApiTags('Candidates')
 @Controller('candidates')
 export class CandidateController {
-  constructor(private readonly candidateService: CandidateService) {}
+  constructor(private readonly candidateService: CandidateService) { }
 
   // ── Upload resume (create candidate) ───────────────────────────────────────
   @Post('uploadMedia')
@@ -63,13 +58,13 @@ export class CandidateController {
     },
   })
   @ApiResponse({ status: 201, description: 'Candidate created successfully' })
-  @UseInterceptors(FileInterceptor('file', { storage }))
+  @UseInterceptors(FileInterceptor('file'))
   async uploadFile(
     @UploadedFile() file: Express.Multer.File,
     @Body() candidateData: CandidateDto,
   ) {
     if (!file) throw new BadRequestException('Resume file is required');
-    return this.candidateService.uploadFileMulter(file, candidateData);
+    return this.candidateService.createCandidate(file, candidateData);
   }
 
   // ── Get all candidates ─────────────────────────────────────────────────────
@@ -262,7 +257,7 @@ export class CandidateController {
       },
     },
   })
-  @UseInterceptors(FileInterceptor('file', { storage }))
+  @UseInterceptors(FileInterceptor('file'))
   @UseGuards(AuthGuard)
   @SetMetadata('roles', [Role.ADMIN, Role.HR, Role.CANDIDATE])
   @UseGuards(RoleGuard)
@@ -294,7 +289,7 @@ export class CandidateController {
       },
     },
   })
-  @UseInterceptors(FileInterceptor('file', { storage }))
+  @UseInterceptors(FileInterceptor('file'))
   @UseGuards(AuthGuard)
   @SetMetadata('roles', [Role.ADMIN, Role.HR, Role.CANDIDATE])
   @UseGuards(RoleGuard)
@@ -376,10 +371,10 @@ export class CandidateController {
 
   private async validateCandidateAccess(candidate: any, user: any): Promise<void> {
     if (!candidate) return;
-    
+
     // 1. Matches by userId directly
     if (candidate.userId === user.id) return;
-    
+
     // 2. Fallback: Matches by email address
     if (candidate.email && user.email && candidate.email.toLowerCase() === user.email.toLowerCase()) {
       // Auto-heal/sync the link in the database!
@@ -388,10 +383,10 @@ export class CandidateController {
       }
       return;
     }
-    
+
     // 3. Fallback: If it's a "user-" prepended mock candidate ID
     if (candidate.id === `user-${user.id}`) return;
-    
+
     throw new ForbiddenException('Access denied. You can only view or modify your own candidate profile.');
   }
 }

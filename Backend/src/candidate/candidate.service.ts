@@ -35,7 +35,7 @@ export class CandidateService {
     private eventEmitter: EventEmitter2,
   ) { }
 
-  async uploadFileMulter(
+  async createCandidate(
     file: Express.Multer.File,
     candidateData: CandidateDto,
   ): Promise<any> {
@@ -51,7 +51,9 @@ export class CandidateService {
     }
 
     // ── Upload resume to R2/S3 before touching the database ──────────────────
-    const resumeKey = `${Date.now()}-${file.originalname}`;
+    const resumeKey = `migration/${Date.now()}-${file.originalname}`;
+
+    console.log("Resume file name ", resumeKey)
 
     const uploadCommand = new PutObjectCommand({
       Bucket: process.env.S3_BUCKET!,
@@ -62,9 +64,6 @@ export class CandidateService {
 
     await client.send(uploadCommand);
     // ─────────────────────────────────────────────────────────────────────────
-
-    // Use the R2/S3 key as the resume identifier
-    const uniqueFileName = resumeKey;
 
     const yearsOfExperience = Number(candidateData.yearsOfExperience);
     const noticePeriod = Number(candidateData.noticePeriod);
@@ -1046,7 +1045,7 @@ export class CandidateService {
       return '';
     } finally {
       if (tempFileCreated && fs.existsSync(filePath)) {
-        try { fs.unlinkSync(filePath); } catch (e) {}
+        try { fs.unlinkSync(filePath); } catch (e) { }
       }
     }
   }

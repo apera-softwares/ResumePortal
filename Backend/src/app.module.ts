@@ -13,6 +13,7 @@ import { OtpModule } from './otp/otp.module';
 import { LocationsModule } from './locations/locations.module';
 
 import { MailModule } from './mail/mail.module';
+import { MigrationModule } from './jobs/migration.module';
 
 
 @Module({
@@ -28,6 +29,7 @@ import { MailModule } from './mail/mail.module';
     OtpModule,
     MailModule,
     LocationsModule,
+    MigrationModule,
   ],
   controllers: [AppController],
   providers: [AppService],
