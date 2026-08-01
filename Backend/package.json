@@ -18,7 +18,9 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json"
+    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "migrate:resumes": "ts-node -r tsconfig-paths/register bin/migrate-r2-resumes.ts",
+    "migrate:resume": "ts-node -r tsconfig-paths/register bin/migrate-r2-resumes.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1086.0",
@@ -44,6 +46,7 @@
     "md5": "^2.3.0",
     "multer": "^2.0.2",
     "nodemailer": "^9.0.1",
+    "openai": "^7.3.0",
     "pdf-parse": "^2.4.5",
     "puppeteer": "^25.2.1",
     "reflect-metadata": "^0.2.2",

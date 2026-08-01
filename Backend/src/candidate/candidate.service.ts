@@ -6,7 +6,7 @@ type CandidateStatus = $Enums.CandidateStatus;
 import { CandidateDto } from 'src/Validations/candidate/create-candidate.dto';
 import { join } from 'path';
 import { extname } from 'path';
-import { NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import { NotFoundException, BadRequestException, ForbiddenException, Logger } from '@nestjs/common';
 import * as fs from 'fs';
 import * as mammoth from 'mammoth';
 import { Document, Packer, Paragraph, TextRun } from 'docx';
@@ -30,17 +30,17 @@ const client = new S3Client({
 
 @Injectable()
 export class CandidateService {
+  private readonly logger = new Logger(CandidateService.name);
+
   constructor(
     private prisma: PrismaService,
     private eventEmitter: EventEmitter2,
   ) { }
 
-  async uploadFileMulter(
+  async createCandidate(
     file: Express.Multer.File,
     candidateData: CandidateDto,
   ): Promise<any> {
-    console.log('File ', file);
-
     const allowedExtensions = ['.pdf', '.doc', '.docx'];
     const fileExtension = extname(file.originalname);
 
@@ -51,7 +51,7 @@ export class CandidateService {
     }
 
     // ── Upload resume to R2/S3 before touching the database ──────────────────
-    const resumeKey = `${Date.now()}-${file.originalname}`;
+    const resumeKey = `migration/${Date.now()}-${file.originalname}`;
 
     const uploadCommand = new PutObjectCommand({
       Bucket: process.env.S3_BUCKET!,
@@ -62,9 +62,6 @@ export class CandidateService {
 
     await client.send(uploadCommand);
     // ─────────────────────────────────────────────────────────────────────────
-
-    // Use the R2/S3 key as the resume identifier
-    const uniqueFileName = resumeKey;
 
     const yearsOfExperience = Number(candidateData.yearsOfExperience);
     const noticePeriod = Number(candidateData.noticePeriod);
@@ -195,8 +192,6 @@ export class CandidateService {
         },
       });
 
-      console.log('Updated Candidate: ', updatedCandidate);
-
       // Emit candidate.created event for asynchronous text extraction
       this.eventEmitter.emit(
         'candidate.created',
@@ -248,8 +243,6 @@ export class CandidateService {
         appliedJobs: { include: { job: true } },
       },
     });
-
-    console.log('Created Candidate: ', createdCandidate);
 
     // Emit candidate.created event for asynchronous text extraction
     this.eventEmitter.emit(
@@ -911,7 +904,7 @@ export class CandidateService {
     let tempFileCreated = false;
     try {
       if (!fs.existsSync(filePath)) {
-        console.log(`[Auto-Parse] Fetching resume file for candidate ${candidate.id}: ${uniqueFileName}`);
+        this.logger.log(`Fetching resume file for candidate ${candidate.id}: ${uniqueFileName}`);
 
         const httpUrl =
           candidate.resumePdf && candidate.resumePdf.startsWith('http')
@@ -931,10 +924,10 @@ export class CandidateService {
               }
               fs.writeFileSync(filePath, Buffer.from(arrayBuffer));
               tempFileCreated = true;
-              console.log(`[Auto-Parse] Successfully fetched resume via HTTP for candidate ${candidate.id}`);
+              this.logger.log(`Successfully fetched resume via HTTP for candidate ${candidate.id}`);
             }
           } catch (httpErr) {
-            console.error(`[Auto-Parse] Failed HTTP fetch for candidate ${candidate.id}:`, httpErr);
+            this.logger.error(`Failed HTTP fetch for candidate ${candidate.id}: ${httpErr}`);
           }
         }
 
@@ -961,8 +954,9 @@ export class CandidateService {
             }
             fs.writeFileSync(filePath, responseBuffer);
             tempFileCreated = true;
-          } catch (s3Err) {
-            console.error(`[Auto-Parse] Failed S3 fetch for candidate ${candidate.id}:`, s3Err);
+            this.logger.log(`Successfully fetched resume from R2/S3 for candidate ${candidate.id}`);
+          } catch (s3Error) {
+            this.logger.error(`Failed to fetch file from R2/S3 for candidate ${candidate.id}: ${s3Error}`);
           }
         }
       }
@@ -983,10 +977,10 @@ export class CandidateService {
               const rawHtml = fs.readFileSync(htmlFilePath, 'utf8');
               extractedText = cleanPdftohtmlOutline(rawHtml);
               fs.unlinkSync(htmlFilePath);
-              console.log(`[Auto-Parse] pdftohtml conversion succeeded for candidate ${candidate.id}`);
+              this.logger.log(`pdftohtml conversion succeeded for candidate ${candidate.id}`);
             }
           } catch (execError: any) {
-            console.warn('[Auto-Parse] pdftohtml failed, attempting pdf-parse fallback:', execError?.message || execError);
+            this.logger.warn(`pdftohtml failed, attempting pdf-parse fallback: ${execError?.message || execError}`);
           }
 
           // Fallback to pdf-parse if pdftohtml failed or produced empty text
@@ -997,10 +991,10 @@ export class CandidateService {
               const pdfData = await pdfParse(buffer);
               if (pdfData && pdfData.text && pdfData.text.trim()) {
                 extractedText = formatPdfTextToHtml(pdfData.text);
-                console.log(`[Auto-Parse] pdf-parse fallback succeeded for candidate ${candidate.id}`);
+                this.logger.log(`pdf-parse fallback succeeded for candidate ${candidate.id}`);
               }
             } catch (pdfParseErr: any) {
-              console.error('[Auto-Parse] pdf-parse fallback failed:', pdfParseErr?.message || pdfParseErr);
+              this.logger.error(`pdf-parse fallback failed: ${pdfParseErr?.message || pdfParseErr}`);
             }
           }
         } else if (fileExtension === '.docx' || fileExtension === '.doc') {
@@ -1016,7 +1010,7 @@ export class CandidateService {
               const rawHtml = fs.readFileSync(htmlFilePath, 'utf8');
               extractedText = cleanPdftohtmlOutline(rawHtml);
               fs.unlinkSync(htmlFilePath);
-              console.log(`[Auto-Parse] LibreOffice conversion succeeded for candidate ${candidate.id}`);
+              this.logger.log(`LibreOffice conversion succeeded for candidate ${candidate.id}`);
             }
           } catch (libreOfficeError: any) {
             try {
@@ -1024,7 +1018,7 @@ export class CandidateService {
               const result = await mammoth.convertToHtml({ buffer });
               extractedText = result.value ? `<div style="font-family: Arial, sans-serif; padding: 24px; color: #1e293b;">${result.value}</div>` : '';
             } catch (mErr) {
-              console.error('[Auto-Parse] Mammoth conversion failed:', mErr);
+              this.logger.error(`Mammoth conversion failed: ${mErr}`);
             }
           }
         }
@@ -1046,7 +1040,7 @@ export class CandidateService {
       return '';
     } finally {
       if (tempFileCreated && fs.existsSync(filePath)) {
-        try { fs.unlinkSync(filePath); } catch (e) {}
+        try { fs.unlinkSync(filePath); } catch (e) { }
       }
     }
   }

@@ -1,15 +1,17 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { CandidateCreatedEvent } from 'src/envent/events';
 import { PrismaService } from 'src/prisma.service';
-import { join, extname } from 'path';
+import { join, extname, dirname, basename } from 'path';
 import * as fs from 'fs';
+import * as os from 'os';
 import * as mammoth from 'mammoth';
 import { execSync } from 'child_process';
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
+import { DeepSeekService } from '../utils/deepseek.service';
 
 const client = new S3Client({
-  region: "auto",
+  region: 'auto',
   endpoint: process.env.S3_ENDPOINT,
   credentials: {
     accessKeyId: process.env.ACCESS_KEY_ID!,
@@ -28,14 +30,23 @@ async function streamToBuffer(stream: any): Promise<Buffer> {
 
 @Injectable()
 export class CandidateCreatedListener {
-  constructor(private prisma: PrismaService) { }
+  private readonly logger = new Logger(CandidateCreatedListener.name);
+
+  constructor(
+    private prisma: PrismaService,
+    private deepSeekService: DeepSeekService,
+  ) { }
 
   @OnEvent('candidate.created')
   async handleCandidateCreatedEvent(event: CandidateCreatedEvent) {
     const { candidateId } = event;
-    console.log(
-      `[Event Handler] Starting text extraction for candidate ID: ${candidateId}`,
-    );
+    this.logger.log(`Starting background processing for candidate ID: ${candidateId}`);
+
+    const tempDir = join(os.tmpdir(), 'resume_portal_temp');
+    if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
+
+    let tempFilePath: string | null = null;
+    let tempHtmlPath: string | null = null;
 
     try {
       const candidate = await this.prisma.candidate.findUnique({
@@ -43,186 +54,130 @@ export class CandidateCreatedListener {
       });
 
       if (!candidate || !candidate.resume) {
-        console.warn(
-          `[Event Handler] Candidate or resume file not found for ID: ${candidateId}`,
-        );
+        this.logger.warn(`Candidate or resume field missing for ID: ${candidateId}`);
         return;
       }
 
-      const rawResumeField = candidate.resume;
-      let rawResumeKey = rawResumeField;
-      if (rawResumeKey.includes('?')) rawResumeKey = rawResumeKey.split('?')[0];
-      if (rawResumeKey.startsWith('http://') || rawResumeKey.startsWith('https://')) {
+      let rawKey = candidate.resume;
+      if (rawKey.includes('?')) rawKey = rawKey.split('?')[0];
+
+      const fileNameOnly = basename(rawKey);
+      const fileExtension = extname(fileNameOnly).toLowerCase();
+
+      tempFilePath = join(tempDir, `${Date.now()}_${fileNameOnly}`);
+      let fileBuffer: Buffer | null = null;
+
+      // Fetch file buffer from R2/S3 or HTTP endpoint
+      if (rawKey.startsWith('http://') || rawKey.startsWith('https://')) {
+        const httpRes = await fetch(rawKey);
+        if (httpRes.ok) {
+          const arrayBuffer = await httpRes.arrayBuffer();
+          fileBuffer = Buffer.from(arrayBuffer);
+        }
+      } else if (process.env.S3_BUCKET) {
         try {
-          const urlObj = new URL(rawResumeKey);
-          rawResumeKey = decodeURIComponent(urlObj.pathname.split('/').pop() || '');
-        } catch (e) {
-          rawResumeKey = rawResumeKey.substring(rawResumeKey.lastIndexOf('/') + 1);
-        }
-      }
-      if (rawResumeKey.startsWith('uploads/')) rawResumeKey = rawResumeKey.replace(/^uploads\//, '');
-
-      const uniqueFileName = rawResumeKey;
-      const fileExtension = extname(uniqueFileName).toLowerCase();
-      const filePath = join(process.cwd(), 'uploads', uniqueFileName);
-
-      let tempFileCreated = false;
-      if (!fs.existsSync(filePath)) {
-        console.log(`[Event Handler] File not found locally, attempting to fetch for candidate: ${uniqueFileName}`);
-
-        if (rawResumeField.startsWith('http://') || rawResumeField.startsWith('https://')) {
-          try {
-            const httpRes = await fetch(rawResumeField);
-            if (httpRes.ok) {
-              const arrayBuffer = await httpRes.arrayBuffer();
-              const dir = join(process.cwd(), 'uploads');
-              if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-              fs.writeFileSync(filePath, Buffer.from(arrayBuffer));
-              tempFileCreated = true;
-              console.log(`[Event Handler] Successfully downloaded file via HTTP to: ${filePath}`);
-            }
-          } catch (httpErr) {
-            console.error(`[Event Handler] Failed to fetch file via HTTP:`, httpErr);
-          }
-        }
-
-        if (!fs.existsSync(filePath) && process.env.S3_BUCKET) {
-          try {
-            const getCommand = new GetObjectCommand({
-              Bucket: process.env.S3_BUCKET,
-              Key: uniqueFileName,
-            });
-            const s3Response = await client.send(getCommand);
-            const responseBuffer = await streamToBuffer(s3Response.Body);
-
-            const dir = join(process.cwd(), 'uploads');
-            if (!fs.existsSync(dir)) {
-              fs.mkdirSync(dir, { recursive: true });
-            }
-            fs.writeFileSync(filePath, responseBuffer);
-            tempFileCreated = true;
-            console.log(`[Event Handler] Successfully downloaded file from R2/S3 to temp local path: ${filePath}`);
-          } catch (s3Error) {
-            console.error(`[Event Handler] Failed to fetch file from R2/S3:`, s3Error);
-          }
+          const getCommand = new GetObjectCommand({
+            Bucket: process.env.S3_BUCKET,
+            Key: rawKey,
+          });
+          const s3Response = await client.send(getCommand);
+          fileBuffer = await streamToBuffer(s3Response.Body);
+        } catch (s3Err: any) {
+          this.logger.error(`Error fetching key "${rawKey}" from R2/S3: ${s3Err?.message || s3Err}`);
         }
       }
 
+      if (!fileBuffer) {
+        this.logger.error(`Could not retrieve file buffer for candidate ID: ${candidateId}`);
+        return;
+      }
+
+      fs.writeFileSync(tempFilePath, fileBuffer);
       let resumeText = '';
 
-      if (fs.existsSync(filePath)) {
-        const buffer = fs.readFileSync(filePath);
+      // Text extraction based on file extension
+      if (fileExtension === '.pdf') {
+        tempHtmlPath = join(tempDir, `${Date.now()}_${fileNameOnly.replace(/\.pdf$/i, '.html')}`);
+        try {
+          const command = `pdftohtml -s -noframes -c -dataurls "${tempFilePath}" "${tempHtmlPath}"`;
+          execSync(command);
 
-        if (fileExtension === '.pdf') {
-          const outputDir = join(process.cwd(), 'uploads');
-          const htmlFileName = uniqueFileName.replace(/\.pdf$/i, '.html');
-          const htmlFilePath = join(outputDir, htmlFileName);
-
-          try {
-            // Convert to HTML using pdftohtml to preserve exact styles, positions, and fonts
-            const command = `pdftohtml -s -noframes -c -dataurls "${filePath}" "${htmlFilePath}"`;
-            execSync(command);
-
-            if (fs.existsSync(htmlFilePath)) {
-              resumeText = fs.readFileSync(htmlFilePath, 'utf8');
-              fs.unlinkSync(htmlFilePath);
-              console.log(
-                `[Event Handler] pdftohtml conversion succeeded for candidate ID: ${candidateId}`,
-              );
-            }
-          } catch (execError: any) {
-            console.warn(
-              '[Event Handler] pdftohtml conversion failed, trying pdf-parse fallback:',
-              execError?.message || execError,
-            );
+          if (fs.existsSync(tempHtmlPath)) {
+            resumeText = fs.readFileSync(tempHtmlPath, 'utf8');
           }
-
-          if (!resumeText || resumeText.trim() === '') {
-            try {
-              const pdfParse = require('pdf-parse');
-              const pdfData = await pdfParse(buffer);
-              if (pdfData && pdfData.text && pdfData.text.trim()) {
-                const lines = pdfData.text.split(/\r?\n/).map((l: string) => l.trim()).filter(Boolean);
-                const paragraphs = lines.map((line: string) => {
-                  const escaped = line.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                  if (line.length < 40 && !line.endsWith('.')) {
-                    return `<h3 style="font-size: 16px; font-weight: bold; color: #1e3a8a; margin-top: 16px; margin-bottom: 8px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px;">${escaped}</h3>`;
-                  }
-                  return `<p style="font-size: 14px; line-height: 1.6; color: #334155; margin-bottom: 10px;">${escaped}</p>`;
-                });
-                resumeText = `<div style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 24px; color: #1e293b; background: #ffffff;">\n${paragraphs.join('\n')}\n</div>`;
-                console.log(`[Event Handler] pdf-parse fallback succeeded for candidate ID: ${candidateId}`);
-              }
-            } catch (pdfParseErr: any) {
-              console.error('[Event Handler] pdf-parse fallback failed:', pdfParseErr?.message || pdfParseErr);
-            }
-          }
-        } else if (fileExtension === '.docx' || fileExtension === '.doc') {
-          const outputDir = join(process.cwd(), 'uploads');
-          const htmlFileName = uniqueFileName.replace(
-            /\.(docx|doc)$/i,
-            '.html',
-          );
-          const htmlFilePath = join(outputDir, htmlFileName);
-
-          try {
-            // Convert to HTML using headless LibreOffice to preserve exact layout and styles of Word files
-            const command = `libreoffice --headless --convert-to html --outdir "${outputDir}" "${filePath}"`;
-            execSync(command);
-
-            if (fs.existsSync(htmlFilePath)) {
-              resumeText = fs.readFileSync(htmlFilePath, 'utf8');
-              fs.unlinkSync(htmlFilePath);
-              console.log(
-                `[Event Handler] LibreOffice Word-to-HTML conversion succeeded for candidate ID: ${candidateId}`,
-              );
-            }
-          } catch (libreOfficeError) {
-            console.warn(
-              '[Event Handler] LibreOffice conversion failed, falling back to Mammoth:',
-              libreOfficeError.message,
-            );
-            try {
-              const result = await mammoth.convertToHtml({ buffer });
-              resumeText = result.value || '';
-            } catch (mammothError) {
-              console.error(
-                '[Event Handler] Fallback Mammoth DOCX conversion failed:',
-                mammothError,
-              );
-            }
-          }
+        } catch (execError: any) {
+          this.logger.warn('pdftohtml conversion failed, falling back to pdf-parse');
         }
 
-        // Save the extracted text back to the database
-        await this.prisma.candidate.update({
-          where: { id: candidateId },
-          data: { resumeText },
-        });
-
-        console.log(
-          `[Event Handler] Text extraction completed successfully for candidate ID: ${candidateId}`,
-        );
-
-        // Clean up temporary local file if it was created from R2/S3
-        if (tempFileCreated && fs.existsSync(filePath)) {
+        if (!resumeText || resumeText.trim() === '') {
           try {
-            fs.unlinkSync(filePath);
-            console.log(`[Event Handler] Cleaned up temporary local file: ${filePath}`);
-          } catch (err) {
-            console.error(`[Event Handler] Error cleaning up temporary file:`, err);
+            const pdfParse = require('pdf-parse');
+            const pdfData = await pdfParse(fileBuffer);
+            if (pdfData && pdfData.text && pdfData.text.trim()) {
+              const lines = pdfData.text.split(/\r?\n/).map((l: string) => l.trim()).filter(Boolean);
+              const paragraphs = lines.map((line: string) => {
+                const escaped = line.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                if (line.length < 40 && !line.endsWith('.')) {
+                  return `<h3 style="font-size: 16px; font-weight: bold; color: #1e3a8a; margin-top: 16px; margin-bottom: 8px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px;">${escaped}</h3>`;
+                }
+                return `<p style="font-size: 14px; line-height: 1.6; color: #334155; margin-bottom: 10px;">${escaped}</p>`;
+              });
+              resumeText = `<div style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 24px; color: #1e293b; background: #ffffff;">\n${paragraphs.join('\n')}\n</div>`;
+            }
+          } catch (pdfParseErr: any) {
+            this.logger.error(`pdf-parse fallback failed: ${pdfParseErr?.message || pdfParseErr}`);
           }
         }
-      } else {
-        console.error(
-          `[Event Handler] Resume file does not exist on disk: ${filePath}`,
-        );
+      } else if (fileExtension === '.docx' || fileExtension === '.doc') {
+        try {
+          tempHtmlPath = join(tempDir, `${Date.now()}_${fileNameOnly.replace(/\.(docx|doc)$/i, '.html')}`);
+          const command = `libreoffice --headless --convert-to html --outdir "${tempDir}" "${tempFilePath}"`;
+          execSync(command);
+
+          if (fs.existsSync(tempHtmlPath)) {
+            resumeText = fs.readFileSync(tempHtmlPath, 'utf8');
+          }
+        } catch (libreOfficeError) {
+          try {
+            const result = await mammoth.convertToHtml({ buffer: fileBuffer });
+            resumeText = result.value || '';
+          } catch (mammothError: any) {
+            this.logger.error(`Fallback Mammoth DOCX conversion failed: ${mammothError?.message}`);
+          }
+        }
       }
-    } catch (error) {
-      console.error(
-        `[Event Handler] Error during candidate event handling:`,
-        error,
-      );
+
+      // DeepSeek AI Parsing
+      let parsedJson: any = null;
+      if (resumeText && resumeText.trim() !== '') {
+        try {
+          this.logger.log(`Sending extracted text to DeepSeek AI for candidate ID: ${candidateId}...`);
+          parsedJson = await this.deepSeekService.parseResumeText(resumeText);
+        } catch (aiErr: any) {
+          this.logger.error(`DeepSeek AI parsing error for candidate ID ${candidateId}: ${aiErr?.message || aiErr}`);
+        }
+      }
+
+      // Update candidate database record
+      await this.prisma.candidate.update({
+        where: { id: candidateId },
+        data: {
+          resumeText,
+          ...(parsedJson ? { resumeJson: JSON.stringify(parsedJson) } : {}),
+        },
+      });
+
+      this.logger.log(`Successfully processed candidate ID: ${candidateId}`);
+    } catch (error: any) {
+      this.logger.error(`Processing error for candidate ID ${candidateId}: ${error?.message || error}`);
+    } finally {
+      // Guaranteed cleanup of temp OS files
+      if (tempFilePath && fs.existsSync(tempFilePath)) {
+        try { fs.unlinkSync(tempFilePath); } catch (e) { }
+      }
+      if (tempHtmlPath && fs.existsSync(tempHtmlPath)) {
+        try { fs.unlinkSync(tempHtmlPath); } catch (e) { }
+      }
     }
   }
 }

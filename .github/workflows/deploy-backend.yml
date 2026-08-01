@@ -57,5 +57,6 @@ jobs:
                "ACCESS_KEY_ID": "${{secrets.ACCESS_KEY_ID}}",
                "SECRET_ACCESS_KEY": "${{secrets.SECRET_ACCESS_KEY}}",
                "S3_BUCKET": "${{secrets.S3_BUCKET}}",
-               "S3_ACCOUNT_ID": "${{secrets.S3_ACCOUNT_ID}}"
+               "S3_ACCOUNT_ID": "${{secrets.S3_ACCOUNT_ID}}",
+               "DEEPSEEK_API_KEY": "${{secrets.DEEPSEEK_API_KEY}}"
             }
