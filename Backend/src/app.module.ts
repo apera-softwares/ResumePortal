@@ -7,15 +7,12 @@ import { JobsModule } from './jobs/jobs.module';
 import { CandidateModule } from './candidate/candidate.module';
 import { SkillsModule } from './skills/skills.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
-import { OtpController } from './otp/otp.controller';
-import { OtpService } from './otp/otp.service';
+import { ScheduleModule } from '@nestjs/schedule';
 import { OtpModule } from './otp/otp.module';
 import { LocationsModule } from './locations/locations.module';
 
 import { MailModule } from './mail/mail.module';
 import { MigrationModule } from './jobs/migration.module';
-
-
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -26,6 +23,7 @@ import { MigrationModule } from './jobs/migration.module';
     CandidateModule,
     SkillsModule,
     EventEmitterModule.forRoot(),
+    ScheduleModule.forRoot(),
     OtpModule,
     MailModule,
     LocationsModule,
