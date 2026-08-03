@@ -1,21 +1,13 @@
-// src/candidate/candidate.service.ts
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException, Logger } from '@nestjs/common';
 import { PrismaService } from 'src/prisma.service';
 import { $Enums } from '@prisma/client';
 type CandidateStatus = $Enums.CandidateStatus;
 import { CandidateDto } from 'src/Validations/candidate/create-candidate.dto';
-import { join } from 'path';
-import { extname } from 'path';
-import { NotFoundException, BadRequestException, ForbiddenException, Logger } from '@nestjs/common';
+import { join, extname, dirname } from 'path';
 import * as fs from 'fs';
 import * as mammoth from 'mammoth';
 import { Document, Packer, Paragraph, TextRun } from 'docx';
-import * as libre from 'libreoffice-convert';
-import { promisify } from 'util';
 import { execSync } from 'child_process';
-
-import { EventEmitter2 } from '@nestjs/event-emitter';
-import { CandidateCreatedEvent } from 'src/envent/events';
 import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
@@ -34,7 +26,6 @@ export class CandidateService {
 
   constructor(
     private prisma: PrismaService,
-    private eventEmitter: EventEmitter2,
   ) { }
 
   async createCandidate(
@@ -50,17 +41,32 @@ export class CandidateService {
       );
     }
 
-    // ── Upload resume to R2/S3 before touching the database ──────────────────
-    const resumeKey = `migration/${Date.now()}-${file.originalname}`;
+    // ── Upload resume to R2/S3 (Base object + Migration copy) ────────────────
+    const timestamp = Date.now();
+    const baseKey = `resumes/${timestamp}-${file.originalname}`;
+    const migrationKey = `migration/${timestamp}-${file.originalname}`;
 
-    const uploadCommand = new PutObjectCommand({
-      Bucket: process.env.S3_BUCKET!,
-      Key: resumeKey,
-      Body: file.buffer,
-      ContentType: file.mimetype,
-    });
+    // 1. Upload permanent base object
+    await client.send(
+      new PutObjectCommand({
+        Bucket: process.env.S3_BUCKET!,
+        Key: baseKey,
+        Body: file.buffer,
+        ContentType: file.mimetype,
+      }),
+    );
 
-    await client.send(uploadCommand);
+    // 2. Upload migration copy for background processing
+    await client.send(
+      new PutObjectCommand({
+        Bucket: process.env.S3_BUCKET!,
+        Key: migrationKey,
+        Body: file.buffer,
+        ContentType: file.mimetype,
+      }),
+    );
+
+    const resumeKey = baseKey;
     // ─────────────────────────────────────────────────────────────────────────
 
     const yearsOfExperience = Number(candidateData.yearsOfExperience);
@@ -192,12 +198,6 @@ export class CandidateService {
         },
       });
 
-      // Emit candidate.created event for asynchronous text extraction
-      this.eventEmitter.emit(
-        'candidate.created',
-        new CandidateCreatedEvent(updatedCandidate.id),
-      );
-
       return this.mapCandidate(updatedCandidate);
     }
 
@@ -218,7 +218,7 @@ export class CandidateService {
         expectedCtc,
         currentCtc,
         resume: resumeKey,
-        resumeText: '', // initially empty, parsed in event handler
+        resumeText: '', // initially empty, parsed in cron task
         userId: associatedUser ? associatedUser.id : null,
         skills: {
           create: skillsArray.map((name) => ({
@@ -243,12 +243,6 @@ export class CandidateService {
         appliedJobs: { include: { job: true } },
       },
     });
-
-    // Emit candidate.created event for asynchronous text extraction
-    this.eventEmitter.emit(
-      'candidate.created',
-      new CandidateCreatedEvent(createdCandidate.id),
-    );
 
     return this.mapCandidate(createdCandidate);
   }
@@ -918,7 +912,7 @@ export class CandidateService {
             const httpRes = await fetch(httpUrl);
             if (httpRes.ok) {
               const arrayBuffer = await httpRes.arrayBuffer();
-              const dir = join(process.cwd(), 'uploads');
+              const dir = dirname(filePath);
               if (!fs.existsSync(dir)) {
                 fs.mkdirSync(dir, { recursive: true });
               }
@@ -948,7 +942,7 @@ export class CandidateService {
             };
             const responseBuffer = await streamToBuffer(s3Response.Body);
 
-            const dir = join(process.cwd(), 'uploads');
+            const dir = dirname(filePath);
             if (!fs.existsSync(dir)) {
               fs.mkdirSync(dir, { recursive: true });
             }
@@ -1312,6 +1306,8 @@ export class CandidateService {
 
     // Save temporary local file for pdftohtml conversion
     const tempFilePath = join(process.cwd(), 'uploads', cleanedKey);
+    const tempDir = dirname(tempFilePath);
+    if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
     fs.writeFileSync(tempFilePath, file.buffer);
 
     let extractedText = '';
@@ -1938,16 +1934,19 @@ export class CandidateService {
       if (!resumeText) {
         const tempFilePath = join(process.cwd(), 'uploads', resumeKey);
         try {
-          const dir = join(process.cwd(), 'uploads');
+          const dir = dirname(tempFilePath);
           if (!fs.existsSync(dir)) {
             fs.mkdirSync(dir, { recursive: true });
           }
           fs.writeFileSync(tempFilePath, file.buffer);
 
           if (fileExtension === '.pdf') {
-            const outputDir = join(process.cwd(), 'uploads');
             const htmlFileName = resumeKey.replace(/\.pdf$/i, '.html');
-            const htmlFilePath = join(outputDir, htmlFileName);
+            const htmlFilePath = join(process.cwd(), 'uploads', htmlFileName);
+            const htmlDir = dirname(htmlFilePath);
+            if (!fs.existsSync(htmlDir)) {
+              fs.mkdirSync(htmlDir, { recursive: true });
+            }
 
             try {
               const command = `pdftohtml -s -noframes -c -dataurls "${tempFilePath}" "${htmlFilePath}"`;
