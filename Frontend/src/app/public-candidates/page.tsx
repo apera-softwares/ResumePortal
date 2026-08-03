@@ -492,7 +492,7 @@ function PublicCandidatesContent() {
                                 {avatar.initial}
                               </div>
                               <span className="font-semibold text-gray-900 dark:text-white">
-                                {cand.firstName}
+                                {cand.firstName} {cand.lastName ? `${cand.lastName.trim().charAt(0).toUpperCase()}.` : ""}
                               </span>
                             </div>
                           </TableCell>
@@ -510,18 +510,8 @@ function PublicCandidatesContent() {
                           </TableCell>
 
                           {/* Skills */}
-                          <TableCell className="px-6 py-4 text-start max-w-[200px]">
-                            <div className="flex flex-wrap gap-1.5">
-                              {cand.skills && cand.skills.length > 0 ? (
-                                cand.skills.map((s, i) => (
-                                  <span key={i} className="bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300 px-2 py-0.5 rounded-md text-xs border border-gray-150 dark:border-gray-750">
-                                    {s.name}
-                                  </span>
-                                ))
-                              ) : (
-                                <span className="text-gray-400">-</span>
-                              )}
-                            </div>
+                          <TableCell className="px-6 py-4 text-start max-w-[220px]">
+                            <SkillsCell skills={cand.skills} />
                           </TableCell>
 
                           {/* Location */}
@@ -639,6 +629,82 @@ function PublicCandidatesContent() {
     </div>
   );
 }
+
+const SkillsCell: React.FC<{ skills?: { name: string }[] }> = ({ skills }) => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  if (!skills || skills.length === 0) {
+    return <span className="text-gray-400 dark:text-gray-500 font-medium text-xs">NA</span>;
+  }
+
+  const visibleSkills = skills.slice(0, 2);
+  const remainingCount = skills.length - 2;
+
+  return (
+    <div className="relative flex flex-wrap items-center gap-1.5 max-w-[220px]">
+      {visibleSkills.map((s, i) => (
+        <span
+          key={i}
+          className="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 px-2 py-0.5 rounded-md text-xs font-medium border border-gray-200/60 dark:border-gray-700/60 shadow-2xs"
+        >
+          {s.name}
+        </span>
+      ))}
+
+      {remainingCount > 0 && (
+        <div className="relative inline-block">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsOpen(!isOpen);
+            }}
+            className="inline-flex items-center gap-1 bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/80 px-2 py-0.5 rounded-md text-xs font-semibold border border-blue-200/80 dark:border-blue-800/80 transition-all shadow-2xs cursor-pointer"
+          >
+            +{remainingCount} more
+          </button>
+
+          {isOpen && (
+            <>
+              <div
+                className="fixed inset-0 z-40"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsOpen(false);
+                }}
+              />
+              <div className="absolute left-0 mt-2 w-64 max-h-60 overflow-y-auto bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-xl p-3.5 z-50 animate-in fade-in zoom-in-95 duration-150">
+                <div className="flex items-center justify-between pb-2 mb-2 border-b border-gray-100 dark:border-gray-800">
+                  <span className="text-xs font-bold text-gray-900 dark:text-white">
+                    All Skills ({skills.length})
+                  </span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsOpen(false);
+                    }}
+                    className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-xs p-0.5 rounded-md cursor-pointer"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {skills.map((s, i) => (
+                    <span
+                      key={i}
+                      className="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 px-2 py-0.5 rounded-md text-xs font-medium border border-gray-200 dark:border-gray-700"
+                    >
+                      {s.name}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
 
 export default function PublicCandidates() {
   return (
