@@ -68,7 +68,7 @@ export class CandidateCronService {
             const listCmd = new ListObjectsV2Command({
                 Bucket: process.env.S3_BUCKET,
                 Prefix: prefix,
-                MaxKeys: 2,
+                MaxKeys: 3,
             });
             const s3Res = await s3Client.send(listCmd);
             const objects = s3Res.Contents || [];
