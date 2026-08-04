@@ -2,7 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from 'src/prisma.service';
 import { DeepSeekService } from 'src/utils/deepseek.service';
-import { S3Client, ListObjectsV2Command, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, ListObjectsV2Command, GetObjectCommand, DeleteObjectCommand, CopyObjectCommand } from '@aws-sdk/client-s3';
 import { join, extname, basename } from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
@@ -144,26 +144,27 @@ export class CandidateCronService {
                         }
                     }
 
-                    const timestamp = Date.now();
-                    const randomStr = Math.random().toString(36).substring(2, 7);
+
                     const extractedEmail = parsedJson?.email?.trim() || '';
-                    const candidateEmail = extractedEmail || `migrated_${timestamp}_${randomStr}@migration.local`;
+                    const candidateEmail = extractedEmail || `NA`;
                     const candidateMobile = parsedJson?.contact?.trim() || null;
                     const resumeJsonStr = JSON.stringify(parsedJson);
 
+                    const newFileName = `${firstName}_${Date.now()}${fileExtension}`
+
                     // 4. Save/Upsert Candidate in Database
                     // Match candidate by s3Key, baseKey, fileNameOnly, or extracted email
-                    const searchConditions: any[] = [
-                        { resume: s3Key },
-                        { resume: `resumes/${fileNameOnly}` },
-                        { resume: fileNameOnly },
-                    ];
-                    if (extractedEmail) {
-                        searchConditions.push({ email: extractedEmail });
-                    }
+                    // const searchConditions: any[] = [
+                    //     { resume: s3Key },
+                    //     { resume: `resumes/${fileNameOnly}` },
+                    //     { resume: fileNameOnly },
+                    // ];
+                    // if (extractedEmail) {
+                    //     searchConditions.push({ email: extractedEmail });
+                    // }
 
                     let candidate = await this.prisma.candidate.findFirst({
-                        where: { OR: searchConditions },
+                        where: { email: extractedEmail },
                     });
 
                     if (!candidate) {
@@ -175,7 +176,7 @@ export class CandidateCronService {
                                 mobile: candidateMobile,
                                 yearsOfExperience: 0,
                                 noticePeriod: 0,
-                                resume: `resumes/${fileNameOnly}`,
+                                resume: `resumes/${newFileName}`,
                                 resumeText,
                                 resumeJson: resumeJsonStr,
                             },
@@ -185,8 +186,9 @@ export class CandidateCronService {
                         candidate = await this.prisma.candidate.update({
                             where: { id: candidate.id },
                             data: {
-                                firstName: (firstName && firstName !== 'Migration') ? firstName : candidate.firstName,
-                                lastName: (lastName && lastName !== 'Candidate') ? lastName : candidate.lastName,
+                                firstName,
+                                lastName,
+                                resume: `resumes/${newFileName}`,
                                 mobile: candidateMobile || candidate.mobile,
                                 resumeText,
                                 resumeJson: resumeJsonStr,
@@ -225,6 +227,22 @@ export class CandidateCronService {
                     }
 
                     this.logger.log(`Successfully parsed candidate "${firstName} ${lastName}" (Email: ${candidateEmail}) from S3 key: "${s3Key}"`);
+
+
+                    console.log("Copying to resume folder");
+                    const destinationKey = `resumes/${newFileName}`;
+                    console.log(destinationKey, "destinationKey")
+
+
+                    const bucketName = process.env.S3_BUCKET;
+
+                    const copyCommand = new CopyObjectCommand({
+                        Bucket: process.env.S3_BUCKET,
+                        CopySource: `${bucketName}/${s3Key}`,
+                        Key: destinationKey,
+                    });
+                    await s3Client.send(copyCommand);
+                    console.log("Successfully copied to resumes folder");
 
                     // 6. Delete processed file from S3 bucket
                     this.logger.log(`Deleting processed PDF file from S3: "${s3Key}"...`);
