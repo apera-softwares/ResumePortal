@@ -54,7 +54,7 @@ export class MigrationService {
   /**
    * Process all PDFs in toptalent/migration folder
    */
-  async processR2Migration(folderPrefix = 'migration/'): Promise<{
+  async processR2Migration(folderPrefix = 'migrations/'): Promise<{
     totalPDFs: number;
     processed: number;
     successful: number;

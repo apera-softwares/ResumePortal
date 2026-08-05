@@ -13,7 +13,7 @@ async function bootstrap() {
 
   const migrationService = app.get(MigrationService);
 
-  const folderArg = process.argv[2] || 'migration/';
+  const folderArg = process.argv[2] || 'migrations/';
   logger.log(`Target R2 Bucket Folder: "${folderArg}"`);
 
   try {

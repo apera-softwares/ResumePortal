@@ -41,26 +41,15 @@ export class CandidateService {
       );
     }
 
-    // ── Upload resume to R2/S3 (Base object + Migration copy) ────────────────
+    // ── Upload resume to R2/S3 (Permanent base object) ──────────────────────
     const timestamp = Date.now();
     const baseKey = `resumes/${timestamp}-${file.originalname}`;
-    const migrationKey = `migration/${timestamp}-${file.originalname}`;
 
     // 1. Upload permanent base object
     await client.send(
       new PutObjectCommand({
         Bucket: process.env.S3_BUCKET!,
         Key: baseKey,
-        Body: file.buffer,
-        ContentType: file.mimetype,
-      }),
-    );
-
-    // 2. Upload migration copy for background processing
-    await client.send(
-      new PutObjectCommand({
-        Bucket: process.env.S3_BUCKET!,
-        Key: migrationKey,
         Body: file.buffer,
         ContentType: file.mimetype,
       }),
