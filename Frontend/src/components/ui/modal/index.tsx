@@ -45,24 +45,29 @@ export const Modal: React.FC<ModalProps> = ({
 
   useEffect(() => {
     if (isOpen) {
-      document.body.style.overflow = "hidden";
+      document.body.style.overflow = 'hidden';
+      document.documentElement.style.overflow = 'hidden';
     } else {
-      document.body.style.overflow = "unset";
+      document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
     }
 
     return () => {
-      document.body.style.overflow = "unset";
+      document.body.style.overflow = "";
+      document.documentElement.style.overflow = "";
     };
-  }, [isOpen]);
+  }, [isOpen])
 
   if (!isOpen || !mounted) return null;
-
   const contentClasses = isFullscreen
-    ? "w-full h-full overflow-y-auto"
-    : "relative z-10 w-full max-h-[88vh] rounded-3xl bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-800/80 shadow-2xl overflow-y-auto custom-scrollbar";
+    ? "w-full h-full overflow-y-auto overscroll-contain"
+    : "relative z-10 w-full max-h-[85vh] sm:max-h-[88vh] rounded-3xl bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-800/80 shadow-2xl overflow-y-auto custom-scrollbar overscroll-contain";
 
   return createPortal(
-    <div className={`fixed inset-0 flex items-center justify-center modal z-[999999] ${isFullscreen ? "p-0" : "p-4 sm:p-6"}`}>
+    <div
+      className={`fixed inset-0 flex items-center justify-center modal z-[999999] ${isFullscreen ? "p-0" : "p-4 sm:p-6"}`}
+      onWheel={(e) => e.stopPropagation()}
+    >
       {!isFullscreen && (
         <div
           className="absolute inset-0 w-full h-full bg-black/60 backdrop-blur-md transition-opacity"
@@ -73,6 +78,7 @@ export const Modal: React.FC<ModalProps> = ({
         ref={modalRef}
         className={`${contentClasses} ${className}`}
         onClick={(e) => e.stopPropagation()}
+        onWheel={(e) => e.stopPropagation()}
       >
         {showCloseButton && (
           <button
