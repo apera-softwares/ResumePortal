@@ -656,6 +656,7 @@ function CandidatesContent() {
                   <div className="flex flex-col gap-1">
                     <label className="text-xs font-semibold text-gray-500 dark:text-gray-400">Job Profile</label>
                     <Select
+                      instanceId="admin-job-filter-select"
                       name="jobFilter"
                       value={jobFilter}
                       onChange={(selected: any) => {
@@ -678,6 +679,7 @@ function CandidatesContent() {
                   <div className="flex flex-col gap-1">
                     <label className="text-xs font-semibold text-gray-500 dark:text-gray-400">Location</label>
                     <Select
+                      instanceId="admin-location-filter-select"
                       name="locationFilter"
                       value={locationFilter}
                       onChange={(selected: any) => setLocationFilter(selected || [])}
@@ -696,6 +698,7 @@ function CandidatesContent() {
                   <div className="flex flex-col gap-1">
                     <label className="text-xs font-semibold text-gray-500 dark:text-gray-400">Skill</label>
                     <Select
+                      instanceId="admin-skill-filter-select"
                       name="skillFilter"
                       value={skillFilter}
                       onChange={(selected: any) => setSkillFilter(selected || [])}
@@ -715,6 +718,7 @@ function CandidatesContent() {
                   <div className="flex flex-col gap-1">
                     <label className="text-xs font-semibold text-gray-500 dark:text-gray-400">Experience</label>
                     <Select
+                      instanceId="admin-exp-filter-select"
                       name="expFilter"
                       value={expFilter}
                       onChange={(selected: any) => setExpFilter(selected)}

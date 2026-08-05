@@ -820,16 +820,6 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
       (candidateResume && candidateResume.toLowerCase().endsWith(".pdf"))
     );
 
-    if (resumeUrl && isPdf) {
-      return (
-        <iframe
-          src={`${resumeUrl}#toolbar=0&navpanes=0`}
-          className="w-full h-full border-none bg-gray-400"
-          title="Original Resume Document"
-        />
-      );
-    }
-
     if (originalParsedHtml) {
       return (
         <iframe
@@ -837,6 +827,16 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
           className="w-full h-full border-none bg-gray-400"
           title="Original Resume HTML"
           sandbox="allow-same-origin allow-scripts"
+        />
+      );
+    }
+
+    if (resumeUrl && isPdf) {
+      return (
+        <iframe
+          src={`${resumeUrl}#toolbar=0&navpanes=0`}
+          className="w-full h-full border-none bg-gray-400"
+          title="Original Resume Document"
         />
       );
     }
@@ -1111,7 +1111,6 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
       onSave?.({
         ...updatedCandidate,
         editedHtml: savedEditedHtml,
-        resumeText: rawHtml || fullHtml,
       });
       setPreviewHtml(savedEditedHtml);
       setRawHtml(savedEditedHtml);
@@ -1206,20 +1205,18 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
                     : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
                     }`}
                 >
-                  Preview
+                  Original Resume
                 </button>
-                {isPublicPage && (
-                  <button
-                    onClick={() => setViewMode("preview")}
-                    disabled={isSaving || isUploadingFile}
-                    className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all disabled:opacity-50 ${viewMode === "preview"
-                      ? "bg-white text-blue-600 shadow-xs dark:bg-gray-900 dark:text-blue-400"
-                      : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                      }`}
-                  >
-                    View
-                  </button>
-                )}
+                <button
+                  onClick={() => setViewMode("preview")}
+                  disabled={isSaving || isUploadingFile}
+                  className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all disabled:opacity-50 ${viewMode === "preview"
+                    ? "bg-white text-blue-600 shadow-xs dark:bg-gray-900 dark:text-blue-400"
+                    : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                    }`}
+                >
+                  Edited Preview
+                </button>
                 {!isPublicPage && (
                   <button
                     onClick={() => setViewMode("edit")}
@@ -1229,7 +1226,7 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
                       : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
                       }`}
                   >
-                    Edit
+                    Edit Mode
                   </button>
                 )}
               </div>
@@ -1408,20 +1405,18 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
                       : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
                       }`}
                   >
-                    Preview
+                    Original Resume
                   </button>
-                  {isPublicPage && (
-                    <button
-                      onClick={() => setViewMode("preview")}
-                      disabled={isSaving || isUploadingFile}
-                      className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all disabled:opacity-50 ${viewMode === "preview"
-                        ? "bg-white text-blue-600 shadow-xs dark:bg-gray-900 dark:text-blue-400"
-                        : "text-gray-500 hover:text-gray-705 dark:text-gray-400 dark:hover:text-gray-200"
-                        }`}
-                    >
-                      View
-                    </button>
-                  )}
+                  <button
+                    onClick={() => setViewMode("preview")}
+                    disabled={isSaving || isUploadingFile}
+                    className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all disabled:opacity-50 ${viewMode === "preview"
+                      ? "bg-white text-blue-600 shadow-xs dark:bg-gray-900 dark:text-blue-400"
+                      : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                      }`}
+                  >
+                    Edited Preview
+                  </button>
                   {!isPublicPage && (
                     <button
                       onClick={() => setViewMode("edit")}
@@ -1431,7 +1426,7 @@ export default function EditResume({ candidate, onSave, isInline = false, onClos
                         : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
                         }`}
                     >
-                      Edit
+                      Edit Mode
                     </button>
                   )}
                 </div>

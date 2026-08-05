@@ -418,6 +418,7 @@ function PublicCandidatesContent() {
               {/* Skill Filter */}
               <div className="w-full sm:w-48">
                 <Select
+                  instanceId="public-skill-filter-select"
                   value={skillFilter ? { value: skillFilter, label: skillFilter } : null}
                   onChange={(selected: any) => setSkillFilter(selected ? selected.value : "")}
                   options={availableSkills.map((skill) => ({ value: skill, label: skill }))}
@@ -430,6 +431,7 @@ function PublicCandidatesContent() {
               {/* Experience Filter */}
               <div className="w-full sm:w-48">
                 <Select
+                  instanceId="public-exp-filter-select"
                   value={expFilter ? EXP_OPTIONS.find(opt => opt.value === expFilter) : null}
                   onChange={(selected: any) => setExpFilter(selected ? selected.value : "")}
                   options={EXP_OPTIONS}

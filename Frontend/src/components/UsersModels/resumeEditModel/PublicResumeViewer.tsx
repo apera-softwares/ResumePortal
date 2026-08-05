@@ -104,8 +104,11 @@ export default function PublicResumeViewer({ candidate, onClose }: PublicResumeV
   // const originalPdfUrl = candidate.resume
   //   ? `${API_URL}/uploads/${candidate.resume}`
   //   : null;
-  const originalPdfUrl = candidate.resumePdf || null;
-  const isPdf = candidate.resume?.toLowerCase().endsWith(".pdf");
+  const originalPdfUrl = candidate.resumePdf || (candidate.resume ? (candidate.resume.startsWith("http") ? candidate.resume : `${API_URL}/uploads/${candidate.resume}`) : null);
+  const isPdf = Boolean(
+    (candidate.resumePdf && candidate.resumePdf.toLowerCase().includes(".pdf")) ||
+    (candidate.resume && candidate.resume.toLowerCase().endsWith(".pdf"))
+  );
 
   // ── Fetch resume data ───────────────────────────────────────────────────────
   useEffect(() => {
@@ -228,7 +231,7 @@ export default function PublicResumeViewer({ candidate, onClose }: PublicResumeV
       );
     }
 
-    // If we have parsed HTML, show it in iframe (read-only)
+    // Show clean parsed HTML view first if available
     if (originalHtml) {
       return (
         <iframe
@@ -241,7 +244,7 @@ export default function PublicResumeViewer({ candidate, onClose }: PublicResumeV
       );
     }
 
-    // Show native PDF viewer
+    // Fallback to native PDF viewer if HTML not available
     if (isPdf && originalPdfUrl) {
       return (
         <div className="flex-1 flex flex-col bg-gray-100 dark:bg-[#0b0a19] overflow-hidden">
