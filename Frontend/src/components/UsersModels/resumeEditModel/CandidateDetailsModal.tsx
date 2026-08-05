@@ -366,8 +366,8 @@ export default function CandidateDetailsModal({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} className="max-w-[800px] m-4">
-      <div className="w-full rounded-3xl bg-white dark:bg-gray-900 p-6 lg:p-10 border border-gray-100 dark:border-gray-800 shadow-xl max-h-[85vh] overflow-y-auto custom-scrollbar">
+    <Modal isOpen={isOpen} onClose={onClose} className="max-w-[800px] my-auto">
+      <div className="w-full p-6 lg:p-10">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-4 mb-6">
           <div className="flex items-center gap-3">
@@ -507,6 +507,7 @@ export default function CandidateDetailsModal({
                 options={NOTICE_PERIOD_OPTIONS}
                 isDisabled={!isEditable}
                 styles={customSelectStyles}
+                menuPortalTarget={typeof document !== "undefined" ? document.body : undefined}
                 placeholder="Select notice period..."
               />
             </div>
@@ -622,6 +623,7 @@ export default function CandidateDetailsModal({
                 isMulti
                 isDisabled={!isEditable}
                 styles={customSelectStyles}
+                menuPortalTarget={typeof document !== 'undefined' ? document.body : undefined}
                 placeholder="Select or enter skills..."
               />
             </div>
