@@ -54,7 +54,7 @@ export class MigrationService {
   /**
    * Process all PDFs in toptalent/migration folder
    */
-  async processR2Migration(folderPrefix = 'migration/'): Promise<{
+  async processR2Migration(folderPrefix = `${process.env.S3_MIGRATION_FOLDER}/`): Promise<{
     totalPDFs: number;
     processed: number;
     successful: number;
@@ -201,26 +201,26 @@ export class MigrationService {
     const parsedData = await this.deepSeekService.parseResumeText(rawText);
 
     // 4. Save Parsed JSON result back to Cloudflare R2 bucket under migration/parsed/
-    const r2JsonPath = key.replace(/\.pdf$/i, '.json').replace(/^migration\//, 'migration/parsed/');
-    const jsonOutput = {
-      filename,
-      originalKey: key,
-      parsedAt: new Date().toISOString(),
-      candidate: parsedData,
-    };
+    // const r2JsonPath = key.replace(/\.pdf$/i, '.json').replace(/^migration\//, 'migration/parsed/');
+    // const jsonOutput = {
+    //   filename,
+    //   originalKey: key,
+    //   parsedAt: new Date().toISOString(),
+    //   candidate: parsedData,
+    // };
 
-    try {
-      const putCommand = new PutObjectCommand({
-        Bucket: this.bucketName,
-        Key: r2JsonPath,
-        Body: JSON.stringify(jsonOutput, null, 2),
-        ContentType: 'application/json',
-      });
-      await this.s3Client.send(putCommand);
-      this.logger.log(`Saved parsed JSON to R2 bucket path: "${r2JsonPath}"`);
-    } catch (r2SaveErr: any) {
-      this.logger.error(`Failed to save JSON to R2: ${r2SaveErr?.message || r2SaveErr}`);
-    }
+    // try {
+    //   const putCommand = new PutObjectCommand({
+    //     Bucket: this.bucketName,
+    //     Key: r2JsonPath,
+    //     Body: JSON.stringify(jsonOutput, null, 2),
+    //     ContentType: 'application/json',
+    //   });
+    //   await this.s3Client.send(putCommand);
+    //   this.logger.log(`Saved parsed JSON to R2 bucket path: "${r2JsonPath}"`);
+    // } catch (r2SaveErr: any) {
+    //   this.logger.error(`Failed to save JSON to R2: ${r2SaveErr?.message || r2SaveErr}`);
+    // }
 
     // 5. Save candidate record into PostgreSQL Database via Prisma
     let candidateId: string | undefined;
@@ -282,7 +282,7 @@ export class MigrationService {
       filename,
       status: 'SUCCESS',
       extractedData: parsedData,
-      r2JsonPath,
+      // r2JsonPath,
       candidateId,
     };
   }

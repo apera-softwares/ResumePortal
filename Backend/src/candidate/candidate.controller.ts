@@ -35,6 +35,27 @@ type CandidateStatus = $Enums.CandidateStatus;
 export class CandidateController {
   constructor(private readonly candidateService: CandidateService) { }
 
+  // ── Upload resume only ────────────────────────────
+  @Post('uploadresumeOnly')
+  @ApiOperation({ summary: 'Upload a resume only for background processing' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: { type: 'string', format: 'binary', description: 'Resume PDF or Document' },
+      },
+    },
+  })
+  @ApiResponse({ status: 201, description: 'Only Resume uploaded successfully' })
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadResumeOnly(
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    if (!file) throw new BadRequestException('Resume file is required');
+    return this.candidateService.uploadResumeOnly(file);
+  }
+
   // ── Upload resume (create candidate) ───────────────────────────────────────
   @Post('uploadMedia')
   @ApiOperation({ summary: 'Upload a resume and create a candidate' })

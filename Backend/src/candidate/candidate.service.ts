@@ -28,6 +28,36 @@ export class CandidateService {
     private prisma: PrismaService,
   ) { }
 
+  async uploadResumeOnly(file: Express.Multer.File): Promise<any> {
+    const allowedExtensions = ['.pdf', '.doc', '.docx'];
+    const fileExtension = extname(file.originalname).toLowerCase();
+
+    if (!allowedExtensions.includes(fileExtension)) {
+      throw new BadRequestException(
+        'Invalid file type. Only PDF and Word documents are allowed.',
+      );
+    }
+
+    const timestamp = Date.now();
+    const migrationKey = `${process.env.S3_MIGRATION_FOLDER}/${timestamp}-${file.originalname}`;
+
+    // Upload migration copy for background processing
+    await client.send(
+      new PutObjectCommand({
+        Bucket: process.env.S3_BUCKET!,
+        Key: migrationKey,
+        Body: file.buffer,
+        ContentType: file.mimetype,
+      }),
+    );
+
+    return {
+      statusCode: 201,
+      message: 'Resume uploaded successfully',
+      key: migrationKey,
+    };
+  }
+
   async createCandidate(
     file: Express.Multer.File,
     candidateData: CandidateDto,
@@ -43,8 +73,8 @@ export class CandidateService {
 
     // ── Upload resume to R2/S3 (Base object + Migration copy) ────────────────
     const timestamp = Date.now();
-    const baseKey = `resumes/${timestamp}-${file.originalname}`;
-    const migrationKey = `migration/${timestamp}-${file.originalname}`;
+    const baseKey = `${process.env.S3_RESUME_FOLDER}/${timestamp}${fileExtension}`;
+    // const migrationKey = `migration/${timestamp}-${file.originalname}`;
 
     // 1. Upload permanent base object
     await client.send(
@@ -57,14 +87,14 @@ export class CandidateService {
     );
 
     // 2. Upload migration copy for background processing
-    await client.send(
-      new PutObjectCommand({
-        Bucket: process.env.S3_BUCKET!,
-        Key: migrationKey,
-        Body: file.buffer,
-        ContentType: file.mimetype,
-      }),
-    );
+    // await client.send(
+    //   new PutObjectCommand({
+    //     Bucket: process.env.S3_BUCKET!,
+    //     Key: migrationKey,
+    //     Body: file.buffer,
+    //     ContentType: file.mimetype,
+    //   }),
+    // );
 
     const resumeKey = baseKey;
     // ─────────────────────────────────────────────────────────────────────────
@@ -1230,7 +1260,7 @@ export class CandidateService {
     }
 
     const allowedExtensions = ['.pdf', '.doc', '.docx'];
-    const fileExtension = extname(file.originalname).toLowerCase();
+    const fileExtension = extname(file.originalname);
 
     if (!allowedExtensions.includes(fileExtension)) {
       throw new Error(
@@ -1277,7 +1307,7 @@ export class CandidateService {
       throw new NotFoundException(`Candidate with ID ${id} not found`);
     }
 
-    const cleanedKey = `cleaned-${Date.now()}-${file.originalname}`;
+    const cleanedKey = `${process.env.S3_RESUME_FOLDER}/${Date.now()}${fileExtension}`;
 
     // Upload to S3/R2
     const uploadCommand = new PutObjectCommand({
@@ -1889,7 +1919,7 @@ export class CandidateService {
         );
       }
 
-      const resumeKey = `${Date.now()}-${file.originalname}`;
+      const resumeKey = `${process.env.S3_RESUME_FOLDER}/${Date.now()}${fileExtension}`;
 
       // Upload to R2/S3
       const uploadCommand = new PutObjectCommand({
@@ -2013,7 +2043,7 @@ export class CandidateService {
       }
     } else if (resumeText) {
       try {
-        const pdfFileName = `resume-${candidate.id}-${Date.now()}.pdf`;
+        const pdfFileName = `${process.env.S3_RESUME_FOLDER}/${candidate.id}-${Date.now()}.pdf`;
         const finalPdfPath = join(process.cwd(), 'uploads', pdfFileName);
 
         // Generate high-quality PDF using our Puppeteer function

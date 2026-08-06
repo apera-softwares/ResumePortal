@@ -62,7 +62,7 @@ export class CandidateCronService {
         if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
 
         //const prefixes = ['migration/', 'migrations/'];
-        const prefix = 'migrations/';
+        const prefix = `${process.env.S3_MIGRATION_FOLDER}/`;
 
         try {
             const listCmd = new ListObjectsV2Command({
@@ -176,7 +176,7 @@ export class CandidateCronService {
                                 mobile: candidateMobile,
                                 yearsOfExperience: 0,
                                 noticePeriod: 0,
-                                resume: `resumes/${newFileName}`,
+                                resume: `${process.env.S3_RESUME_FOLDER}/${newFileName}`,
                                 resumeText,
                                 resumeJson: resumeJsonStr,
                             },
@@ -188,7 +188,7 @@ export class CandidateCronService {
                             data: {
                                 firstName,
                                 lastName,
-                                resume: `resumes/${newFileName}`,
+                                resume: `${process.env.S3_RESUME_FOLDER}/${newFileName}`,
                                 mobile: candidateMobile || candidate.mobile,
                                 resumeText,
                                 resumeJson: resumeJsonStr,
@@ -230,7 +230,7 @@ export class CandidateCronService {
 
 
                     console.log("Copying to resume folder");
-                    const destinationKey = `resumes/${newFileName}`;
+                    const destinationKey = `${process.env.S3_RESUME_FOLDER}/${newFileName}`;
                     console.log(destinationKey, "destinationKey")
 
 

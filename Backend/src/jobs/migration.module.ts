@@ -11,4 +11,4 @@ import { MigrationController } from './migration.controller';
   providers: [MigrationService, DeepSeekService, PrismaService],
   exports: [MigrationService, DeepSeekService],
 })
-export class MigrationModule {}
+export class MigrationModule { }
