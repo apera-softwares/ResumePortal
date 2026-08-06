@@ -58,5 +58,7 @@ jobs:
                "SECRET_ACCESS_KEY": "${{secrets.SECRET_ACCESS_KEY}}",
                "S3_BUCKET": "${{secrets.S3_BUCKET}}",
                "S3_ACCOUNT_ID": "${{secrets.S3_ACCOUNT_ID}}",
-               "DEEPSEEK_API_KEY": "${{secrets.DEEPSEEK_API_KEY}}"
+               "DEEPSEEK_API_KEY": "${{secrets.DEEPSEEK_API_KEY}}",
+               "S3_MIGRATION_FOLDER": "${{secrets.S3_MIGRATION_FOLDER}}",
+               "S3_RESUME_FOLDER": "${{secrets.S3_RESUME_FOLDER}}"
             }

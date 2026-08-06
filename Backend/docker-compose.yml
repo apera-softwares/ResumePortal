@@ -24,6 +24,9 @@ services:
       S3_BUCKET: "${S3_BUCKET}"
       S3_ACCOUNT_ID: "${S3_ACCOUNT_ID}"
       DEEPSEEK_API_KEY: "${DEEPSEEK_API_KEY}"
+      S3_MIGRATION_FOLDER: "${S3_MIGRATION_FOLDER}"
+      S3_RESUME_FOLDER: "${S3_RESUME_FOLDER}"
+      
     volumes:
       - resumebuilder-uploads:/usr/src/app/uploads
     networks:

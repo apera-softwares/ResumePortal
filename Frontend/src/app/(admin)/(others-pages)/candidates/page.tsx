@@ -3,13 +3,14 @@
 import { Table, TableBody, TableCell, TableHeader, TableRow } from "@/components/ui/table";
 import EditResume from "@/components/UsersModels/resumeEditModel/EditResume";
 import CandidateDetailsModal from "@/components/UsersModels/resumeEditModel/CandidateDetailsModal";
-import { SquarePen, Trash, SlidersHorizontal, X, ChevronDown, FileText, User, Notebook } from "lucide-react";
+import { SquarePen, Trash, SlidersHorizontal, X, ChevronDown, FileText, User, Notebook, Plus } from "lucide-react";
 import React, { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import toast from "react-hot-toast";
 import Select, { components } from "react-select";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Modal } from "@/components/ui/modal";
+import QuickUploadResumeModal from "@/components/candidatesList/QuickUploadResumeModal";
 
 
 const getCustomSelectStyles = (isDark: boolean) => ({
@@ -246,6 +247,7 @@ function CandidatesContent() {
   const [authorized, setAuthorized] = useState(false);
   const [openNotesCandidateId, setOpenNotesCandidateId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   useEffect(() => {
     const localRole = localStorage.getItem("role");
@@ -259,6 +261,15 @@ function CandidatesContent() {
       }
     }
   }, [router, modeParam, candidateIdParam, pathname]);
+
+  useEffect(() => {
+    if (searchParams.get("_rsc")) {
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("_rsc");
+      const cleanSearch = params.toString();
+      router.replace(cleanSearch ? `${pathname}?${cleanSearch}` : pathname, { scroll: false });
+    }
+  }, [searchParams, pathname, router]);
 
   const [jobs, setJobs] = useState<{ id: string; title: string }[]>([]);
   const [jobFilter, setJobFilter] = useState<{ value: string; label: string } | null>(() => {
@@ -364,6 +375,7 @@ function CandidatesContent() {
       const params = new URLSearchParams(window.location.search);
       params.delete("jobId");
       params.delete("jobTitle");
+      params.delete("_rsc");
       const newSearch = params.toString();
       router.replace(newSearch ? `${pathname}?${newSearch}` : pathname);
     }
@@ -378,6 +390,7 @@ function CandidatesContent() {
       const params = new URLSearchParams(window.location.search);
       params.delete("jobId");
       params.delete("jobTitle");
+      params.delete("_rsc");
       const newSearch = params.toString();
       router.replace(newSearch ? `${pathname}?${newSearch}` : pathname);
     }
@@ -586,6 +599,12 @@ function CandidatesContent() {
           </p>
         </div>
         <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto items-center">
+          <button
+            onClick={() => setIsCreateModalOpen(true)}
+            className="flex items-center justify-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-blue-700 transition duration-200 cursor-pointer shrink-0 shadow-sm"
+          >
+            <Plus className="w-4 h-4" /> Create Candidate
+          </button>
           {/* Search Input */}
           <div className="relative w-full sm:w-80">
             <input
@@ -638,7 +657,7 @@ function CandidatesContent() {
                   className="fixed inset-0 z-40"
                   onClick={() => setIsFilterOpen(false)}
                 />
-                
+
                 <div className="absolute right-0 mt-2 w-80 max-h-[85vh] overflow-y-auto bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl shadow-2xl p-5 z-50 flex flex-col gap-4">
                   <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-2">
                     <span className="text-sm font-bold text-gray-900 dark:text-white">Filters</span>
@@ -861,7 +880,7 @@ function CandidatesContent() {
                               onClick={() => setOpenNotesCandidateId(user.id)}
                               className="text-gray-500 dark:text-gray-400 text-xs italic max-w-[150px] inline-block truncate hover:underline hover:text-violet-600 dark:hover:text-violet-400 cursor-pointer"
                             >
-                               {user.adminNotes ? (user.adminNotes.split(/\s+/).slice(0, 3).join(" ") + (user.adminNotes.split(/\s+/).length > 3 ? "..." : "")) : "notes here..."}
+                              {user.adminNotes ? (user.adminNotes.split(/\s+/).slice(0, 3).join(" ") + (user.adminNotes.split(/\s+/).length > 3 ? "..." : "")) : "notes here..."}
                             </span>
                             <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2.5 px-2 py-1 rounded-lg bg-gray-900 dark:bg-gray-800 text-white text-[10px] font-semibold whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 translate-y-1 group-hover:translate-y-0 transition-all duration-150 z-40 shadow-md">
                               Notes
@@ -1070,6 +1089,19 @@ function CandidatesContent() {
           role={role}
         />
       )}
+
+      <QuickUploadResumeModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        API_URL={API_URL}
+        onSuccess={(newCandidate) => {
+          if (newCandidate && newCandidate.id) {
+            setCandidatesData((prev) => [newCandidate, ...prev]);
+            setFiltercandidates((prev) => [newCandidate, ...prev]);
+            setTotalCount((prev) => prev + 1);
+          }
+        }}
+      />
     </div>
   );
 }

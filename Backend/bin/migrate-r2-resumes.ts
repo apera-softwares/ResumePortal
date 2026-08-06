@@ -13,7 +13,7 @@ async function bootstrap() {
 
   const migrationService = app.get(MigrationService);
 
-  const folderArg = process.argv[2] || 'migration/';
+  const folderArg = process.argv[2] || `${process.env.S3_MIGRATION_FOLDER}/`;
   logger.log(`Target R2 Bucket Folder: "${folderArg}"`);
 
   try {
@@ -27,10 +27,8 @@ async function bootstrap() {
     console.log('----------------------------------------------');
     summary.results.forEach((res, i) => {
       console.log(
-        `[${i + 1}] ${res.filename} => Status: ${res.status}${
-          res.extractedData?.name ? ` | Name: ${res.extractedData.name}` : ''
-        }${res.extractedData?.email ? ` | Email: ${res.extractedData.email}` : ''}${
-          res.error ? ` | Error: ${res.error}` : ''
+        `[${i + 1}] ${res.filename} => Status: ${res.status}${res.extractedData?.name ? ` | Name: ${res.extractedData.name}` : ''
+        }${res.extractedData?.email ? ` | Email: ${res.extractedData.email}` : ''}${res.error ? ` | Error: ${res.error}` : ''
         }`,
       );
     });
