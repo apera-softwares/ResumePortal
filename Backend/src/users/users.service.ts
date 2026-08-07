@@ -9,6 +9,7 @@ import { PrismaService } from 'src/prisma.service';
 import { UsersCreateDto } from 'src/Validations/users/users-create.dto';
 import { LoginDto } from 'src/Validations/users/login.dto';
 import { UsersUpdateDto } from 'src/Validations/users/users-update.dto';
+import { ResetPasswordDto } from 'src/Validations/otp/otp.dto';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3';
@@ -130,6 +131,46 @@ export class UsersService {
         role: user.role,
       },
     };
+  }
+
+  // ── Reset Password ─────────────────────────────────────────────────────────
+  async resetPassword(dto: ResetPasswordDto) {
+    const email = dto.email.trim().toLowerCase();
+
+    const user = await this.prisma.user.findUnique({
+      where: { email },
+    });
+    if (!user) {
+      throw new NotFoundException('User with this email address does not exist');
+    }
+
+    const otpRecord = await this.prisma.otpVerification.findFirst({
+      where: {
+        email,
+        otp: dto.otp,
+      },
+    });
+
+    if (!otpRecord) {
+      throw new UnauthorizedException('Invalid or expired OTP code');
+    }
+
+    if (otpRecord.expiresAt < new Date()) {
+      await this.prisma.otpVerification.delete({ where: { id: otpRecord.id } });
+      throw new UnauthorizedException('OTP code has expired. Please request a new one.');
+    }
+
+    const passwordHash = await bcrypt.hash(dto.newPassword, 10);
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { password: passwordHash },
+    });
+
+    await this.prisma.otpVerification.delete({
+      where: { id: otpRecord.id },
+    });
+
+    return { message: 'Password reset successfully', statusCode: 200 };
   }
 
 

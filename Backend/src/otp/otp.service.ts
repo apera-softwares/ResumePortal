@@ -52,12 +52,6 @@ export class OtpService {
       throw new BadRequestException('OTP expired');
     }
 
-    await this.prisma.otpVerification.delete({
-      where: {
-        id: record.id,
-      },
-    });
-
     const user = await this.prisma.user.findUnique({
       where: { email },
     });
