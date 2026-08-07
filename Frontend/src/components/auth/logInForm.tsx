@@ -102,7 +102,8 @@ export default function LogInForm() {
 
       if (typeof window !== "undefined") {
         localStorage.setItem("token", data.data.token);
-        document.cookie = `token=${data.data.token}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
+        const maxAgeStr = isChecked ? `max-age=${7 * 24 * 60 * 60}; ` : "";
+        document.cookie = `token=${data.data.token}; path=/; ${maxAgeStr}SameSite=Lax`;
         
         // Save complete user object to localStorage
         const userObj = {
@@ -206,7 +207,10 @@ export default function LogInForm() {
                 <div className="flex items-center justify-between animate-item">
                   <div className="flex items-center gap-3">
                     <Checkbox checked={isChecked} onChange={setIsChecked} />
-                    <span className="block font-normal text-gray-700 text-theme-sm dark:text-gray-400 cursor-pointer select-none">
+                    <span
+                      onClick={() => setIsChecked(!isChecked)}
+                      className="block font-normal text-gray-700 text-theme-sm dark:text-gray-400 cursor-pointer select-none"
+                    >
                       Keep me logged in
                     </span>
                   </div>
