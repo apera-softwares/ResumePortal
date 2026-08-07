@@ -312,6 +312,18 @@ export class UsersService {
     const exists = await this.prisma.user.findUnique({ where: { id } });
     if (!exists) throw new NotFoundException('User not found');
 
+    // 1. Unlink candidate profiles linked to this user
+    await this.prisma.candidate.updateMany({
+      where: { userId: id },
+      data: { userId: null },
+    });
+
+    // 2. Delete jobs created by this user
+    await this.prisma.job.deleteMany({
+      where: { createdById: id },
+    });
+
+    // 3. Delete the user
     await this.prisma.user.delete({ where: { id } });
     return { message: 'User deleted successfully', statusCode: 200 };
   }

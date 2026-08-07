@@ -170,7 +170,7 @@ export default function Joblisting({
             </svg>
           </div>
 
-          {role !== "CANDIDATE" && (
+          {(role === "ADMIN" || role === "HR") && (
             <button
               onClick={onCreateJob}
               className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition duration-200 cursor-pointer shrink-0"
@@ -329,7 +329,7 @@ export default function Joblisting({
                              </div>
                            </div>
                           
-                          {onEditJob && (
+                          {(role === "ADMIN" || role === "HR") && onEditJob && (
                             <div className="relative group shrink-0">
                               <button
                                 onClick={() => onEditJob(job)}
@@ -344,18 +344,20 @@ export default function Joblisting({
                             </div>
                           )}
 
-                          <div className="relative group shrink-0">
-                            <button
-                              onClick={() => handleDelete(job?.id)}
-                              className="p-1.5 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/30 dark:hover:bg-rose-950/50 text-rose-600 dark:text-rose-400 rounded-lg border border-rose-100/50 dark:border-rose-900/40 transition-all cursor-pointer"
-                            >
-                              <Trash className="h-3.5 w-3.5" />
-                            </button>
-                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2.5 px-2 py-1 rounded-lg bg-rose-600 text-white text-[10px] font-semibold whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 translate-y-1 group-hover:translate-y-0 transition-all duration-150 z-50 shadow-md">
-                              Delete Job
-                              <div className="absolute top-full left-1/2 -translate-x-1/2 border-[4px] border-transparent border-t-rose-600" />
+                          {(role === "ADMIN" || role === "HR") && (
+                            <div className="relative group shrink-0">
+                              <button
+                                onClick={() => handleDelete(job?.id)}
+                                className="p-1.5 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/30 dark:hover:bg-rose-950/50 text-rose-600 dark:text-rose-400 rounded-lg border border-rose-100/50 dark:border-rose-900/40 transition-all cursor-pointer"
+                              >
+                                <Trash className="h-3.5 w-3.5" />
+                              </button>
+                              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2.5 px-2 py-1 rounded-lg bg-rose-600 text-white text-[10px] font-semibold whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 translate-y-1 group-hover:translate-y-0 transition-all duration-150 z-50 shadow-md">
+                                Delete Job
+                                <div className="absolute top-full left-1/2 -translate-x-1/2 border-[4px] border-transparent border-t-rose-600" />
+                              </div>
                             </div>
-                          </div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -496,7 +498,7 @@ export default function Joblisting({
                                   </button>
                                 ) : (
                                   <>
-                                    {onEditJob && (
+                                    {(role === "ADMIN" || role === "HR") && onEditJob && (
                                       <div className="relative group">
                                         <button
                                           onClick={() => onEditJob(job)}
@@ -511,18 +513,20 @@ export default function Joblisting({
                                       </div>
                                     )}
 
-                                    <div className="relative group">
-                                      <button
-                                        onClick={() => handleDelete(job?.id)}
-                                        className="p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-rose-600 dark:text-rose-400 bg-rose-50/50 hover:bg-rose-100/70 dark:bg-rose-950/20 dark:hover:bg-rose-950/40 transition-all shadow-xs cursor-pointer"
-                                      >
-                                        <Trash className="h-4 w-4" />
-                                      </button>
-                                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2.5 px-2 py-1 rounded-lg bg-rose-600 text-white text-[10px] font-semibold whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 translate-y-1 group-hover:translate-y-0 transition-all duration-150 z-50 shadow-md">
-                                        Delete Job
-                                        <div className="absolute top-full left-1/2 -translate-x-1/2 border-[4px] border-transparent border-t-rose-600" />
+                                    {(role === "ADMIN" || role === "HR") && (
+                                      <div className="relative group">
+                                        <button
+                                          onClick={() => handleDelete(job?.id)}
+                                          className="p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-rose-600 dark:text-rose-400 bg-rose-50/50 hover:bg-rose-100/70 dark:bg-rose-950/20 dark:hover:bg-rose-950/40 transition-all shadow-xs cursor-pointer"
+                                        >
+                                          <Trash className="h-4 w-4" />
+                                        </button>
+                                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2.5 px-2 py-1 rounded-lg bg-rose-600 text-white text-[10px] font-semibold whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 translate-y-1 group-hover:translate-y-0 transition-all duration-150 z-50 shadow-md">
+                                          Delete Job
+                                          <div className="absolute top-full left-1/2 -translate-x-1/2 border-[4px] border-transparent border-t-rose-600" />
+                                        </div>
                                       </div>
-                                    </div>
+                                    )}
                                   </>
                                 )}
                               </div>

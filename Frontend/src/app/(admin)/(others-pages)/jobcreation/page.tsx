@@ -46,7 +46,7 @@ export default function JobsCreation() {
   useEffect(() => {
     const role = localStorage.getItem("role");
     setUserRole(role || "");
-    if (role !== "ADMIN" && role !== "HR" && role !== "CLIENT") {
+    if (role !== "ADMIN" && role !== "HR") {
       router.replace("/dashboard");
     } else {
       setAuthorized(true);

@@ -33,7 +33,7 @@ export class JobsController {
   @ApiOperation({ summary: 'Create a new job' })
   @ApiResponse({ status: 201, description: 'Job created successfully' })
   @UseGuards(AuthGuard)
-  @SetMetadata('roles', [Role.ADMIN, Role.HR, Role.CLIENT])
+  @SetMetadata('roles', [Role.ADMIN, Role.HR])
   @UseGuards(RoleGuard)
   async createJob(@Body() dto: CreateJobDto, @Request() req) {
     const userId = req.user.user;
@@ -91,7 +91,7 @@ export class JobsController {
   @ApiOperation({ summary: 'Update a job by ID' })
   @ApiResponse({ status: 200, description: 'Job updated successfully' })
   @UseGuards(AuthGuard)
-  @SetMetadata('roles', [Role.ADMIN, Role.HR, Role.CLIENT])
+  @SetMetadata('roles', [Role.ADMIN, Role.HR])
   @UseGuards(RoleGuard)
   update(@Param('id') id: string, @Body() updateJobDto: UpdateJobDto, @Request() req) {
     const userId = req.user.user;
@@ -104,7 +104,7 @@ export class JobsController {
   @ApiOperation({ summary: 'Delete a job by ID' })
   @ApiResponse({ status: 200, description: 'Job deleted successfully' })
   @UseGuards(AuthGuard)
-  @SetMetadata('roles', [Role.ADMIN, Role.HR, Role.CLIENT])
+  @SetMetadata('roles', [Role.ADMIN, Role.HR])
   @UseGuards(RoleGuard)
   async deleteJob(@Param('id') id: string, @Request() req) {
     const userId = req.user.user;

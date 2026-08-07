@@ -58,7 +58,7 @@ model Job {
   updatedAt      DateTime     @updatedAt
   appliedJobs    AppliedJob[]
   client         Client?      @relation(fields: [clientId], references: [id])
-  createdBy      User         @relation(fields: [createdById], references: [id])
+  createdBy      User         @relation(fields: [createdById], references: [id], onDelete: Cascade)
   location       Location?    @relation(fields: [locationId], references: [id])
   skills         JobSkill[]
 }
@@ -90,7 +90,7 @@ model Candidate {
   isPublic              Boolean          @default(false)
   userId                String?
   appliedJobs           AppliedJob[]
-  user                  User?            @relation(fields: [userId], references: [id])
+  user                  User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
   skills                CandidateSkill[]
   ResumeVersion         ResumeVersion[]
 }
