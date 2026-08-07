@@ -22,6 +22,7 @@ import { AuthGuard } from 'src/guards/auth.guard';
 import { UsersCreateDto } from 'src/Validations/users/users-create.dto';
 import { LoginDto } from 'src/Validations/users/login.dto';
 import { UsersUpdateDto } from 'src/Validations/users/users-update.dto';
+import { ResetPasswordDto } from 'src/Validations/otp/otp.dto';
 
 
 @ApiTags('Users')
@@ -56,6 +57,25 @@ export class UsersController {
       sameSite: 'lax',
       path: '/',
       maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+    return result;
+  }
+
+  @Post('reset-password')
+  @ApiOperation({ summary: 'Reset user password with verified OTP' })
+  @ApiResponse({ status: 200, description: 'Password reset successfully' })
+  @ApiResponse({ status: 400, description: 'Bad Request' })
+  @ApiResponse({ status: 401, description: 'Invalid or expired OTP' })
+  async resetPassword(
+    @Body() resetPasswordDto: ResetPasswordDto,
+    @Res({ passthrough: true }) response: any,
+  ) {
+    const result = await this.usersService.resetPassword(resetPasswordDto);
+    response.clearCookie('token', {
+      httpOnly: true,
+      secure: false,
+      sameSite: 'lax',
+      path: '/',
     });
     return result;
   }
