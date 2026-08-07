@@ -6,7 +6,7 @@ import { Modal } from "../ui/modal";
 import Label from "../form/Label";
 import Input from "../form/input/InputField";
 import toast from "react-hot-toast";
-import { Trash, SquarePen } from "lucide-react";
+import { Trash, SquarePen, Eye, EyeOff } from "lucide-react";
 import Select from "react-select";
 import { useTheme } from "@/context/ThemeContext";
 
@@ -59,6 +59,8 @@ export default function UsersTable({
     role: "",
     password: "",
   });
+
+  const [showPassword, setShowPassword] = useState(false);
 
   // Search & Filter states
   const [searchTerm, setSearchTerm] = useState("");
@@ -165,6 +167,7 @@ export default function UsersTable({
       role: user.role,
       password: "",
     });
+    setShowPassword(false);
     setShowMobileWarning(false);
     openModal();
   };
@@ -180,6 +183,7 @@ export default function UsersTable({
       role: "",
       password: "",
     });
+    setShowPassword(false);
     setShowMobileWarning(false);
     openModal();
   };
@@ -213,19 +217,14 @@ export default function UsersTable({
       return;
     }
 
-    if (!formData.firstName || !formData.email || !formData.mobile) {
-      toast.error("First Name, Email Address, and Mobile are required.");
-      return;
-    }
-
-    if (formData.mobile.length !== 10) {
-      toast.error("Mobile number must be exactly 10 digits.");
+    if (!selectedUser && !formData.password) {
+      toast.error("Password is required for creating a user.");
       return;
     }
 
     const token = localStorage.getItem("token");
 
-    const payload = {
+    const payload: any = {
       firstName: formData.firstName,
       lastName: formData.lastName,
       email: formData.email,
@@ -233,6 +232,10 @@ export default function UsersTable({
       companyName: formData.role === "CLIENT" ? formData.companyName : undefined,
       role: formData.role,
     };
+
+    if (formData.password) {
+      payload.password = formData.password;
+    }
 
     if (selectedUser) {
       const updateUrl = `${API_URL}/users/${selectedUser.id}`;
@@ -268,10 +271,7 @@ export default function UsersTable({
             'Authorization': `Bearer ${token}`,
             "Content-Type": "application/json"
           },
-          body: JSON.stringify({
-            ...payload,
-            password: formData.password || "Password123",
-          }),
+          body: JSON.stringify(payload),
         });
 
         if (!response.ok) {
@@ -377,8 +377,8 @@ export default function UsersTable({
       backgroundColor: isSelected
         ? '#2563eb'
         : isFocused
-        ? (isDark ? '#1f2937' : '#f3f4f6')
-        : (isDark ? '#111827' : '#ffffff'),
+          ? (isDark ? '#1f2937' : '#f3f4f6')
+          : (isDark ? '#111827' : '#ffffff'),
       color: isSelected ? '#ffffff' : (isDark ? '#f9fafb' : '#111827'),
       cursor: 'pointer',
       padding: '8px 12px',
@@ -689,7 +689,37 @@ export default function UsersTable({
                   value={formData.email}
                   onChange={handleChange}
                   required
+                  placeholder="Enter Email"
                 />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <Label>
+                  {selectedUser ? "New Password" : "Password"}{" "}
+                  {!selectedUser && <span className="text-rose-500">*</span>}
+                </Label>
+                <div className="relative">
+                  <Input
+                    name="password"
+                    type={showPassword ? "text" : "password"}
+                    value={formData.password}
+                    onChange={handleChange}
+                    required={!selectedUser}
+                    placeholder={selectedUser ? "Enter new password (optional)" : "Enter Password"}
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 focus:outline-none cursor-pointer"
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
               </div>
 
               <div className="flex flex-col gap-1.5">
@@ -704,24 +734,26 @@ export default function UsersTable({
                 />
                 {showMobileWarning && (
                   <span className="text-xs font-semibold text-rose-500 mt-1 flex items-center gap-1 animate-pulse">
-                    ⚠️ Enter only 10 digits
+                    Enter only 10 digits
                   </span>
                 )}
               </div>
+
+              {/* Company Name (for CLIENT role) */}
+              {formData.role === "CLIENT" && (
+                <div className="flex flex-col gap-1.5">
+                  <Label>Company Name</Label>
+                  <Input
+                    name="companyName"
+                    type="text"
+                    value={formData.companyName}
+                    onChange={handleChange}
+                  />
+                </div>
+              )}
             </div>
 
-            {/* Company Name (for CLIENT role) */}
-            {formData.role === "CLIENT" && (
-              <div className="flex flex-col gap-1.5">
-                <Label>Company Name</Label>
-                <Input
-                  name="companyName"
-                  type="text"
-                  value={formData.companyName}
-                  onChange={handleChange}
-                />
-              </div>
-            )}
+
 
             {/* Footer Buttons */}
             <div className="flex justify-end gap-3 mt-6">
