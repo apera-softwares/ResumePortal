@@ -3,6 +3,7 @@ import Input from "../form/input/InputField";
 import Label from "../form/Label";
 import { useState } from "react";
 import toast from "react-hot-toast";
+import { createCandidate } from "@/services/candidates.api";
 
 export default function ResumeUploadForm() {
   const [candidData, setcanditData] = useState<any[]>([]);
@@ -41,7 +42,6 @@ export default function ResumeUploadForm() {
 
   const handlSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const token = localStorage.getItem("token");
 
     const bodyData = new FormData();
     Object.entries(formData).forEach(([key, value]) => {
@@ -49,20 +49,9 @@ export default function ResumeUploadForm() {
     });
 
     try {
-       const API_URL = process.env.NEXT_PUBLIC_API_URL;
-      const response = await fetch(`${API_URL}/candidates/create`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token || ""}`,
-        },
-        body: bodyData,
-      });
-
-      if (!response.ok) throw new Error("Something went wrong");
-
-      const createdCandidate = await response.json();
+      const createdCandidate = await createCandidate(bodyData);
       setcanditData((prev) => [...(prev || []), createdCandidate]);
-      console.log(candidData,"im candidi data")
+      console.log(candidData, "im candidi data");
 
       setFormData({
         firstName: "",

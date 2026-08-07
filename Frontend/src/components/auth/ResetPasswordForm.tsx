@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation";
 import React, { useState } from "react";
 import toast from "react-hot-toast";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || (typeof window !== "undefined" ? `http://${window.location.hostname}:3003` : "http://localhost:3003");
+import { sendOtp, verifyOtp, resetPassword } from "@/services/auth.api";
 
 export default function ResetPasswordForm() {
   const router = useRouter();
@@ -27,17 +27,7 @@ export default function ResetPasswordForm() {
 
     setIsLoading(true);
     try {
-      const response = await fetch(`${API_URL}/otp/send`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim() }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Failed to send OTP");
-      }
-
+      await sendOtp({ email: email.trim() });
       toast.success("OTP sent to your email!");
       setStep("VERIFY_OTP");
     } catch (error: any) {
@@ -54,17 +44,7 @@ export default function ResetPasswordForm() {
 
     setIsLoading(true);
     try {
-      const response = await fetch(`${API_URL}/otp/verify`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim(), otp: otp.trim() }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Invalid OTP");
-      }
-
+      await verifyOtp({ email: email.trim(), otp: otp.trim() });
       toast.success("OTP verified! Please set your new password.");
       setStep("SET_NEW_PASSWORD");
     } catch (error: any) {
@@ -91,20 +71,11 @@ export default function ResetPasswordForm() {
 
     setIsLoading(true);
     try {
-      const response = await fetch(`${API_URL}/users/reset-password`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: email.trim(),
-          otp: otp.trim(),
-          newPassword,
-        }),
+      await resetPassword({
+        email: email.trim(),
+        otp: otp.trim(),
+        newPassword,
       });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Failed to reset password");
-      }
 
       toast.success("Password reset successfully!");
       window.location.href = "/login";

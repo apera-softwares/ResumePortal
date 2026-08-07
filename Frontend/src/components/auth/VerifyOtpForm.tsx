@@ -11,8 +11,7 @@ import Link from "next/link";
 import { ChevronLeftIcon } from "@/icons";
 import Button from "@/components/ui/button/Button";
 
-// Environment setup
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3003";
+import { verifyOtp, sendOtp } from "@/services/auth.api";
 
 // Zod Schema
 const otpSchema = z.object({
@@ -85,17 +84,16 @@ export default function VerifyOtpForm() {
 
     setIsVerifying(true);
     try {
-      // Use Axios as requested
-      const response = await axios.post(`${API_URL}/otp/verify`, {
+      const responseData = await verifyOtp({
         email,
         otp: data.otp,
       });
 
       // Show success
-      toast.success(response.data.message || "OTP verified successfully!");
+      toast.success(responseData.message || "OTP verified successfully!");
 
       if (typeof window !== "undefined") {
-        const userData = response.data.data;
+        const userData = responseData.data;
 
         let tokenToUse = "";
         if (userData && userData.token) {
@@ -166,8 +164,7 @@ export default function VerifyOtpForm() {
       router.push("/dashboard");
     } catch (error: any) {
       console.error("Verification failed:", error);
-      const errMessage = error.response?.data?.message || "Invalid or expired OTP. Please try again.";
-      toast.error(errMessage);
+      toast.error(error.message || "Invalid or expired OTP. Please try again.");
     } finally {
       setIsVerifying(false);
     }
@@ -178,7 +175,7 @@ export default function VerifyOtpForm() {
 
     setIsResending(true);
     try {
-      await axios.post(`${API_URL}/otp/send`, { email });
+      await sendOtp({ email });
       toast.success("A new OTP has been sent to your email!");
       setTimer(60);
       setCanResend(false);
@@ -186,7 +183,7 @@ export default function VerifyOtpForm() {
       setValue("otp", "");
       if (inputRefs.current[0]) inputRefs.current[0].focus();
     } catch (error: any) {
-      toast.error(error.response?.data?.message || "Failed to resend OTP");
+      toast.error(error.message || "Failed to resend OTP");
     } finally {
       setIsResending(false);
     }

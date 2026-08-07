@@ -10,7 +10,7 @@ import React, { useState, useEffect, useRef } from "react";
 import toast from "react-hot-toast";
 import { gsap } from "gsap";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || (typeof window !== "undefined" ? `http://${window.location.hostname}:3003` : "http://localhost:3003");
+import { loginUser } from "@/services/auth.api";
 
 export default function LogInForm() {
   const [showPassword, setShowPassword] = useState(false);
@@ -80,23 +80,9 @@ export default function LogInForm() {
     if (!validate()) return;
 
     setIsLoading(true);
-    const loginUrl = `${API_URL}/users/login`;
 
     try {
-      const response = await fetch(loginUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        body: JSON.stringify(formData),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Invalid credentials. Please try again.");
-      }
+      const data = await loginUser(formData);
 
       toast.success("Login successful! Redirecting to dashboard...");
 
