@@ -1,4 +1,4 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 
 const TOP_CITIES = [
@@ -36,31 +36,32 @@ const TOP_CITIES = [
 ];
 
 @Injectable()
-export class LocationsService implements OnModuleInit {
-  constructor(private readonly prisma: PrismaService) {}
+export class LocationsService {
 
-  async onModuleInit() {
-    await this.seedDefaultLocations();
-  }
+  constructor(private readonly prisma: PrismaService) { }
+
+  // async onModuleInit() {
+  //   await this.seedDefaultLocations();
+  // }
 
   /** Auto-seed top 30+ tech cities if missing in database */
-  async seedDefaultLocations() {
-    try {
-      const existing = await this.prisma.location.findMany({ select: { name: true } });
-      const existingNames = new Set(existing.map((l) => l.name.toLowerCase()));
+  // async seedDefaultLocations() {
+  //   try {
+  //     const existing = await this.prisma.location.findMany({ select: { name: true } });
+  //     const existingNames = new Set(existing.map((l) => l.name.toLowerCase()));
 
-      const missing = TOP_CITIES.filter((name) => !existingNames.has(name.toLowerCase()));
-      if (missing.length > 0) {
-        await this.prisma.location.createMany({
-          data: missing.map((name) => ({ name })),
-          skipDuplicates: true,
-        });
-        console.log(`[LocationsService] Auto-seeded ${missing.length} top tech cities.`);
-      }
-    } catch (error) {
-      console.error('[LocationsService] Error seeding default locations:', error);
-    }
-  }
+  //     const missing = TOP_CITIES.filter((name) => !existingNames.has(name.toLowerCase()));
+  //     if (missing.length > 0) {
+  //       await this.prisma.location.createMany({
+  //         data: missing.map((name) => ({ name })),
+  //         skipDuplicates: true,
+  //       });
+  //       console.log(`[LocationsService] Auto-seeded ${missing.length} top tech cities.`);
+  //     }
+  //   } catch (error) {
+  //     console.error('[LocationsService] Error seeding default locations:', error);
+  //   }
+  // }
 
   async findAll(page?: number, limit?: number, search?: string) {
     // Validate & sanitize pagination inputs
@@ -92,7 +93,7 @@ export class LocationsService implements OnModuleInit {
 
     // Fallback: If DB total is 0, attempt auto-seeding on-demand and retry
     if (total === 0 && (!search || search.trim() === '')) {
-      await this.seedDefaultLocations();
+      // await this.seedDefaultLocations();
       [locations, total] = await Promise.all([
         this.prisma.location.findMany({
           where,

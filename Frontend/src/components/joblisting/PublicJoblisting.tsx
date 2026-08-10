@@ -221,8 +221,17 @@ export default function PublicJoblisting() {
     return { gradient, initial };
   };
 
-  // List of unique locations & types for autofill dropdowns
-  const uniqueLocations = ["REMOTE", "MUMBAI", "DELHI", "BANGALORE", "HYDERABAD", "CHENNAI", "PUNE"];
+  // List of unique locations for autofill dropdowns
+  const uniqueLocations = ["Remote", "Mumbai", "Delhi", "Bangalore", "Hyderabad", "Chennai", "Pune"];
+  // Job type options with backend enum values and user-friendly labels
+  const jobTypeOptions = [
+    { value: "All", label: "All Jobs" },
+    { value: "FULL_TIME", label: "Full Time" },
+    { value: "INTERN", label: "Intern" },
+    { value: "CONTRACT", label: "Contract" },
+    { value: "FREELANCING", label: "Freelancing" },
+  ];
+  const jobTypeMap: any = jobTypeOptions.reduce((acc, opt) => ({ ...acc, [opt.value]: opt.label }), {});
   const uniqueTypes = ["FULL_TIME", "INTERN", "CONTRACT", "FREELANCING"];
 
   // GSAP animation on mount
@@ -327,10 +336,7 @@ export default function PublicJoblisting() {
                   instanceId="public-job-type-select"
                   value={searchType ? { value: searchType, label: searchType === "All" ? "All Job Types" : searchType } : null}
                   onChange={(selected: any) => setSearchType(selected ? selected.value : "All")}
-                  options={[
-                    { value: "All", label: "All Job Types" },
-                    ...uniqueTypes.map((type) => ({ value: type, label: type }))
-                  ]}
+                  options={jobTypeOptions.map(opt => ({ value: opt.value, label: opt.label }))}
                   styles={selectStyles}
                   placeholder="Select Job Type"
                   isSearchable
@@ -359,13 +365,13 @@ export default function PublicJoblisting() {
             >
               All Jobs
             </button>
-            {uniqueTypes.slice(0, 4).map((type, idx) => (
+            {jobTypeOptions.slice(1).map((opt, idx) => (
               <button 
                 key={idx}
-                onClick={() => handleBadgeClick(type)}
-                className={`px-4 py-1.5 rounded-full border transition-all text-xs font-semibold ${searchType.toLowerCase() === type.toLowerCase() ? 'bg-blue-600 border-blue-600 text-white shadow-sm' : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'}`}
+                onClick={() => handleBadgeClick(opt.value)}
+                className={`px-4 py-1.5 rounded-full border transition-all text-xs font-semibold ${searchType === opt.value ? 'bg-blue-600 border-blue-600 text-white shadow-sm' : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'}`}
               >
-                {type}
+                {opt.label}
               </button>
             ))}
           </div>
@@ -427,7 +433,7 @@ export default function PublicJoblisting() {
                             {initial}
                           </div>
                           <span className="text-[10px] font-bold px-2.5 py-0.5 bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 rounded-full border border-blue-100 dark:border-blue-900/30">
-                            {job.type}
+                            {jobTypeMap[job.type] || job.type}
                           </span>
                         </div>
 
@@ -539,7 +545,7 @@ export default function PublicJoblisting() {
                                     {job.title}
                                   </span>
                                   <span className="text-xs text-gray-500 dark:text-gray-400">
-                                    {job.client}
+                                    {jobTypeMap[job.type] || job.type}
                                   </span>
                                 </div>
                               </div>
@@ -548,7 +554,7 @@ export default function PublicJoblisting() {
                             {/* Job Type */}
                             <td className="px-6 py-4 text-start">
                               <span className="text-[10px] font-bold px-2.5 py-1 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 rounded-full border border-blue-100 dark:border-blue-900/30">
-                                {job.type}
+                                {jobTypeMap[job.type] || job.type}
                               </span>
                             </td>
 
