@@ -3,7 +3,6 @@ import {
   S3Client,
   ListObjectsV2Command,
   GetObjectCommand,
-  PutObjectCommand,
 } from '@aws-sdk/client-s3';
 import { PrismaService } from 'src/prisma.service';
 import { DeepSeekService, ParsedResumeResult } from 'src/utils/deepseek.service';
@@ -198,31 +197,9 @@ export class MigrationService {
 
     // 3. Send text to DeepSeek AI API to extract Name, Email, Contact, Skills
     this.logger.log(`Sending extracted text from "${filename}" to DeepSeek AI...`);
-    const parsedData = await this.deepSeekService.parseResumeText(rawText);
+    const parsedData = await this.deepSeekService.parseResumeSources({ htmlText: rawText });
 
-    // 4. Save Parsed JSON result back to Cloudflare R2 bucket under migration/parsed/
-    // const r2JsonPath = key.replace(/\.pdf$/i, '.json').replace(/^migration\//, 'migration/parsed/');
-    // const jsonOutput = {
-    //   filename,
-    //   originalKey: key,
-    //   parsedAt: new Date().toISOString(),
-    //   candidate: parsedData,
-    // };
-
-    // try {
-    //   const putCommand = new PutObjectCommand({
-    //     Bucket: this.bucketName,
-    //     Key: r2JsonPath,
-    //     Body: JSON.stringify(jsonOutput, null, 2),
-    //     ContentType: 'application/json',
-    //   });
-    //   await this.s3Client.send(putCommand);
-    //   this.logger.log(`Saved parsed JSON to R2 bucket path: "${r2JsonPath}"`);
-    // } catch (r2SaveErr: any) {
-    //   this.logger.error(`Failed to save JSON to R2: ${r2SaveErr?.message || r2SaveErr}`);
-    // }
-
-    // 5. Save candidate record into PostgreSQL Database via Prisma
+    // 4. Save candidate record into PostgreSQL Database via Prisma
     let candidateId: string | undefined;
     try {
       const fullName = parsedData.name || filename.replace(/\.pdf$/i, '');

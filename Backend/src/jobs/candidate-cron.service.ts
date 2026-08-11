@@ -1,7 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from 'src/prisma.service';
-import { DeepSeekService } from 'src/utils/deepseek.service';
+import { DeepSeekService, ResumeTextSources } from 'src/utils/deepseek.service';
 import { S3Client, ListObjectsV2Command, GetObjectCommand, DeleteObjectCommand, CopyObjectCommand } from '@aws-sdk/client-s3';
 import { join, extname, basename } from 'path';
 import * as fs from 'fs';
@@ -27,18 +27,7 @@ async function streamToBuffer(stream: any): Promise<Buffer> {
     });
 }
 
-function cleanPdftohtmlOutline(html: string): string {
-    if (!html) return html;
-    return html
-        .replace(/<style[\s\S]*?<\/style>/gi, '')
-        .replace(/<script[\s\S]*?<\/script>/gi, '')
-        .replace(/<!--[\s\S]*?-->/g, '')
-        .replace(/<[^>]+>/g, ' ')
-        .replace(/&#160;/g, ' ')
-        .replace(/&nbsp;/gi, ' ')
-        .replace(/\s+/g, ' ')
-        .trim();
-}
+
 
 @Injectable()
 export class CandidateCronService {
@@ -61,7 +50,6 @@ export class CandidateCronService {
         const tempDir = join(os.tmpdir(), 'cron_resume_temp');
         if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
 
-        //const prefixes = ['migration/', 'migrations/'];
         const prefix = `${process.env.S3_MIGRATION_FOLDER}/`;
 
         try {
@@ -98,38 +86,68 @@ export class CandidateCronService {
                     tempFilePath = join(tempDir, `${Date.now()}_${fileNameOnly}`);
                     fs.writeFileSync(tempFilePath, fileBuffer);
 
-                    let resumeText = '';
+                    let resumeText = ''; // primary display text (HTML)
+                    const resumeSources: ResumeTextSources = {};
 
                     // 2. Text extraction based on file extension
                     if (fileExtension === '.pdf') {
+                        // ── Source A: pdftohtml (HTML — good layout, can mangle emails) ──
                         tempHtmlPath = join(tempDir, `${Date.now()}_${fileNameOnly.replace(/\.pdf$/i, '.html')}`);
                         try {
                             const command = `pdftohtml -s -noframes -c -dataurls "${tempFilePath}" "${tempHtmlPath}"`;
                             execSync(command);
-
                             if (fs.existsSync(tempHtmlPath)) {
                                 resumeText = fs.readFileSync(tempHtmlPath, 'utf8');
+                                resumeSources.htmlText = resumeText;
                             }
                         } catch (pdfErr: any) {
                             this.logger.error(`pdftohtml failed for "${s3Key}": ${pdfErr?.message}`);
                         }
+
+                        // ── Source B: pdf-parse (raw text stream — most accurate emails) ──
+                        try {
+                            const pdfParseLib = require('pdf-parse');
+                            const pdfData = await pdfParseLib(fileBuffer);
+                            if (pdfData?.text) {
+                                resumeSources.plainText = pdfData.text.trim();
+                                this.logger.log(`pdf-parse extracted ${resumeSources.plainText?.length ?? 0} chars for "${s3Key}".`);
+                            }
+                        } catch (ppErr: any) {
+                            this.logger.warn(`pdf-parse failed for "${s3Key}": ${ppErr?.message}`);
+                        }
+
+                        // ── Source C: pdftotext CLI (fallback — different algorithm) ──
+                        try {
+                            const pdftotextOut = execSync(`pdftotext "${tempFilePath}" -`, { maxBuffer: 10 * 1024 * 1024 }).toString();
+                            if (pdftotextOut?.trim()) {
+                                resumeSources.pdfTextFallback = pdftotextOut.trim();
+                                this.logger.log(`pdftotext extracted ${resumeSources.pdfTextFallback.length} chars for "${s3Key}".`);
+                            }
+                        } catch (ptErr: any) {
+                            this.logger.warn(`pdftotext failed for "${s3Key}": ${ptErr?.message}`);
+                        }
+
                     } else if (fileExtension === '.docx' || fileExtension === '.doc') {
                         try {
                             const res = await mammoth.convertToHtml({ path: tempFilePath });
                             resumeText = res.value ? res.value.trim() : '';
+                            resumeSources.docxHtml = resumeText;
                         } catch (docErr: any) {
                             this.logger.error(`Mammoth extraction failed for "${s3Key}": ${docErr?.message}`);
                         }
                     }
 
-                    if (!resumeText) {
+                    const hasAnySource = resumeSources.htmlText || resumeSources.plainText ||
+                        resumeSources.pdfTextFallback || resumeSources.docxHtml;
+
+                    if (!hasAnySource) {
                         this.logger.warn(`No text could be extracted from "${s3Key}". Skipping AI parsing.`);
                         continue;
                     }
 
-                    // 3. AI DeepSeek Parsing
-                    this.logger.log(`Parsing resume text with DeepSeek AI for "${s3Key}"...`);
-                    const parsedJson = await this.deepSeekService.parseResumeText(resumeText);
+                    // 3. AI DeepSeek Parsing (multi-source)
+                    this.logger.log(`Parsing resume sources with DeepSeek AI for "${s3Key}"...`);
+                    const parsedJson = await this.deepSeekService.parseResumeSources(resumeSources);
 
                     const rawName = parsedJson?.name?.trim() || '';
                     let firstName = 'Migration';
@@ -146,28 +164,26 @@ export class CandidateCronService {
 
 
                     const extractedEmail = parsedJson?.email?.trim() || '';
-                    const candidateEmail = extractedEmail || `NA`;
                     const candidateMobile = parsedJson?.contact?.trim() || null;
                     const resumeJsonStr = JSON.stringify(parsedJson);
 
-                    const newFileName = `${firstName}_${Date.now()}${fileExtension}`
+                    const newFileName = `${firstName}_${Date.now()}${fileExtension}`;
 
                     // 4. Save/Upsert Candidate in Database
-                    // Match candidate by s3Key, baseKey, fileNameOnly, or extracted email
-                    // const searchConditions: any[] = [
-                    //     { resume: s3Key },
-                    //     { resume: `resumes/${fileNameOnly}` },
-                    //     { resume: fileNameOnly },
-                    // ];
-                    // if (extractedEmail) {
-                    //     searchConditions.push({ email: extractedEmail });
-                    // }
+                    // If no email was extracted (e.g. image-based PDF), generate a unique
+                    // placeholder so we never collide on the email unique constraint.
+                    const hasEmail = extractedEmail.length > 0;
+                    const candidateEmail = hasEmail
+                        ? extractedEmail
+                        : `no-email-${Date.now()}-${Math.random().toString(36).slice(2)}@migration.local`;
 
-                    let candidate = await this.prisma.candidate.findFirst({
-                        where: { email: extractedEmail },
-                    });
+                    // Only look up by email when we actually have one; otherwise always create.
+                    const existingCandidate = hasEmail
+                        ? await this.prisma.candidate.findFirst({ where: { email: extractedEmail } })
+                        : null;
 
-                    if (!candidate) {
+                    let candidate;
+                    if (!existingCandidate) {
                         candidate = await this.prisma.candidate.create({
                             data: {
                                 firstName,
@@ -181,20 +197,20 @@ export class CandidateCronService {
                                 resumeJson: resumeJsonStr,
                             },
                         });
-                        this.logger.log(`Created new candidate ID "${candidate.id}" with parsed resumeText (${resumeText.length} chars) and resumeJson.`);
+                        this.logger.log(`Created new candidate ID "${candidate.id}" for "${firstName} ${lastName}" (Email: ${candidateEmail}).`);
                     } else {
                         candidate = await this.prisma.candidate.update({
-                            where: { id: candidate.id },
+                            where: { id: existingCandidate.id },
                             data: {
                                 firstName,
                                 lastName,
                                 resume: `${process.env.S3_RESUME_FOLDER}/${newFileName}`,
-                                mobile: candidateMobile || candidate.mobile,
+                                mobile: candidateMobile || existingCandidate.mobile,
                                 resumeText,
                                 resumeJson: resumeJsonStr,
                             },
                         });
-                        this.logger.log(`Updated existing candidate ID "${candidate.id}" with parsed resumeText (${resumeText.length} chars) and resumeJson.`);
+                        this.logger.log(`Updated existing candidate ID "${candidate.id}" for "${firstName} ${lastName}" (Email: ${candidateEmail}).`);
                     }
 
                     // 5. Connect extracted skills
