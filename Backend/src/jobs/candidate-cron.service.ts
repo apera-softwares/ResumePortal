@@ -27,8 +27,6 @@ async function streamToBuffer(stream: any): Promise<Buffer> {
     });
 }
 
-
-
 @Injectable()
 export class CandidateCronService {
     private readonly logger = new Logger(CandidateCronService.name);
@@ -38,7 +36,7 @@ export class CandidateCronService {
         private deepSeekService: DeepSeekService,
     ) { }
 
-    @Cron(CronExpression.EVERY_MINUTE)
+    // @Cron(CronExpression.EVERY_MINUTE)
     async handleCron() {
         this.logger.log('Starting automated migration resume parsing cron task...');
 
