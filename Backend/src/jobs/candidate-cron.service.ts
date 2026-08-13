@@ -62,17 +62,24 @@ export class CandidateCronService {
         if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
 
         //const prefixes = ['migration/', 'migrations/'];
-        const prefix = `${process.env.S3_MIGRATION_FOLDER}/`;
+        // const prefix = `${process.env.S3_MIGRATION_FOLDER}/`;
+        const prefix = process.env.NODE_ENV == `local` ? `local-dev-test/` : `${process.env.S3_MIGRATION_FOLDER}/`;
 
         try {
             const listCmd = new ListObjectsV2Command({
                 Bucket: process.env.S3_BUCKET,
                 Prefix: prefix,
-                MaxKeys: 3,
+                MaxKeys: 30,
             });
             const s3Res = await s3Client.send(listCmd);
             const objects = s3Res.Contents || [];
             console.log(objects, "objects")
+
+            if (objects.length <= 1) {
+                this.logger.log(`No migration files found in S3 bucket under prefix "${prefix}".`);
+                return;
+            }
+
 
             for (const obj of objects) {
                 if (!obj.Key || obj.Key.endsWith('/') || obj.Key.endsWith('.keep')) continue;
@@ -84,6 +91,7 @@ export class CandidateCronService {
                 let tempHtmlPath: string | null = null;
 
                 try {
+
                     // 1. Download file buffer from S3
                     const getCommand = new GetObjectCommand({
                         Bucket: process.env.S3_BUCKET,
@@ -255,6 +263,25 @@ export class CandidateCronService {
 
                 } catch (fileErr: any) {
                     this.logger.error(`Error processing S3 file "${s3Key}": ${fileErr?.message || fileErr}`);
+
+                    const bucketName = process.env.S3_BUCKET;
+                    const destinationKey = `error/${s3Key}`;
+                    const copyCommand = new CopyObjectCommand({
+                        Bucket: process.env.S3_BUCKET,
+                        CopySource: `${bucketName}/${s3Key}`,
+                        Key: destinationKey,
+                    });
+                    await s3Client.send(copyCommand);
+                    console.log("Successfully copied to error folder");
+
+                    // 6. Delete processed file from S3 bucket
+                    this.logger.log(`Deleting processed PDF file from S3: "${s3Key}"...`);
+                    const deleteCommand = new DeleteObjectCommand({
+                        Bucket: process.env.S3_BUCKET,
+                        Key: s3Key,
+                    });
+                    await s3Client.send(deleteCommand);
+
                 } finally {
                     if (tempFilePath && fs.existsSync(tempFilePath)) {
                         try { fs.unlinkSync(tempFilePath); } catch (e) { }

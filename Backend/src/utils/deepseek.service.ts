@@ -62,7 +62,8 @@ You MUST return ONLY a valid JSON object matching this schema:
   "name": "Candidate Full Name or null",
   "email": "Candidate Email or null",
   "contact": "Candidate Phone/Mobile number or null",
-  "skills": ["Skill 1", "Skill 2", "Skill 3"]
+  "skills": ["Skill 1", "Skill 2", "Skill 3"],
+  "experience": "Candidate years of experience in number"
 }
 Do not include markdown code block ticks (\`\`\`) in the response if possible, just standard JSON.`;
 

@@ -9,9 +9,8 @@ export class MigrationController {
 
   @Post('process-r2')
   @ApiOperation({ summary: 'Trigger migration parsing for all PDFs in Cloudflare R2 migration folder using DeepSeek AI' })
-  async triggerR2Migration(@Query('folder') folder?: string) {
-    const folderPrefix = folder || `${process.env.S3_MIGRATION_FOLDER}/`;
-    return await this.migrationService.processR2Migration(folderPrefix);
+  async triggerR2Migration() {
+    return await this.migrationService.processR2Migration();
   }
 
   @Get('list-r2')

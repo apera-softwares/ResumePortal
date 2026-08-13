@@ -10,6 +10,7 @@ import { DeepSeekService, ParsedResumeResult } from 'src/utils/deepseek.service'
 import { join, basename } from 'path';
 import * as fs from 'fs';
 import { execSync } from 'child_process';
+import { OnEvent } from '@nestjs/event-emitter';
 
 async function streamToBuffer(stream: any): Promise<Buffer> {
   return new Promise((resolve, reject) => {
@@ -54,16 +55,29 @@ export class MigrationService {
   /**
    * Process all PDFs in toptalent/migration folder
    */
-  async processR2Migration(folderPrefix = `${process.env.S3_MIGRATION_FOLDER}/`): Promise<{
+  @OnEvent('migration.start')
+
+
+
+
+
+
+
+
+  async processR2Migration(): Promise<{
     totalPDFs: number;
     processed: number;
     successful: number;
     failed: number;
     results: MigrationFileResult[];
   }> {
+    const folderPrefix = process.env.NODE_ENV == `local` ? `local-dev-test/` : `${process.env.S3_MIGRATION_FOLDER}/`;
     this.logger.log(
       `Starting R2 Migration for bucket: "${this.bucketName}", folder: "${folderPrefix}"`,
     );
+
+
+    const fetchLimit = 30;
 
     const pdfKeys = await this.listPDFsInFolder(folderPrefix);
     this.logger.log(`Found ${pdfKeys.length} PDF files in R2 "${folderPrefix}" folder.`);
@@ -71,6 +85,12 @@ export class MigrationService {
     const results: MigrationFileResult[] = [];
     let successful = 0;
     let failed = 0;
+
+    console.log(pdfKeys, "pdfKeys")
+    if (pdfKeys.length) {
+      process.exit();
+    }
+
 
     for (const key of pdfKeys) {
       this.logger.log(`---> Processing PDF: ${key}`);
@@ -110,18 +130,19 @@ export class MigrationService {
   /**
    * List all PDF files inside R2 folder (default: migration/)
    */
-  async listPDFsInFolder(prefix: string): Promise<string[]> {
+  async listPDFsInFolder(prefix: string, limit = 30): Promise<string[]> {
     try {
       const command = new ListObjectsV2Command({
         Bucket: this.bucketName,
         Prefix: prefix,
+        MaxKeys: limit,
       });
       const response = await this.s3Client.send(command);
 
       if (!response.Contents) return [];
 
       return response.Contents.map((item) => item.Key!)
-        .filter((key) => key && key.toLowerCase().endsWith('.pdf'));
+        .filter((key) => key && (key.toLowerCase().endsWith('.pdf') || key.toLowerCase().endsWith('.doc') || key.toLowerCase().endsWith('.docx')));
     } catch (error: any) {
       this.logger.error(`Error listing R2 bucket objects: ${error?.message || error}`);
       throw error;

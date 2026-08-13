@@ -20,7 +20,8 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "migrate:resumes": "ts-node -r tsconfig-paths/register bin/migrate-r2-resumes.ts",
-    "migrate:resume": "ts-node -r tsconfig-paths/register bin/migrate-r2-resumes.ts"
+    "migrate:resume": "ts-node -r tsconfig-paths/register bin/migrate-r2-resumes.ts",
+    "db:migrate": "npx prisma db push"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1086.0",
